@@ -259,8 +259,6 @@ class Mod:
         self.section_code: SectionCode = None
         self.section_data: SectionData = None
 
-        self.name
-
     @classmethod
     def from_byte(cls, r: bytes):
         mod = Mod()
@@ -355,13 +353,35 @@ class Interpreter:
 class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
+        self.stack = wasmi.stack.Stack()
 
-    def exec_i(self, i: int, data: typing.List[int]):
+    def exec_i(self, i: int, data: typing.List[wasmi.stack.Entry]):
         function = self.mod.section_function.entries[i]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[function]
-        it = Interpreter(function_body, data)
-        return it.exec()
+        code = function_body.body
 
-    def exec(self, name: str, data: typing.List[int]):
-        pass
+        pc = 0
+        for _ in range(1 << 32):
+            opcode = code[pc]
+            pc += 1
+            if opcode == wasmi.opcodes.GET_LOCAL:
+                n, i = get_u32_leb128(code[pc:])
+                pc += n
+                self.stack.add(data[i])
+                continue
+            if opcode == wasmi.opcodes.I32_ADD:
+                a = self.stack.pop_i32()
+                b = self.stack.pop_i32()
+                self.stack.add_i32(a + b)
+                continue
+            if opcode == wasmi.opcodes.END:
+                data = self.stack.pop()
+                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I32:
+                    return data.into_i32()
+                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I64:
+                    return data.into_i64()
+                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F32:
+                    return data.into_f32()
+                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F64:
+                    return data.into_f64()
