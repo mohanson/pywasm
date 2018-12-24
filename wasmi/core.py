@@ -1,10 +1,9 @@
-import io
 import struct
 import typing
-import textwrap
 
-import wasmi.leb128
 import wasmi.log
+import wasmi.opcodes
+import wasmi.stack
 
 MAGIC_NUMBER = 0x6d736100
 VERSION = 0x1
@@ -260,6 +259,8 @@ class Mod:
         self.section_code: SectionCode = None
         self.section_data: SectionData = None
 
+        self.name
+
     @classmethod
     def from_byte(cls, r: bytes):
         mod = Mod()
@@ -320,3 +321,47 @@ class Mod:
             if e.id == SECTION_ID_DATA:
                 pass
         return mod
+
+
+class Interpreter:
+    def __init__(self, code: bytes, data: typing.List[int]):
+        self.code = code
+        self.data = data
+        self.stack = wasmi.stack.Stack()
+        self.pc = 0
+        self.dict = {}
+        self.dict[wasmi.opcodes.I32_ADD] = self.opcode_i32_add
+        self.dict[wasmi.opcodes.GET_LOCAL] = self.opcode_get_local
+        self.dict[wasmi.opcodes.END] = self.opcode_end
+
+    def exec(self):
+        for _ in range(1 << 32):
+            opcode = self.code[self.pc]
+            self.pc += 1
+
+    def opcode_i32_add(self):
+        pass
+
+    def opcode_get_local(self):
+        data = self.code[self.pc:self.pc + 4]
+        self.pc += 4
+        i = get_u32(data)
+        self.stack.push_u64(self.data[i])
+
+    def opcode_end(self):
+        self.stack.pop_u64()
+
+
+class Vm:
+    def __init__(self, mod: Mod):
+        self.mod = mod
+
+    def exec_i(self, i: int, data: typing.List[int]):
+        function = self.mod.section_function.entries[i]
+        function_signature = self.mod.section_type.entries[function]
+        function_body = self.mod.section_code.entries[function]
+        it = Interpreter(function_body, data)
+        return it.exec()
+
+    def exec(self, name: str, data: typing.List[int]):
+        pass
