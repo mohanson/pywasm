@@ -465,9 +465,24 @@ class SectionExport:
         return sec
 
 
-# class SectionStart:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionStart:
+    def __init__(self, father: Section):
+        self.father = father
+        self.idx: int
+
+    def __repr__(self):
+        name = 'SectionStart'
+        seps = []
+        seps.append(f'idx={self.idx}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionStart(f)
+        r = io.BytesIO(f.raw)
+        _, idx = wasmi.common.read_u32_leb128(r)
+        sec.idx = idx
+        return sec
 
 
 # class SectionElement:
