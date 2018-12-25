@@ -46,11 +46,17 @@ class Expression:
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
         for _ in range(1 << 32):
-            b = r.read(1)
-            if not b:
+            op = r.read(1)
+            if not op:
                 break
-            data.append(ord(b))
-            if b == wasmi.opcodes.END:
+            data.extend(op)
+            if op in [wasmi.opcodes.VALUE_TYPE_I32, wasmi.opcodes.VALUE_TYPE_F32, wasmi.opcodes.GET_LOCAL]:
+                data.extend(r.read(4))
+                continue
+            if op in [wasmi.opcodes.VALUE_TYPE_I64, wasmi.opcodes.VALUE_TYPE_F64]:
+                data.extend(r.read(8))
+                continue
+            if op == wasmi.opcodes.END:
                 break
         return Expression(bytes(data))
 
@@ -166,37 +172,26 @@ class Code:
 
 
 class Data:
-    def __init__(self, idx: int, offset: bytes, data: bytes):
+    def __init__(self, idx: int, expression: Expression, init: bytes):
         self.idx = idx
-        self.offset = offset
-        self.data = data
+        self.expression = expression
+        self.init = init
 
     def __repr__(self):
         name = 'Data'
         seps = []
         seps.append(f'idx={self.idx}')
-        seps.append(f'offset=0x{self.offset.hex()}')
-        seps.append(f'data=0x{self.data.hex()}')
+        seps.append(f'expression=0x{self.expression.hex()}')
+        seps.append(f'init=0x{self.init.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         idx = wasmi.common.read_u32_leb128(r)
-        offset: bytes = b''
-        for _ in range(1 << 32):
-            op = r.read(1)
-            offset += op
-            if op in [wasmi.opcodes.VALUE_TYPE_I32, wasmi.opcodes.VALUE_TYPE_F32, wasmi.opcodes.GET_LOCAL]:
-                data = r.read(4)
-                offset += data
-            if op in [wasmi.opcodes.VALUE_TYPE_I64, wasmi.opcodes.VALUE_TYPE_F64]:
-                data = r.read(8)
-                offset += data
-            if op == wasmi.opcodes.END:
-                break
+        expression = Expression.from_reader(r)
         n = wasmi.common.read_u32_leb128(r)
-        data = r.read(n)
-        return Data(idx, offset, data)
+        init = r.read(n)
+        return Data(idx, expression, init)
 
 
 class Table:
@@ -232,6 +227,65 @@ class Memory:
     def from_reader(cls, r: typing.BinaryIO):
         limit = Limit.from_reader(r)
         return Memory(limit)
+
+
+class Import:
+    def __init__(self, kind: int, module: str, name: str):
+        self.kind = kind
+        self.module = module
+        self.name = name
+        self.description = None
+
+    def __repr__(self):
+        name = 'Import'
+        seps = []
+        seps.append(f'kind={self.kind}')
+        seps.append(f'module={self.module}')
+        seps.append(f'name={self.name}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        _, n = wasmi.common.read_u32_leb128(r)
+        module = r.read(n).decode()
+        _, n = wasmi.common.read_u32_leb128(r)
+        name = r.read(n).decode()
+        kind = ord(r.read(1))
+        r = Import(kind, module, name)
+        if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
+            _, idx = wasmi.common.read_u32_leb128(r)
+            r.description = idx
+        if kind == wasmi.opcodes.EXTERNAL_TABLE:
+            r.description = Table.from_reader(r)
+        if kind == wasmi.opcodes.EXTERNAL_MEMORY:
+            r.description = Memory.from_reader(r)
+        if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
+            r.description = Global.from_reader(r)
+        return r
+
+
+class Element:
+    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
+        self.idx = idx
+        self.expression = expression
+        self.init = init
+
+    def __repr__(self):
+        name = 'Element'
+        seps = []
+        seps.append(f'idx={self.idx}')
+        seps.append(f'expression={self.expression}')
+        seps.append(f'init={self.init}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        _, idx = wasmi.common.read_u32_leb128(r)
+        expression = Expression.from_reader(r)
+        _, n = wasmi.common.read_u32_leb128(r)
+        init = [ord(e) for e in r.read(n)]
+        return Element(idx, expression, init)
+
 
 # -----------------------------------------------------------------------------
 # Binary Format Section
@@ -311,64 +365,25 @@ class SectionType:
         return sec
 
 
-# class ImportEntry:
-#     def __init__(self, module: str, field: str, kind: int):
-#         self.module = module
-#         self.field = field
-#         self.kind = kind
-#         self.description = None
+class SectionImport:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Import] = []
 
+    def __repr__(self):
+        name = 'SectionImport'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
 
-# class ImportDescriptionFunction:
-#     def __init__(self, idx: int):
-#         self.idx = idx
-
-
-# class ImportDescriptionTable:
-#     def __init__(self):
-#         pass
-
-
-# class ImportDescriptionMemory:
-#     def __init__(self):
-#         pass
-
-
-# class ImportDescriptionGlobal:
-#     def __init__(self):
-#         pass
-
-
-# class SectionImport:
-#     def __init__(self, father: Section):
-#         self.father = father
-#         self.entries: typing.List[ImportEntry] = []
-#         pos = 0
-
-#         n, n_import = wasmi.common.decode_u32_leb128(self.father.raw[pos:])
-#         pos += n
-#         for _ in range(n_import):
-#             n, n_name = wasmi.common.decode_u32_leb128(self.father.raw[pos:])
-#             pos += n
-#             name = self.father.raw[pos:pos + n_name].decode()
-#             pos += n_name
-
-#             n, n_field = wasmi.common.decode_u32_leb128(self.father.raw[pos:])
-#             pos += n
-#             field = self.father.raw[pos:pos + n_field].decode()
-#             pos += n_field
-
-#             kind = self.father.raw[pos]
-#             pos += 1
-
-#             if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
-#                 pass
-#             if kind == wasmi.opcodes.EXTERNAL_TABLE:
-#                 pass
-#             if kind == wasmi.opcodes.EXTERNAL_MEMORY:
-#                 pass
-#             if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
-#                 pass
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionImport(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            sec.entries.append(Import.from_read(r))
+        return sec
 
 
 class SectionFunction:
@@ -503,9 +518,26 @@ class SectionStart:
         return sec
 
 
-# class SectionElement:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionElement:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Element] = []
+
+    def __repr__(self):
+        name = 'SectionElement'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionElement(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            element = Element.from_reader(r)
+            sec.entries.append(element)
+        return sec
 
 
 class SectionCode:

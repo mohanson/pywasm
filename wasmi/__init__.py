@@ -15,14 +15,14 @@ class Mod:
 
         self.section_unknown: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
-        # self.section_import: SectionImport = None
+        self.section_import: wasmi.section.SectionImport = None
         self.section_function: wasmi.section.SectionFunction = None
         self.section_table: wasmi.section.SectionTable = None
         self.section_memory: wasmi.section.SectionMemory = None
         self.section_global: wasmi.section.SectionGlobal = None
         self.section_export: wasmi.section.SectionExport = None
         self.section_start: wasmi.section.SectionStart = None
-        # self.section_element: SectionElement = None
+        self.section_element: wasmi.section.SectionElement = None
         self.section_code: wasmi.section.SectionCode = None
         self.section_data: wasmi.section.SectionData = None
 
@@ -50,7 +50,8 @@ class Mod:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(mod.section_type)
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
-                pass
+                mod.section_import = wasmi.section.SectionImport.from_section(e)
+                wasmi.log.println(mod.section_import)
             if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
@@ -70,7 +71,8 @@ class Mod:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
                 wasmi.log.println(mod.section_start)
             if e.sid == wasmi.opcodes.SECTION_ID_ELEMENT:
-                pass
+                mod.section_element = wasmi.section.SectionElement.from_section(e)
+                wasmi.log.println(mod.section_element)
             if e.sid == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(mod.section_code)
