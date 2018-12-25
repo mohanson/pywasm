@@ -199,7 +199,7 @@ class SectionCode:
     def __repr__(self):
         name = 'SectionCode'
         seps = []
-        seps.append(f'entries={[str(e) for e in self.entries]}')
+        seps.append(f'entries={self.entries}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
