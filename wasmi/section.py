@@ -3,6 +3,206 @@ import typing
 
 import wasmi.common
 
+# -----------------------------------------------------------------------------
+# Binary Format Types
+#
+# See https://www.w3.org/TR/wasm-core-1/#binary-format①
+# -----------------------------------------------------------------------------
+
+
+class Limit:
+    def __init__(self, flag: int, initial: int, maximum: int):
+        self.flag = flag
+        self.initial = initial
+        self.maximum = maximum
+
+    def __repr__(self):
+        name = 'Limit'
+        seps = []
+        seps.append(f'flag={self.flag}')
+        seps.append(f'initial={self.initial}')
+        seps.append(f'maximum={self.maximum}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        flag = ord(r.read(1))
+        _, initial = wasmi.common.read_u32_leb128(r)
+        maximum = wasmi.common.read_u32_leb128(r) if flag == 1 else 0
+        return Limit(flag, initial, maximum)
+
+
+class Expression:
+    def __init__(self, data: bytes):
+        self.data = data
+
+    def __repr__(self):
+        name = 'Expression'
+        seps = []
+        seps.append(f'data=0x{self.data.hex()}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        data = bytearray()
+        for _ in range(1 << 32):
+            b = r.read(1)
+            if not b:
+                break
+            data.append(ord(b))
+            if b == wasmi.opcodes.END:
+                break
+        return Expression(bytes(data))
+
+
+class Type:
+    def __init__(self, form: int, args: bytes, rets: bytes):
+        self.form = form
+        self.args = args
+        self.rets = rets
+
+    def __repr__(self):
+        name = 'Type'
+        seps = []
+        seps.append(f'form={hex(self.form)}')
+        seps.append(f'args=0x{self.args.hex()}')
+        seps.append(f'rets=0x{self.rets.hex()}')
+        return f'{name}<{" ".join(seps)}>'
+
+
+class GlobalType:
+    def __init__(self, kind: int, mut: int):
+        self.kind = kind
+        self.mut = mut
+
+    def __repr__(self):
+        name = 'GlobalType'
+        seps = []
+        seps.append(f'kind={self.kind}')
+        seps.append(f'mut={self.mut}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        kind = ord(r.read(1))
+        mut = ord(r.read(1))
+        return GlobalType(kind, mut)
+
+
+class Global:
+    def __init__(self, kind: GlobalType, expression: Expression):
+        self.kind = kind
+        self.expression = expression
+
+    def __repr__(self):
+        name = 'Global'
+        seps = []
+        seps.append(f'kind={self.kind}')
+        seps.append(f'expression={self.expression}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        kind = GlobalType.from_reader(r)
+        expression = Expression.from_reader(r)
+        return Global(kind, expression)
+
+
+class Export:
+    def __init__(self, name: str, kind: int, idx: int):
+        self.name = name
+        self.kind = kind
+        self.idx = idx
+
+    def __repr__(self):
+        name = 'Export'
+        seps = []
+        seps.append(f'name={self.name}')
+        seps.append(f'kind={self.kind}')
+        seps.append(f'idx={self.idx}')
+        return f'{name}<{" ".join(seps)}>'
+
+
+class Local:
+    def __init__(self, count: int, kind: int):
+        self.count = count
+        self.kind = kind
+
+    def __repr__(self):
+        name = 'Local'
+        seps = []
+        seps.append(f'count={self.count}')
+        seps.append(f'kind={self.kind}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        _, count = wasmi.common.read_u32_leb128(r)
+        kind = ord(r.read(1))
+        return Local(count, kind)
+
+
+class Code:
+    def __init__(self, locs: typing.List[Local], expression: Expression):
+        self.locs = locs
+        self.expression = expression
+
+    def __repr__(self):
+        name = 'Code'
+        seps = []
+        seps.append(f'locs={self.locs}')
+        seps.append(f'expression={self.expression}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        _, n = wasmi.common.read_u32_leb128(r)
+        full = r.read(n)
+        r = io.BytesIO(full)
+        _, n = wasmi.common.read_u32_leb128(r)
+        locs = [Local.from_reader(r) for _ in range(n)]
+        expression = Expression.from_reader(r)
+        return Code(locs, expression)
+
+
+class Table:
+    def __init__(self, kind: int, limit: Limit):
+        self.kind = kind
+        self.limit = limit
+
+    def __repr__(self):
+        name = 'Table'
+        seps = []
+        seps.append(f'kind={self.kind}')
+        seps.append(f'limit={self.limit}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        kind = ord(r.read(1))
+        limit = Limit.from_reader(r)
+        return Table(kind, limit)
+
+
+class Memory:
+    def __init__(self, limit):
+        self.limit = limit
+
+    def __repr__(self):
+        name = 'Memory'
+        seps = []
+        seps.append(f'limit={self.limit}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        limit = Limit.from_reader(r)
+        return Memory(limit)
+
+# -----------------------------------------------------------------------------
+# Binary Format Section
+# -----------------------------------------------------------------------------
+
 
 class Section:
     def __init__(self):
@@ -35,7 +235,7 @@ class SectionUnknown:
 class SectionType:
     def __init__(self, father: Section):
         self.father = father
-        self.entries: typing.List[wasmi.types.FunctionSig] = []
+        self.entries: typing.List[Type] = []
 
     def __repr__(self):
         name = 'SectionType'
@@ -54,7 +254,7 @@ class SectionType:
             args = r.read(n_args)
             _, n_rets = wasmi.common.read_u32_leb128(r)
             rets = r.read(n_rets)
-            fsig = FunctionSig(form, args, rets)
+            fsig = Type(form, args, rets)
             sec.entries.append(fsig)
         return sec
 
@@ -141,25 +341,75 @@ class SectionFunction:
         return sec
 
 
-# class SectionTable:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionTable:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Table] = []
+
+    def __repr__(self):
+        name = 'SectionTable'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionTable(f)
+        r = io.BytesIO(f.raw)
+        _, n_table = wasmi.common.read_u32_leb128(r)
+        for _ in range(n_table):
+            table = Table.from_reader(r)
+            sec.entries.append(table)
+        return sec
 
 
-# class SectionMemory:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionMemory:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Memory] = []
+
+    def __repr__(self):
+        name = 'SectionMemory'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionMemory(f)
+        r = io.BytesIO(f.raw)
+        _, n_memory = wasmi.common.read_u32_leb128(r)
+        for _ in range(n_memory):
+            memory = Memory.from_reader(r)
+            sec.entries.append(memory)
+        return sec
 
 
-# class SectionGlobal:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionGlobal:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Global] = []
+
+    def __repr__(self):
+        name = 'SectionGlobal'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionGlobal(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            sec.entries.append(Global.from_reader(r))
+        return sec
 
 
 class SectionExport:
     def __init__(self, father: Section):
         self.father = father
-        self.entries: typing.List[ExportEntry] = []
+        self.entries: typing.List[Export] = []
 
     def __repr__(self):
         name = 'SectionExport'
@@ -177,7 +427,7 @@ class SectionExport:
             name = r.read(n_name).decode()
             kind = ord(r.read(1))
             _, idx = wasmi.common.read_u32_leb128(r)
-            sec.entries.append(ExportEntry(name, kind, idx))
+            sec.entries.append(Export(name, kind, idx))
         return sec
 
 
@@ -194,7 +444,7 @@ class SectionExport:
 class SectionCode:
     def __init__(self, father: Section):
         self.father = father
-        self.entries: typing.List[FunctionBody] = []
+        self.entries: typing.List[Code] = []
 
     def __repr__(self):
         name = 'SectionCode'
@@ -206,85 +456,12 @@ class SectionCode:
     def from_section(cls, f: Section):
         sec = SectionCode(f)
         r = io.BytesIO(f.raw)
-        _, n_func = wasmi.common.read_u32_leb128(r)
-        for _ in range(n_func):
-            funcbody: FunctionBody
-            localvar: typing.List[LocalEntry] = []
-            _, n = wasmi.common.read_u32_leb128(r)
-            full = r.read(n)
-            r = io.BytesIO(full)
-            _, n_vars = wasmi.common.read_u32_leb128(r)
-            for _ in range(n_vars):
-                e = LocalEntry.from_reader(r)
-                localvar.append(e)
-            code = r.read(-1)
-            funcbody = FunctionBody(localvar, code)
-            sec.entries.append(funcbody)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            code = Code.from_reader(r)
+            sec.entries.append(code)
         return sec
-
 
 # class SectionData:
 #     def __init__(self, father: Section):
 #         self.father = father
-
-
-class FunctionSig:
-    def __init__(self, form: int, args: bytes, rets: bytes):
-        self.form = form
-        self.args = args
-        self.rets = rets
-
-    def __repr__(self):
-        name = 'FunctionSigature'
-        seps = []
-        seps.append(f'form={hex(self.form)}')
-        seps.append(f'args=0x{self.args.hex()}')
-        seps.append(f'rets=0x{self.rets.hex()}')
-        return f'{name}<{" ".join(seps)}>'
-
-
-class ExportEntry:
-    def __init__(self, name: str, kind: int, idx: int):
-        self.name = name
-        self.kind = kind
-        self.idx = idx
-
-    def __repr__(self):
-        name = 'ExportEntry'
-        seps = []
-        seps.append(f'name={self.name}')
-        seps.append(f'kind={self.kind}')
-        seps.append(f'idx={self.idx}')
-        return f'{name}<{" ".join(seps)}>'
-
-
-class LocalEntry:
-    def __init__(self, count: int, kind: int):
-        self.count = count
-        self.kind = kind
-
-    def __repr__(self):
-        name = 'LocalEntry'
-        seps = []
-        seps.append(f'count={self.count}')
-        seps.append(f'kind={self.kind}')
-        return f'{name}<{" ".join(seps)}>'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        _, n_locals = wasmi.common.read_u32_leb128(r)
-        kind = ord(r.read(1))
-        return LocalEntry(n_locals, kind)
-
-
-class FunctionBody:
-    def __init__(self, locale: typing.List[LocalEntry], code: bytes):
-        self.locale = locale
-        self.code = code
-
-    def __repr__(self):
-        name = 'FunctionBody'
-        seps = []
-        seps.append(f'locale={[str(e) for e in self.locale]}')
-        seps.append(f'code=0x{self.code.hex()}')
-        return f'{name}<{" ".join(seps)}>'

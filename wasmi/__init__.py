@@ -17,9 +17,9 @@ class Mod:
         self.section_type: wasmi.section.SectionType = None
         # self.section_import: SectionImport = None
         self.section_function: wasmi.section.SectionFunction = None
-        # self.section_table: SectionTable = None
-        # self.section_memory: SectionMemory = None
-        # self.section_global: SectionGlobal = None
+        self.section_table: wasmi.section.SectionTable = None
+        self.section_memory: wasmi.section.SectionMemory = None
+        self.section_global: wasmi.section.SectionGlobal = None
         self.section_export: wasmi.section.SectionExport = None
         # self.section_start: SectionStart = None
         # self.section_element: SectionElement = None
@@ -54,11 +54,14 @@ class Mod:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
             if e.sid == wasmi.opcodes.SECTION_ID_TABLE:
-                pass
+                mod.section_table = wasmi.section.SectionTable.from_section(e)
+                wasmi.log.println(mod.section_table)
             if e.sid == wasmi.opcodes.SECTION_ID_MEMORY:
-                pass
+                mod.section_memory = wasmi.section.SectionMemory.from_section(e)
+                wasmi.log.println(mod.section_memory)
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
-                pass
+                mod.section_global = wasmi.section.SectionGlobal.from_section(e)
+                wasmi.log.println(mod.section_global)
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
                 wasmi.log.println(mod.section_export)
@@ -83,7 +86,7 @@ class Vm:
         function = self.mod.section_function.entries[i]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[function]
-        code = function_body.code
+        code = function_body.expression.data
         for idx, e in enumerate(data):
             data[idx] = wasmi.stack.Entry.from_val(e, function_signature.args[idx])
         pc = 0
