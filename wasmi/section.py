@@ -165,6 +165,40 @@ class Code:
         return Code(locs, expression)
 
 
+class Data:
+    def __init__(self, idx: int, offset: bytes, data: bytes):
+        self.idx = idx
+        self.offset = offset
+        self.data = data
+
+    def __repr__(self):
+        name = 'Data'
+        seps = []
+        seps.append(f'idx={self.idx}')
+        seps.append(f'offset=0x{self.offset.hex()}')
+        seps.append(f'data=0x{self.data.hex()}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        idx = wasmi.common.read_u32_leb128(r)
+        offset: bytes = b''
+        for _ in range(1 << 32):
+            op = r.read(1)
+            offset += op
+            if op in [wasmi.opcodes.VALUE_TYPE_I32, wasmi.opcodes.VALUE_TYPE_F32, wasmi.opcodes.GET_LOCAL]:
+                data = r.read(4)
+                offset += data
+            if op in [wasmi.opcodes.VALUE_TYPE_I64, wasmi.opcodes.VALUE_TYPE_F64]:
+                data = r.read(8)
+                offset += data
+            if op == wasmi.opcodes.END:
+                break
+        n = wasmi.common.read_u32_leb128(r)
+        data = r.read(n)
+        return Data(idx, offset, data)
+
+
 class Table:
     def __init__(self, kind: int, limit: Limit):
         self.kind = kind
@@ -462,6 +496,24 @@ class SectionCode:
             sec.entries.append(code)
         return sec
 
-# class SectionData:
-#     def __init__(self, father: Section):
-#         self.father = father
+
+class SectionData:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries = typing.List[Data] = []
+
+    def __repr__(self):
+        name = 'SectionData'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionData(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            data = Data.from_reader(r)
+            sec.entries.append(data)
+        return sec

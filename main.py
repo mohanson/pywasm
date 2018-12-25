@@ -3,8 +3,11 @@ import io
 import struct
 import typing
 
-with open('./data/add.wasm', 'rb') as f:
+path = './data/add.wasm'
+path = r"C:\Users\mohan\Downloads\program.wasm"
+
+with open(path, 'rb') as f:
     mod = wasmi.Mod.from_reader(f)
 vm = wasmi.Vm(mod)
-r = vm.exec_i(0, [15, 20])
+r = vm.exec('mul', [40, 2])
 print(r)
