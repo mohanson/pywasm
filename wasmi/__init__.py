@@ -13,7 +13,7 @@ class Mod:
         self.version: int
         self.sections: typing.List[wasmi.section.Section] = []
 
-        # self.section_unknown: SectionUnknown = None
+        self.section_unknown: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
         # self.section_import: SectionImport = None
         self.section_function: wasmi.section.SectionFunction = None
@@ -44,7 +44,8 @@ class Mod:
                 mod.sections.append(sec)
         for e in mod.sections:
             if e.sid == wasmi.opcodes.SECTION_ID_UNKNOWN:
-                pass
+                mod.section_unknown = wasmi.section.SectionUnknown.from_section(e)
+                wasmi.log.println(mod.section_unknown)
             if e.sid == wasmi.opcodes.SECTION_ID_TYPE:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(mod.section_type)

@@ -264,6 +264,24 @@ class Section:
 class SectionUnknown:
     def __init__(self, father: Section):
         self.father = father
+        self.name: str = None
+        self.data: bytes = None
+
+    def __repr__(self):
+        name = 'SectionUnknown'
+        seps = []
+        seps.append(f'name={self.name}')
+        seps.append(f'data={self.data}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionUnknown(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        sec.name = r.read(n).decode()
+        sec.data = r.read(-1)
+        return sec
 
 
 class SectionType:
