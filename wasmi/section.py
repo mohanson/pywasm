@@ -265,22 +265,26 @@ class Import:
 
 
 class Element:
-    def __init__(self, idx: int, expression: Expression, elems: typing.List[int]):
+    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
         self.idx = idx
         self.expression = expression
-        self.elems = elems
+        self.init = init
 
     def __repr__(self):
         name = 'Element'
         seps = []
         seps.append(f'idx={self.idx}')
         seps.append(f'expression={self.expression}')
-        seps.append(f'elems={self.elems}')
+        seps.append(f'init={self.init}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         _, idx = wasmi.common.read_u32_leb128(r)
+        expression = Expression.from_reader(r)
+        _, n = wasmi.common.read_u32_leb128(r)
+        init = [ord(e) for e in r.read(n)]
+        return Element(idx, expression, init)
 
 
 # -----------------------------------------------------------------------------
@@ -514,9 +518,26 @@ class SectionStart:
         return sec
 
 
-# class SectionElement:
-#     def __init__(self, father: Section):
-#         self.father = father
+class SectionElement:
+    def __init__(self, father: Section):
+        self.father = father
+        self.entries: typing.List[Element] = []
+
+    def __repr__(self):
+        name = 'SectionElement'
+        seps = []
+        seps.append(f'entries={self.entries}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_section(cls, f: Section):
+        sec = SectionElement(f)
+        r = io.BytesIO(f.raw)
+        _, n = wasmi.common.read_u32_leb128(r)
+        for _ in range(n):
+            element = Element.from_reader(r)
+            sec.entries.append(element)
+        return sec
 
 
 class SectionCode:

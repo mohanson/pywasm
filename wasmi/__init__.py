@@ -22,7 +22,7 @@ class Mod:
         self.section_global: wasmi.section.SectionGlobal = None
         self.section_export: wasmi.section.SectionExport = None
         self.section_start: wasmi.section.SectionStart = None
-        # self.section_element: SectionElement = None
+        self.section_element: wasmi.section.SectionElement = None
         self.section_code: wasmi.section.SectionCode = None
         self.section_data: wasmi.section.SectionData = None
 
@@ -71,7 +71,8 @@ class Mod:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
                 wasmi.log.println(mod.section_start)
             if e.sid == wasmi.opcodes.SECTION_ID_ELEMENT:
-                pass
+                mod.section_element = wasmi.section.SectionElement.from_section(e)
+                wasmi.log.println(mod.section_element)
             if e.sid == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(mod.section_code)

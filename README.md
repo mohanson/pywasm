@@ -8,7 +8,15 @@ A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specif
 
 # Example
 
-py-wasmi is dead simple to use:
+py-wasmi is dead simple to use. Write some c code belows:
+
+```c
+int add(int a, int b) {
+    return a + b;
+}
+```
+
+Generate `add.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
 
 ```py
 import wasmi
@@ -21,3 +29,7 @@ vm = wasmi.Vm(mod)
 r = vm.exec('add', [40, 2])
 print(r) # 42
 ```
+
+# License
+
+[WTFPL](https://choosealicense.com/licenses/wtfpl/)
