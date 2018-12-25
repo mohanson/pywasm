@@ -2,6 +2,10 @@
 
 A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
 
+# Requirements
+- py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
+- python3.6 or newer.
+
 # Example
 
 py-wasmi is dead simple to use:

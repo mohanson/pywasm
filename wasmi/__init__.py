@@ -15,7 +15,7 @@ class Mod:
 
         self.section_unknown: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
-        # self.section_import: SectionImport = None
+        self.section_import: wasmi.section.SectionImport = None
         self.section_function: wasmi.section.SectionFunction = None
         self.section_table: wasmi.section.SectionTable = None
         self.section_memory: wasmi.section.SectionMemory = None
@@ -50,7 +50,8 @@ class Mod:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(mod.section_type)
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
-                pass
+                mod.section_import = wasmi.section.SectionImport.from_section(e)
+                wasmi.log.println(mod.section_import)
             if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
