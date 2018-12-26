@@ -45,9 +45,8 @@ print(r) # 42
 
 # FAQ
 
-- How is the py-wasm performance?
-
-Why care about performance on **Python**?
+F: How is the py-wasm performance?<br>
+Q: It's doesn't care about performance especially on **Python**.
 
 # License
 
