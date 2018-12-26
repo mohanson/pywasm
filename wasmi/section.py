@@ -33,7 +33,7 @@ class Limit:
 
 
 class Expression:
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytearray):
         self.data = data
 
     def __repr__(self):
@@ -58,11 +58,11 @@ class Expression:
                 continue
             if op == wasmi.opcodes.END:
                 break
-        return Expression(bytes(data))
+        return Expression(data)
 
 
 class Type:
-    def __init__(self, form: int, args: bytes, rets: bytes):
+    def __init__(self, form: int, args: bytearray, rets: bytearray):
         self.form = form
         self.args = args
         self.rets = rets
@@ -82,7 +82,7 @@ class Type:
         args = r.read(n_args)
         _, n_rets = wasmi.common.read_u32_leb128(r)
         rets = r.read(n_rets)
-        return Type(form, args, rets)
+        return Type(form, bytearray(args), bytearray(rets))
 
 
 class GlobalType:
@@ -181,7 +181,7 @@ class Code:
 
 
 class Data:
-    def __init__(self, idx: int, expression: Expression, init: bytes):
+    def __init__(self, idx: int, expression: Expression, init: bytearray):
         self.idx = idx
         self.expression = expression
         self.init = init
@@ -200,7 +200,7 @@ class Data:
         expression = Expression.from_reader(r)
         n = wasmi.common.read_u32_leb128(r)
         init = r.read(n)
-        return Data(idx, expression, init)
+        return Data(idx, expression, bytearray(init))
 
 
 class Table:
@@ -223,7 +223,7 @@ class Table:
 
 
 class Memory:
-    def __init__(self, limit):
+    def __init__(self, limit: Limit):
         self.limit = limit
 
     def __repr__(self):
@@ -304,7 +304,7 @@ class Element:
 class Section:
     def __init__(self):
         self.sid: int
-        self.raw: bytes
+        self.raw: bytearray
 
     def __repr__(self):
         name = 'Section'
@@ -320,7 +320,7 @@ class Section:
         section_raw = r.read(n_remain)
         sec = Section()
         sec.sid = section_sid
-        sec.raw = section_raw
+        sec.raw = bytearray(section_raw)
         return sec
 
 
@@ -328,7 +328,7 @@ class SectionUnknown:
     def __init__(self, father: Section):
         self.father = father
         self.name: str = None
-        self.data: bytes = None
+        self.data: bytearray = None
 
     def __repr__(self):
         name = 'SectionUnknown'
@@ -343,7 +343,7 @@ class SectionUnknown:
         r = io.BytesIO(f.raw)
         _, n = wasmi.common.read_u32_leb128(r)
         sec.name = r.read(n).decode()
-        sec.data = r.read(-1)
+        sec.data = bytearray(r.read(-1))
         return sec
 
 
