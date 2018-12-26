@@ -127,6 +127,8 @@ class Vm:
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
+            name = wasmi.opcodes.NAME_DICT.get(opcode, f'Invalid Opcode {opcode}')
+            wasmi.log.println(name, self.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.Unreachable
             if opcode == wasmi.opcodes.NOP:
@@ -163,9 +165,14 @@ class Vm:
             if opcode == wasmi.opcodes.CALL_INDIRECT:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.DROP:
-                raise NotImplementedError
+                self.stack.pop()
+                continue
             if opcode == wasmi.opcodes.SELECT:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop()
+                v3 = self.stack.pop()
+                self.stack.add(v2 if v1 != 0 else v3)
+                continue
             if opcode == wasmi.opcodes.GET_LOCAL:
                 n, i = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
@@ -230,28 +237,15 @@ class Vm:
             if opcode == wasmi.opcodes.GROW_MEMORY:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_CONST:
-                data = code[pc:pc + 4]
-                pc += 4
-                r = wasmi.common.decode_i32(data)
+                n, r = wasmi.common.read_u32_leb128(io.BytesIO(code[pc:]))
+                pc += n
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                data = code[pc:pc + 8]
-                pc += 8
-                r = wasmi.common.decode_i64(data)
-                self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                data = code[pc:pc + 4]
-                pc += 4
-                r = wasmi.common.decode_f32(data)
-                self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                data = code[pc:pc + 8]
-                pc += 8
-                r = wasmi.common.decode_f64(data)
-                self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.I32_EQZ:
                 self.stack.add_i32(self.stack.pop_i32() == 0)
