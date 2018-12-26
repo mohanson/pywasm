@@ -717,96 +717,106 @@ class Vm:
                 self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.I32_WRAP_I64:
-                r = self.stack.pop().into_i32()
+                r = self.stack.pop_i64()
+                r = wasmi.common.into_i32(r)
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I32_TRUNC_SF32:
                 r = self.stack.pop_f32()
                 r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I32_TRUNC_UF32:
-                r = self.stack.pop_u32()
+                r = self.stack.pop_f32()
                 r = math.trunc(r)
-                self.stack.add_u32(r)
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I32_TRUNC_SF64:
                 r = self.stack.pop_f64()
                 r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I32_TRUNC_UF64:
-                r = self.stack.pop_u64()
+                r = self.stack.pop_f64()
                 r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I64_EXTEND_SI32:
-                r = self.stack.pop().into_i64()
+                r = self.stack.pop_i32()
+                r = wasmi.common.into_i64(r)
                 self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.I64_EXTEND_UI32:
-                r = self.stack.pop().into_i64()
+                r = self.stack.pop_u32()
+                r = wasmi.common.into_i64(r)
                 self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.I64_TRUNC_SF32:
                 r = self.stack.pop_f32()
                 r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
                 self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.I64_TRUNC_UF32:
                 r = self.stack.pop_f32()
                 r = math.trunc(r)
-                self.stack.add_u64(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.I64_TRUNC_SF64:
                 r = self.stack.pop_f64()
                 r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
                 self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.I64_TRUNC_UF64:
                 r = self.stack.pop_f64()
                 r = math.trunc(r)
-                self.stack.add_u64(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONVERT_SI32:
-                r = self.stack.pop().into_i32()
+                r = self.stack.pop_i32()
                 self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONVERT_UI32:
-                r = self.stack.pop().into_u32()
+                r = self.stack.pop_u32()
                 self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONVERT_SI64:
-                r = self.stack.pop().into_i64()
+                r = self.stack.pop_i64()
                 self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONVERT_UI64:
-                r = self.stack.pop().into_u64()
+                r = self.stack.pop_u64()
                 self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F32_DEMOTE_F64:
-                r = self.stack.pop().into_f32()
+                r = self.stack.pop_f64()
                 self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONVERT_SI32:
-                r = self.stack.pop().into_i32()
+                r = self.stack.pop_i32()
                 self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONVERT_UI32:
-                r = self.stack.pop().into_u32()
+                r = self.stack.pop_u32()
                 self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONVERT_SI64:
-                r = self.stack.pop().into_i64()
+                r = self.stack.pop_i64()
                 self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONVERT_UI64:
-                r = self.stack.pop().into_u64()
+                r = self.stack.pop_u64()
                 self.stack.add_f64(r)
                 continue
             if opcode == wasmi.opcodes.F64_PROMOTE_F32:
-                r = self.stack.pop().into_f64()
-                self.stack.add_f64(r)
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
                 continue
             if opcode == wasmi.opcodes.I32_REINTERPRET_F32:
                 self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I32
