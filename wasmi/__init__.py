@@ -1,4 +1,5 @@
 import io
+import itertools
 import typing
 
 import wasmi.common
@@ -6,6 +7,7 @@ import wasmi.log
 import wasmi.opcodes
 import wasmi.stack
 import wasmi.section
+import wasmi.error
 
 
 class Mod:
@@ -31,7 +33,7 @@ class Mod:
         mod = Mod()
         mag = wasmi.common.read_u32(r)
         if mag != 0x6d736100:
-            wasmi.log.panicln('wasmi: invalid magic number')
+            raise wasmi.error.InvalidMagicNumber
         ver = mag = wasmi.common.read_u32(r)
         mod.version = ver
         for _ in range(1 << 32):
@@ -46,39 +48,51 @@ class Mod:
             if e.sid == wasmi.opcodes.SECTION_ID_UNKNOWN:
                 mod.section_unknown = wasmi.section.SectionUnknown.from_section(e)
                 wasmi.log.println(mod.section_unknown)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_TYPE:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(mod.section_type)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
                 wasmi.log.println(mod.section_import)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_TABLE:
                 mod.section_table = wasmi.section.SectionTable.from_section(e)
                 wasmi.log.println(mod.section_table)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_MEMORY:
                 mod.section_memory = wasmi.section.SectionMemory.from_section(e)
                 wasmi.log.println(mod.section_memory)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
                 wasmi.log.println(mod.section_global)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
                 wasmi.log.println(mod.section_export)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_START:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
                 wasmi.log.println(mod.section_start)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_ELEMENT:
                 mod.section_element = wasmi.section.SectionElement.from_section(e)
                 wasmi.log.println(mod.section_element)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(mod.section_code)
+                continue
             if e.sid == wasmi.opcodes.SECTION_ID_DATA:
                 mod.section_data = wasmi.section.SectionData.from_section(e)
                 wasmi.log.println(mod.section_data)
+                continue
         return mod
 
 
@@ -86,6 +100,7 @@ class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
         self.stack = wasmi.stack.Stack()
+        self.mem = bytearray()
 
     def exec(self, name: str, data: typing.List):
         export: wasmi.section.Export = None
@@ -106,9 +121,9 @@ class Vm:
             opcode = code[pc]
             pc += 1
             if opcode == wasmi.opcodes.UNREACHABLE:
-                raise NotImplementedError
+                raise wasmi.error.Unreachable
             if opcode == wasmi.opcodes.NOP:
-                raise NotImplementedError
+                continue
             if opcode == wasmi.opcodes.BLOCK:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.LOOP:
@@ -284,11 +299,20 @@ class Vm:
             if opcode == wasmi.opcodes.F64_GE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_CLZ:
-                raise NotImplementedError
+                e = self.stack.pop().data[4:]
+                c = sum(1 for _ in itertools.takewhile(lambda x: x == 0, e))
+                self.stack.add_u64(c)
+                continue
             if opcode == wasmi.opcodes.I32_CTZ:
-                raise NotImplementedError
+                e = self.stack.pop().data[4:]
+                c = sum(1 for _ in itertools.takewhile(lambda x: x == 0, e[::-1]))
+                self.stack.add_u64(c)
+                continue
             if opcode == wasmi.opcodes.I32_POPCNT:
-                raise NotImplementedError
+                e = self.stack.pop().data[4:]
+                r = sum([wasmi.common.POP_TAB[i] for i in e])
+                self.stack.add_u64(c)
+                continue
             if opcode == wasmi.opcodes.I32_ADD:
                 v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
@@ -305,65 +329,154 @@ class Vm:
                 self.stack.add_i32(v1 * v2)
                 continue
             if opcode == wasmi.opcodes.I32_DIVS:
-                raise NotImplementedError
+                v2 = self.stack.pop_i32()
+                v1 = self.stack.pop_i32()
+                self.stack.add_i32(v1 // v2)
+                continue
             if opcode == wasmi.opcodes.I32_DIVU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 // v2)
+                continue
             if opcode == wasmi.opcodes.I32_REMS:
-                raise NotImplementedError
+                v2 = self.stack.pop_i32()
+                v1 = self.stack.pop_i32()
+                self.stack.add_i32(v1 % v2)
+                continue
             if opcode == wasmi.opcodes.I32_REMU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 % v2)
+                continue
             if opcode == wasmi.opcodes.I32_AND:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 & v2)
+                continue
             if opcode == wasmi.opcodes.I32_OR:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 | v2)
+                continue
             if opcode == wasmi.opcodes.I32_XOR:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 ^ v2)
+                continue
             if opcode == wasmi.opcodes.I32_SHL:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 << v2)
+                continue
             if opcode == wasmi.opcodes.I32_SHRS:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_i32()
+                self.stack.add_i32(v1 >> v2)
+                continue
             if opcode == wasmi.opcodes.I32_SHRU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                self.stack.add_u32(v1 >> v2)
+                continue
             if opcode == wasmi.opcodes.I32_ROTL:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                r = wasmi.common.rotl_u32(v1, v2)
+                self.stack.add_u32(r)
+                continue
             if opcode == wasmi.opcodes.I32_ROTR:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.I64_CLZ:
-                raise NotImplementedError
+                v2 = self.stack.pop_u32()
+                v1 = self.stack.pop_u32()
+                r = wasmi.common.rotr_u32(v1, v2)
+                self.stack.add_u32(r)
+                continue
             if opcode == wasmi.opcodes.I64_CTZ:
-                raise NotImplementedError
+                e = self.stack.pop().data[4:]
+                c = sum(1 for _ in itertools.takewhile(lambda x: x == 0, e[::-1]))
+                self.stack.add_u64(c)
+                continue
             if opcode == wasmi.opcodes.I64_POPCNT:
-                raise NotImplementedError
+                e = self.stack.pop().data[4:]
+                r = sum([wasmi.common.POP_TAB[i] for i in e])
+                self.stack.add_u64(c)
+                continue
             if opcode == wasmi.opcodes.I64_ADD:
-                raise NotImplementedError
+                v2 = self.stack.pop_i64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 + v2)
+                continue
             if opcode == wasmi.opcodes.I64_SUB:
-                raise NotImplementedError
+                v2 = self.stack.pop_i64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 - v2)
+                continue
             if opcode == wasmi.opcodes.I64_MUL:
-                raise NotImplementedError
+                v2 = self.stack.pop_i64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 * v2)
+                continue
             if opcode == wasmi.opcodes.I64_DIVS:
-                raise NotImplementedError
+                v2 = self.stack.pop_i64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 // v2)
+                continue
             if opcode == wasmi.opcodes.I64_DIVU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 // v2)
+                continue
             if opcode == wasmi.opcodes.I64_REMS:
-                raise NotImplementedError
+                v2 = self.stack.pop_i64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 % v2)
+                continue
             if opcode == wasmi.opcodes.I64_REMU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 % v2)
+                continue
             if opcode == wasmi.opcodes.I64_AND:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 & v2)
+                continue
             if opcode == wasmi.opcodes.I64_OR:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 | v2)
+                continue
             if opcode == wasmi.opcodes.I64_XOR:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 ^ v2)
+                continue
             if opcode == wasmi.opcodes.I64_SHL:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 << v2)
+                continue
             if opcode == wasmi.opcodes.I64_SHRS:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_i64()
+                self.stack.add_i64(v1 >> v2)
+                continue
             if opcode == wasmi.opcodes.I64_SHRU:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                self.stack.add_u64(v1 >> v2)
+                continue
             if opcode == wasmi.opcodes.I64_ROTL:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                r = wasmi.common.rotl_u64(v1, v2)
+                self.stack.add_u64(r)
+                continue
             if opcode == wasmi.opcodes.I64_ROTR:
-                raise NotImplementedError
+                v2 = self.stack.pop_u64()
+                v1 = self.stack.pop_u64()
+                r = wasmi.common.rotr_u64(v1, v2)
+                self.stack.add_u64(r)
+                continue
             if opcode == wasmi.opcodes.F32_ABS:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.F32_NEG:

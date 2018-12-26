@@ -75,6 +75,15 @@ class Type:
         seps.append(f'rets=0x{self.rets.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        form = ord(r.read(1))
+        _, n_args = wasmi.common.read_u32_leb128(r)
+        args = r.read(n_args)
+        _, n_rets = wasmi.common.read_u32_leb128(r)
+        rets = r.read(n_rets)
+        return Type(form, args, rets)
+
 
 class GlobalType:
     def __init__(self, kind: int, mut: int):
@@ -355,13 +364,8 @@ class SectionType:
         r = io.BytesIO(f.raw)
         _, n_func = wasmi.common.read_u32_leb128(r)
         for _ in range(n_func):
-            form = ord(r.read(1))
-            _, n_args = wasmi.common.read_u32_leb128(r)
-            args = r.read(n_args)
-            _, n_rets = wasmi.common.read_u32_leb128(r)
-            rets = r.read(n_rets)
-            fsig = Type(form, args, rets)
-            sec.entries.append(fsig)
+            e = Type.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 

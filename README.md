@@ -4,12 +4,19 @@ A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specif
 
 # Requirements
 - py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
-- python3.6 or newer.
+- Python3.6 or newer.
 
 # Install
 
+```sh
+$ git clone https://github.com/mohanson/py-wasmi
+$ cd py-wasmi && python3 main.py # Run quick test
 ```
-$ pip3 install wasmi
+
+**OR**
+
+```sh
+$ pip3 install wasmi # The version may be outdate.
 ```
 
 # Example
@@ -35,6 +42,12 @@ vm = wasmi.Vm(mod)
 r = vm.exec('add', [40, 2])
 print(r) # 42
 ```
+
+# FAQ
+
+- How is the py-wasm performance?
+
+Why care about performance on **Python**?
 
 # License
 
