@@ -6,7 +6,7 @@ import wasmi.opcodes
 
 
 class Entry:
-    def __init__(self, data: bytes, kind: int):
+    def __init__(self, data: bytearray, kind: int):
         assert len(data) == 8
         self.data = data
         self.kind = kind
@@ -98,6 +98,9 @@ class Stack:
 
     def pop(self) -> Entry:
         return self.data.pop()
+
+    def len(self) -> int:
+        return len(self.data)
 
     def add_i32(self, n):
         self.add(Entry.from_i32(wasmi.common.into_i32(n)))

@@ -1,5 +1,6 @@
 import io
 import itertools
+import math
 import typing
 
 import wasmi.common
@@ -8,6 +9,12 @@ import wasmi.opcodes
 import wasmi.stack
 import wasmi.section
 import wasmi.error
+
+# -----------------------------------------------------------------------------
+# About opcode description, see:
+# https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
+# https://github.com/WebAssembly/design/blob/master/Semantics.md
+# -----------------------------------------------------------------------------
 
 
 class Mod:
@@ -113,19 +120,21 @@ class Vm:
         function = self.mod.section_function.entries[export.idx]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[export.idx]
-        code = function_body.expression.data
+        code = function_body.expression.data + chr(0x0f).encode()
         for idx, e in enumerate(data):
             data[idx] = wasmi.stack.Entry.from_val(e, function_signature.args[idx])
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
+            name = wasmi.opcodes.CODE_DICT.get(opcode, f'Invalid Opcode {opcode}')
+            wasmi.log.println(name, self.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.Unreachable
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
-                raise NotImplementedError
+                continue
             if opcode == wasmi.opcodes.LOOP:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.IF:
@@ -133,6 +142,16 @@ class Vm:
             if opcode == wasmi.opcodes.ELSE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.END:
+                continue
+            if opcode == wasmi.opcodes.BR:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.BR_IF:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.BR_TABLE:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.RETURN:
+                if not self.stack.len():
+                    return 0
                 data = self.stack.pop()
                 if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I32:
                     return data.into_i32()
@@ -142,23 +161,19 @@ class Vm:
                     return data.into_f32()
                 if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F64:
                     return data.into_f64()
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR_IF:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR_TABLE:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.RETURN:
-                raise NotImplementedError
             if opcode == wasmi.opcodes.CALL:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.CALL_INDIRECT:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.DROP:
-                raise NotImplementedError
+                self.stack.pop()
+                continue
             if opcode == wasmi.opcodes.SELECT:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop()
+                v3 = self.stack.pop()
+                self.stack.add(v3 if v1 != 0 else v2)
+                continue
             if opcode == wasmi.opcodes.GET_LOCAL:
                 n, i = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
@@ -223,81 +238,175 @@ class Vm:
             if opcode == wasmi.opcodes.GROW_MEMORY:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_CONST:
-                raise NotImplementedError
+                n, r = wasmi.common.read_u32_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I64_CONST:
-                raise NotImplementedError
+                n, r = wasmi.common.read_u64_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONST:
-                raise NotImplementedError
+                n, r = wasmi.common.read_u32_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONST:
-                raise NotImplementedError
+                n, r = wasmi.common.read_u64_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                self.stack.add_f64(r)
             if opcode == wasmi.opcodes.I32_EQZ:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_i32() == 0)
+                continue
             if opcode == wasmi.opcodes.I32_EQ:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_i32() == self.stack.pop_i32())
+                continue
             if opcode == wasmi.opcodes.I32_NE:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_i32() != self.stack.pop_i32())
+                continue
             if opcode == wasmi.opcodes.I32_LTS:
-                raise NotImplementedError
+                v1 = self.stack.pop_i32()
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.I32_LTU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u32()
+                v2 = self.stack.pop_u32()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.I32_GTS:
-                raise NotImplementedError
+                v1 = self.stack.pop_i32()
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.I32_GTU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u32()
+                v2 = self.stack.pop_u32()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.I32_LES:
-                raise NotImplementedError
+                v1 = self.stack.pop_i32()
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.I32_LEU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u32()
+                v2 = self.stack.pop_u32()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.I32_GES:
-                raise NotImplementedError
+                v1 = self.stack.pop_i32()
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.I32_GEU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u32()
+                v2 = self.stack.pop_u32()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.I64_EQZ:
-                raise NotImplementedError
+                self.stack.add_i64(self.stack.pop_i64() == 0)
+                continue
             if opcode == wasmi.opcodes.I64_EQ:
-                raise NotImplementedError
+                self.stack.add_i64(self.stack.pop_i64() == self.stack.pop_i64())
+                continue
             if opcode == wasmi.opcodes.I64_NE:
-                raise NotImplementedError
+                self.stack.add_i64(self.stack.pop_i64() != self.stack.pop_i64())
+                continue
             if opcode == wasmi.opcodes.I64_LTS:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop_i64()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.I64_LTU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u64()
+                v2 = self.stack.pop_u64()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.I64_GTS:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop_i64()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.I64_GTU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u64()
+                v2 = self.stack.pop_u64()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.I64_LES:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop_i64()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.I64_LEU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u64()
+                v2 = self.stack.pop_u64()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.I64_GES:
-                raise NotImplementedError
+                v1 = self.stack.pop_i64()
+                v2 = self.stack.pop_i64()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.I64_GEU:
-                raise NotImplementedError
+                v1 = self.stack.pop_u64()
+                v2 = self.stack.pop_u64()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.F32_EQ:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_f32() == self.stack.pop_f32())
+                continue
             if opcode == wasmi.opcodes.F32_NE:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_f32() != self.stack.pop_f32())
+                continue
             if opcode == wasmi.opcodes.F32_LT:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.F32_GT:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.F32_LE:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.F32_GE:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.F64_EQ:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_f64() == self.stack.pop_f64())
+                continue
             if opcode == wasmi.opcodes.F64_NE:
-                raise NotImplementedError
+                self.stack.add_i32(self.stack.pop_f64() != self.stack.pop_f64())
+                continue
             if opcode == wasmi.opcodes.F64_LT:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_i32(v2 < v1)
+                continue
             if opcode == wasmi.opcodes.F64_GT:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_i32(v2 > v1)
+                continue
             if opcode == wasmi.opcodes.F64_LE:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_i32(v2 <= v1)
+                continue
             if opcode == wasmi.opcodes.F64_GE:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_i32(v2 >= v1)
+                continue
             if opcode == wasmi.opcodes.I32_CLZ:
                 e = self.stack.pop().data[4:]
                 c = sum(1 for _ in itertools.takewhile(lambda x: x == 0, e))
@@ -314,80 +423,80 @@ class Vm:
                 self.stack.add_u64(c)
                 continue
             if opcode == wasmi.opcodes.I32_ADD:
-                v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 + v2)
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 + v1)
                 continue
             if opcode == wasmi.opcodes.I32_SUB:
-                v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 - v2)
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 - v1)
                 continue
             if opcode == wasmi.opcodes.I32_MUL:
-                v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 * v2)
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 * v1)
                 continue
             if opcode == wasmi.opcodes.I32_DIVS:
-                v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 // v2)
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 // v1)
                 continue
             if opcode == wasmi.opcodes.I32_DIVU:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 // v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 // v1)
                 continue
             if opcode == wasmi.opcodes.I32_REMS:
-                v2 = self.stack.pop_i32()
                 v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 % v2)
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 % v1)
                 continue
             if opcode == wasmi.opcodes.I32_REMU:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 % v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 % v1)
                 continue
             if opcode == wasmi.opcodes.I32_AND:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 & v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 & v1)
                 continue
             if opcode == wasmi.opcodes.I32_OR:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 | v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 | v1)
                 continue
             if opcode == wasmi.opcodes.I32_XOR:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 ^ v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 ^ v1)
                 continue
             if opcode == wasmi.opcodes.I32_SHL:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 << v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 << v1)
                 continue
             if opcode == wasmi.opcodes.I32_SHRS:
-                v2 = self.stack.pop_u32()
-                v1 = self.stack.pop_i32()
-                self.stack.add_i32(v1 >> v2)
+                v1 = self.stack.pop_u32()
+                v2 = self.stack.pop_i32()
+                self.stack.add_i32(v2 >> v1)
                 continue
             if opcode == wasmi.opcodes.I32_SHRU:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                self.stack.add_u32(v1 >> v2)
+                v2 = self.stack.pop_u32()
+                self.stack.add_u32(v2 >> v1)
                 continue
             if opcode == wasmi.opcodes.I32_ROTL:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                r = wasmi.common.rotl_u32(v1, v2)
+                v2 = self.stack.pop_u32()
+                r = wasmi.common.rotl_u32(v2, v1)
                 self.stack.add_u32(r)
                 continue
             if opcode == wasmi.opcodes.I32_ROTR:
-                v2 = self.stack.pop_u32()
                 v1 = self.stack.pop_u32()
-                r = wasmi.common.rotr_u32(v1, v2)
+                v2 = self.stack.pop_u32()
+                r = wasmi.common.rotr_u32(v2, v1)
                 self.stack.add_u32(r)
                 continue
             if opcode == wasmi.opcodes.I64_CTZ:
@@ -401,185 +510,343 @@ class Vm:
                 self.stack.add_u64(c)
                 continue
             if opcode == wasmi.opcodes.I64_ADD:
-                v2 = self.stack.pop_i64()
                 v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 + v2)
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 + v1)
                 continue
             if opcode == wasmi.opcodes.I64_SUB:
-                v2 = self.stack.pop_i64()
                 v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 - v2)
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 - v1)
                 continue
             if opcode == wasmi.opcodes.I64_MUL:
-                v2 = self.stack.pop_i64()
                 v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 * v2)
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 * v1)
                 continue
             if opcode == wasmi.opcodes.I64_DIVS:
-                v2 = self.stack.pop_i64()
                 v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 // v2)
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 // v1)
                 continue
             if opcode == wasmi.opcodes.I64_DIVU:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 // v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 // v1)
                 continue
             if opcode == wasmi.opcodes.I64_REMS:
-                v2 = self.stack.pop_i64()
                 v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 % v2)
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 % v1)
                 continue
             if opcode == wasmi.opcodes.I64_REMU:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 % v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 % v1)
                 continue
             if opcode == wasmi.opcodes.I64_AND:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 & v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 & v1)
                 continue
             if opcode == wasmi.opcodes.I64_OR:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 | v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 | v1)
                 continue
             if opcode == wasmi.opcodes.I64_XOR:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 ^ v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 ^ v1)
                 continue
             if opcode == wasmi.opcodes.I64_SHL:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 << v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 << v1)
                 continue
             if opcode == wasmi.opcodes.I64_SHRS:
-                v2 = self.stack.pop_u64()
-                v1 = self.stack.pop_i64()
-                self.stack.add_i64(v1 >> v2)
+                v1 = self.stack.pop_u64()
+                v2 = self.stack.pop_i64()
+                self.stack.add_i64(v2 >> v1)
                 continue
             if opcode == wasmi.opcodes.I64_SHRU:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                self.stack.add_u64(v1 >> v2)
+                v2 = self.stack.pop_u64()
+                self.stack.add_u64(v2 >> v1)
                 continue
             if opcode == wasmi.opcodes.I64_ROTL:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                r = wasmi.common.rotl_u64(v1, v2)
+                v2 = self.stack.pop_u64()
+                r = wasmi.common.rotl_u64(v2, v1)
                 self.stack.add_u64(r)
                 continue
             if opcode == wasmi.opcodes.I64_ROTR:
-                v2 = self.stack.pop_u64()
                 v1 = self.stack.pop_u64()
-                r = wasmi.common.rotr_u64(v1, v2)
+                v2 = self.stack.pop_u64()
+                r = wasmi.common.rotr_u64(v2, v1)
                 self.stack.add_u64(r)
                 continue
             if opcode == wasmi.opcodes.F32_ABS:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = v if v > 0 else -v
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_NEG:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = -v
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_CEIL:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = math.ceil(v)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_FLOOR:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = math.floor(v)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_TRUNC:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = math.trunc(v)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_NEAREST:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                ceil = math.ceil(v)
+                if ceil - v >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_SQRT:
-                raise NotImplementedError
+                v = self.stack.pop_f32()
+                r = math.sqrt(v)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_ADD:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(v2 + v1)
+                continue
             if opcode == wasmi.opcodes.F32_SUB:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(v2 - v1)
+                continue
             if opcode == wasmi.opcodes.F32_MUL:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(v2 * v1)
+                continue
             if opcode == wasmi.opcodes.F32_DIV:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(v2 / v1)
+                continue
             if opcode == wasmi.opcodes.F32_MIN:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(min(v2, v1))
+                continue
             if opcode == wasmi.opcodes.F32_MAX:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                self.stack.add_f32(max(v2, v1))
+                continue
             if opcode == wasmi.opcodes.F32_COPYSIGN:
-                raise NotImplementedError
+                v1 = self.stack.pop_f32()
+                v2 = self.stack.pop_f32()
+                r = math.copysign(v1, v2)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F64_ABS:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = v if v > 0 else -v
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_NEG:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = -v
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_CEIL:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = math.ceil(v)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_FLOOR:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = math.floor(v)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_TRUNC:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = math.trunc(v)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_NEAREST:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                ceil = math.ceil(v)
+                if ceil - v >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_SQRT:
-                raise NotImplementedError
+                v = self.stack.pop_f64()
+                r = math.sqrt(v)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_ADD:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(v2 + v1)
+                continue
             if opcode == wasmi.opcodes.F64_SUB:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(v2 - v1)
+                continue
             if opcode == wasmi.opcodes.F64_MUL:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(v2 * v1)
+                continue
             if opcode == wasmi.opcodes.F64_DIV:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(v2 / v1)
+                continue
             if opcode == wasmi.opcodes.F64_MIN:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(min(v2, v1))
+                continue
             if opcode == wasmi.opcodes.F64_MAX:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                self.stack.add_f64(max(v2, v1))
+                continue
             if opcode == wasmi.opcodes.F64_COPYSIGN:
-                raise NotImplementedError
+                v1 = self.stack.pop_f64()
+                v2 = self.stack.pop_f64()
+                r = math.copysign(v1, v2)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.I32_WRAP_I64:
-                raise NotImplementedError
+                r = self.stack.pop_i64()
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I32_TRUNC_SF32:
-                raise NotImplementedError
+                r = self.stack.pop_f32()
+                r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I32_TRUNC_UF32:
-                raise NotImplementedError
+                r = self.stack.pop_f32()
+                r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I32_TRUNC_SF64:
-                raise NotImplementedError
+                r = self.stack.pop_f64()
+                r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I32_TRUNC_UF64:
-                raise NotImplementedError
+                r = self.stack.pop_f64()
+                r = math.trunc(r)
+                r = wasmi.common.into_i32(r)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I64_EXTEND_SI32:
-                raise NotImplementedError
+                r = self.stack.pop_i32()
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.I64_EXTEND_UI32:
-                raise NotImplementedError
+                r = self.stack.pop_u32()
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.I64_TRUNC_SF32:
-                raise NotImplementedError
+                r = self.stack.pop_f32()
+                r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.I64_TRUNC_UF32:
-                raise NotImplementedError
+                r = self.stack.pop_f32()
+                r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.I64_TRUNC_SF64:
-                raise NotImplementedError
+                r = self.stack.pop_f64()
+                r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.I64_TRUNC_UF64:
-                raise NotImplementedError
+                r = self.stack.pop_f64()
+                r = math.trunc(r)
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONVERT_SI32:
-                raise NotImplementedError
+                r = self.stack.pop_i32()
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONVERT_UI32:
-                raise NotImplementedError
+                r = self.stack.pop_u32()
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONVERT_SI64:
-                raise NotImplementedError
+                r = self.stack.pop_i64()
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONVERT_UI64:
-                raise NotImplementedError
+                r = self.stack.pop_u64()
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F32_DEMOTE_F64:
-                raise NotImplementedError
+                r = self.stack.pop_f64()
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONVERT_SI32:
-                raise NotImplementedError
+                r = self.stack.pop_i32()
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONVERT_UI32:
-                raise NotImplementedError
+                r = self.stack.pop_u32()
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONVERT_SI64:
-                raise NotImplementedError
+                r = self.stack.pop_i64()
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONVERT_UI64:
-                raise NotImplementedError
+                r = self.stack.pop_u64()
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.F64_PROMOTE_F32:
-                raise NotImplementedError
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                continue
             if opcode == wasmi.opcodes.I32_REINTERPRET_F32:
-                raise NotImplementedError
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I32
+                continue
             if opcode == wasmi.opcodes.I64_REINTERPRET_F64:
-                raise NotImplementedError
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I64
+                continue
             if opcode == wasmi.opcodes.F32_REINTERPRET_I32:
-                raise NotImplementedError
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F32
+                continue
             if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
-                raise NotImplementedError
+                self.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                continue
