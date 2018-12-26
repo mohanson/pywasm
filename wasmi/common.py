@@ -226,7 +226,7 @@ def read_u64_leb128(r: typing.BinaryIO):
         if (b & 0x80) != 0x80:
             break
         n += 1
-    if n == 4 and (tmp & 0xf0) != 0:
+    if n == 8 and (tmp & 0xf0) != 0:
         return -1
     return n + 1, v
 
