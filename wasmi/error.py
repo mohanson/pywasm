@@ -6,3 +6,6 @@ class Unreachable(Exception):
 
 class MultipleLinearMemories(Exception):
     pass
+
+class EmptyInitExpr(Exception):
+    pass

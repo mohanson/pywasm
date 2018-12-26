@@ -112,13 +112,62 @@ class Ctx:
 class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
+        self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.MultipleLinearMemories
             size = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
             self.mem = bytearray([0 for _ in range(size)])
-        self.global_data: typing.List[wasmi.stack.Entry] = []
+        for e in self.mod.section_data.entries:
+            assert e.idx == 0
+            offset = self.exec_init_expr(e.expression.data)
+            wasmi.log.println(f'VM.SetMem<offset={offset} init=0x{e.init.hex()}>')
+            self.mem[offset: offset + len(e.init)] = e.init
+
+    def exec_init_expr(self, code: bytearray):
+        stack = wasmi.stack.Stack()
+        if not code:
+            raise wasmi.error.EmptyInitExpr
+        pc = 0
+        for _ in range(1 << 32):
+            opcode = code[pc]
+            pc += 1
+            if opcode == wasmi.opcodes.I32_CONST:
+                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                stack.add(wasmi.stack.Entry.from_u32(i))
+                continue
+            if opcode == wasmi.opcodes.I64_CONST:
+                n, i = wasmi.common.decode_u64_leb128(code[pc:])
+                pc += n
+                stack.add(wasmi.stack.Entry.from_u64(i))
+                continue
+            if opcode == wasmi.opcodes.F32_CONST:
+                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                r = wasmi.stack.Entry.from_u32(i)
+                r.kind = wasmi.opcodes.VALUE_TYPE_F32
+                stack.add(r)
+                continue
+            if opcode == wasmi.opcodes.F64_CONST:
+                n, i = wasmi.common.decode_u64_leb128(code[pc:])
+                pc += n
+                r = wasmi.stack.Entry.from_u64(i)
+                r.kind = wasmi.opcodes.VALUE_TYPE_F64
+                stack.add(r)
+                continue
+            if opcode == wasmi.opcodes.GET_GLOBAL:
+                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                v = self.global_data[i]
+                stack.add(v)
+                continue
+            if opcode == wasmi.opcodes.END:
+                break
+        if not stack.data:
+            return 0
+        return stack.data.pop().into_val()
 
     def exec(self, name: str, args: typing.List[wasmi.stack.Entry]):
         export: wasmi.section.Export = None
