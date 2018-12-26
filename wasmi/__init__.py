@@ -118,16 +118,6 @@ class Vm:
                 raise wasmi.error.MultipleLinearMemories
             size = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
             self.mem = bytearray([0 for _ in range(size)])
-
-        # if module.Memory != nil && len(module.Memory.Entries) != 0 {
-		# if len(module.Memory.Entries) > 1 {
-		# 	return nil, ErrMultipleLinearMemories
-		# }
-		# vm.memory = make([]byte, uint(module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
-		# copy(vm.memory, module.LinearMemoryIndexSpace[0])
-	    # }
-
-        self.mem = bytearray()
         self.global_data: typing.List[wasmi.stack.Entry] = []
 
     def exec(self, name: str, args: typing.List[wasmi.stack.Entry]):
