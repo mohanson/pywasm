@@ -10,7 +10,7 @@ A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specif
 
 ```sh
 $ git clone https://github.com/mohanson/py-wasmi
-$ python3 main.py # Run quick test
+$ cd py-wasmi && python3 main.py # Run quick test
 ```
 
 **OR**
