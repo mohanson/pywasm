@@ -120,21 +120,21 @@ class Vm:
         function = self.mod.section_function.entries[export.idx]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[export.idx]
-        code = function_body.expression.data
+        code = function_body.expression.data + chr(0x0f).encode()
         for idx, e in enumerate(data):
             data[idx] = wasmi.stack.Entry.from_val(e, function_signature.args[idx])
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
-            name = wasmi.opcodes.NAME_DICT.get(opcode, f'Invalid Opcode {opcode}')
+            name = wasmi.opcodes.CODE_DICT.get(opcode, f'Invalid Opcode {opcode}')
             wasmi.log.println(name, self.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.Unreachable
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
-                raise NotImplementedError
+                continue
             if opcode == wasmi.opcodes.LOOP:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.IF:
@@ -142,6 +142,16 @@ class Vm:
             if opcode == wasmi.opcodes.ELSE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.END:
+                continue
+            if opcode == wasmi.opcodes.BR:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.BR_IF:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.BR_TABLE:
+                raise NotImplementedError
+            if opcode == wasmi.opcodes.RETURN:
+                if not self.stack.len():
+                    return 0
                 data = self.stack.pop()
                 if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I32:
                     return data.into_i32()
@@ -151,15 +161,6 @@ class Vm:
                     return data.into_f32()
                 if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F64:
                     return data.into_f64()
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR_IF:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR_TABLE:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.RETURN:
-                raise NotImplementedError
             if opcode == wasmi.opcodes.CALL:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.CALL_INDIRECT:
