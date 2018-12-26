@@ -230,13 +230,29 @@ class Vm:
             if opcode == wasmi.opcodes.GROW_MEMORY:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_CONST:
-                raise NotImplementedError
+                data = code[pc:pc + 4]
+                pc += 4
+                r = wasmi.common.decode_i32(data)
+                self.stack.add_i32(r)
+                continue
             if opcode == wasmi.opcodes.I64_CONST:
-                raise NotImplementedError
+                data = code[pc:pc + 8]
+                pc += 8
+                r = wasmi.common.decode_i64(data)
+                self.stack.add_i64(r)
+                continue
             if opcode == wasmi.opcodes.F32_CONST:
-                raise NotImplementedError
+                data = code[pc:pc + 4]
+                pc += 4
+                r = wasmi.common.decode_f32(data)
+                self.stack.add_f32(r)
+                continue
             if opcode == wasmi.opcodes.F64_CONST:
-                raise NotImplementedError
+                data = code[pc:pc + 8]
+                pc += 8
+                r = wasmi.common.decode_f64(data)
+                self.stack.add_f64(r)
+                continue
             if opcode == wasmi.opcodes.I32_EQZ:
                 self.stack.add_i32(self.stack.pop_i32() == 0)
                 continue

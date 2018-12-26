@@ -6,7 +6,7 @@ import wasmi.opcodes
 
 
 class Entry:
-    def __init__(self, data: bytes, kind: int):
+    def __init__(self, data: bytearray, kind: int):
         assert len(data) == 8
         self.data = data
         self.kind = kind

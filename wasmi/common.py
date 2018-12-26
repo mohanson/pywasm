@@ -136,6 +136,16 @@ def into_f64(n: float):
     return n
 
 
+def decode_i32(r: bytes):
+    assert len(r) == 4
+    return struct.unpack('<i', r)[0]
+
+
+def decode_i64(r: bytes):
+    assert len(r) == 8
+    return struct.unpack('<q', r)[0]
+
+
 def decode_u32(r: bytes):
     assert len(r) == 4
     return struct.unpack('<I', r)[0]
@@ -144,6 +154,16 @@ def decode_u32(r: bytes):
 def decode_u64(r: bytes):
     assert len(r) == 8
     return struct.unpack('<I', r)[0]
+
+
+def decode_f32(r: bytes):
+    assert len(r) == 4
+    return struct.unpack('<f', r)[0]
+
+
+def decode_f64(r: bytes):
+    assert len(r) == 8
+    return struct.unpack('<d', r)[0]
 
 
 def decode_u32_leb128(r: bytes):
