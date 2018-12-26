@@ -113,7 +113,7 @@ class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
         self.mem = bytearray()
-        if self.mod.section_memory and len(self.mod.section_memory.entries):
+        if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.MultipleLinearMemories
             size = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
