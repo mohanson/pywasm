@@ -171,7 +171,7 @@ class Vm:
                 v1 = self.stack.pop_i64()
                 v2 = self.stack.pop()
                 v3 = self.stack.pop()
-                self.stack.add(v2 if v1 != 0 else v3)
+                self.stack.add(v3 if v1 != 0 else v2)
                 continue
             if opcode == wasmi.opcodes.GET_LOCAL:
                 n, i = wasmi.common.decode_u32_leb128(code[pc:])
@@ -242,11 +242,20 @@ class Vm:
                 self.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
+                n, r = wasmi.common.read_u64_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                r = wasmi.common.into_i64(r)
+                self.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
+                n, r = wasmi.common.read_u32_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                self.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                continue
+                n, r = wasmi.common.read_u64_leb128(io.BytesIO(code[pc:]))
+                pc += n
+                self.stack.add_f64(r)
             if opcode == wasmi.opcodes.I32_EQZ:
                 self.stack.add_i32(self.stack.pop_i32() == 0)
                 continue
