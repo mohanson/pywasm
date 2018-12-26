@@ -119,11 +119,12 @@ class Vm:
                 raise wasmi.error.MultipleLinearMemories
             size = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
             self.mem = bytearray([0 for _ in range(size)])
-        for e in self.mod.section_data.entries:
-            assert e.idx == 0
-            offset = self.exec_init_expr(e.expression.data)
-            wasmi.log.println(f'VM.SetMem<offset={offset} init=0x{e.init.hex()}>')
-            self.mem[offset: offset + len(e.init)] = e.init
+        if self.mod.section_data:
+            for e in self.mod.section_data.entries:
+                assert e.idx == 0
+                offset = self.exec_init_expr(e.expression.data)
+                wasmi.log.println(f'VM.SetMem<offset={offset} init=0x{e.init.hex()}>')
+                self.mem[offset: offset + len(e.init)] = e.init
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -169,7 +170,7 @@ class Vm:
             return 0
         return stack.data.pop().into_val()
 
-    def exec(self, name: str, args: typing.List[wasmi.stack.Entry]):
+    def exec(self, name: str, args: typing.List):
         export: wasmi.section.Export = None
         for e in self.mod.section_export.entries:
             if e.name == name:
@@ -181,6 +182,8 @@ class Vm:
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[export.idx]
         code = function_body.expression.data + chr(0x0f).encode()
+        for i, kind in enumerate(function_signature.args):
+            args[i] = wasmi.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
         pc = 0
         for _ in range(1 << 32):

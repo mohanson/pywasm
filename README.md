@@ -36,8 +36,7 @@ import wasmi
 
 path = './tests/data/add.wasm'
 
-with open(path, 'rb') as f:
-    mod = wasmi.Mod.from_reader(f)
+mod = wasmi.Mod.from_reader(open(path, 'rb'))
 vm = wasmi.Vm(mod)
 r = vm.exec('add', [40, 2])
 print(r) # 42
