@@ -2,12 +2,20 @@ import struct
 import typing
 import io
 
+I8_MAX = (1 << 7) - 1
+I8_MIN = - (1 << 7)
+I8_LEN = 1 << 8
+I16_MAX = (1 << 15) - 1
+I16_MIN = - (1 << 15)
+I16_LEN = 1 << 16
 I32_MAX = (1 << 31) - 1
 I32_MIN = - (1 << 31)
 I32_LEN = 1 << 32
 I64_MAX = (1 << 63) - 1
 I64_MIN = - (1 << 63)
 I64_LEN = 1 << 64
+U8_MAX = 1 << 8
+U16_MAX = 1 << 16
 U32_MAX = 1 << 32
 U64_MAX = 1 << 64
 
@@ -88,6 +96,22 @@ LEN_TAB = [
 ]
 
 
+def into_i8(n: int):
+    if n > I8_MAX:
+        return into_i8(n - I8_LEN)
+    if n < I8_MIN:
+        return into_i8(n + I8_LEN)
+    return n
+
+
+def into_i16(n: int):
+    if n > I16_MAX:
+        return into_i16(n - I16_LEN)
+    if n < I16_MIN:
+        return into_i16(n + I16_LEN)
+    return n
+
+
 def into_i32(n: int):
     if n > I32_MAX:
         return into_i32(n - I32_LEN)
@@ -104,6 +128,22 @@ def into_i64(n: int):
     return n
 
 
+def into_u8(n: int):
+    if n > U8_MAX:
+        return into_u8(n - U8_MAX)
+    if n < 0:
+        return into_u8(n + U8_MAX)
+    return n
+
+
+def into_u16(n: int):
+    if n > U16_MAX:
+        return into_u16(n - U16_MAX)
+    if n < 0:
+        return into_u16(n + U16_MAX)
+    return n
+
+
 def into_u32(n: int):
     if n > U32_MAX:
         return into_u32(n - U32_MAX)
@@ -114,26 +154,28 @@ def into_u32(n: int):
 
 def into_u64(n: int):
     if n > U64_MAX:
-        return into_u32(n - U64_MAX)
+        return into_u64(n - U64_MAX)
     if n < 0:
-        return into_u32(n + U64_MAX)
+        return into_u64(n + U64_MAX)
     return n
 
 
 def into_f32(n: float):
-    if n > I32_MAX:
-        return into_f32(n - I32_MAX)
-    if n < 0:
-        return into_f32(n + I32_MAX)
     return n
 
 
 def into_f64(n: float):
-    if n > I64_MAX:
-        return into_f64(n - I64_MAX)
-    if n < 0:
-        return into_f64(n + I64_MAX)
     return n
+
+
+def decode_i8(r: bytes):
+    assert len(r) == 1
+    return struct.unpack('<b', r)[0]
+
+
+def decode_i16(r: bytes):
+    assert len(r) == 2
+    return struct.unpack('<h', r)[0]
 
 
 def decode_i32(r: bytes):
@@ -146,6 +188,16 @@ def decode_i64(r: bytes):
     return struct.unpack('<q', r)[0]
 
 
+def decode_u8(r: bytes):
+    assert len(r) == 1
+    return struct.unpack('<B', r)[0]
+
+
+def decode_u16(r: bytes):
+    assert len(r) == 2
+    return struct.unpack('<H', r)[0]
+
+
 def decode_u32(r: bytes):
     assert len(r) == 4
     return struct.unpack('<I', r)[0]
@@ -153,7 +205,7 @@ def decode_u32(r: bytes):
 
 def decode_u64(r: bytes):
     assert len(r) == 8
-    return struct.unpack('<I', r)[0]
+    return struct.unpack('<Q', r)[0]
 
 
 def decode_f32(r: bytes):

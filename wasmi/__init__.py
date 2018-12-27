@@ -274,31 +274,109 @@ class Vm:
                 ctx.stack.add_i32(i)
                 continue
             if opcode == wasmi.opcodes.I64_LOAD:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i64(self.mem[a:a + 8])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.F32_LOAD:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_f32(self.mem[a:a + 4])
+                ctx.stack.add_f32(i)
+                continue
             if opcode == wasmi.opcodes.F64_LOAD:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_f64(self.mem[a:a + 8])
+                ctx.stack.add_f64(i)
+                continue
             if opcode == wasmi.opcodes.I32_LOAD_8s:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i8(self.mem[a:a + 1])
+                ctx.stack.add_i32(i)
+                continue
             if opcode == wasmi.opcodes.I32_LOAD_8u:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_u8(self.mem[a:a + 1])
+                ctx.stack.add_i32(i)
+                continue
             if opcode == wasmi.opcodes.I32_LOAD_16s:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i16(self.mem[a:a + 2])
+                ctx.stack.add_i32(i)
+                continue
             if opcode == wasmi.opcodes.I32_LOAD_16u:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_u16(self.mem[a:a + 2])
+                ctx.stack.add_i32(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_8s:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i8(self.mem[a:a + 1])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_8u:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_u8(self.mem[a:a + 1])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_16s:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i16(self.mem[a:a + 2])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_16u:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_u16(self.mem[a:a + 2])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_32s:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i32(self.mem[a:a + 4])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD_32u:
-                raise NotImplementedError
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_u32(self.mem[a:a + 4])
+                ctx.stack.add_i64(i)
+                continue
             if opcode == wasmi.opcodes.I32_STORE:
                 v = ctx.stack.pop()
                 pc += 1
@@ -308,11 +386,29 @@ class Vm:
                 self.mem[a:a + 4] = v.data[4:]
                 continue
             if opcode == wasmi.opcodes.I64_STORE:
-                raise NotImplementedError
+                v = ctx.stack.pop()
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i64() + i
+                self.mem[a:a + 8] = v.data
+                continue
             if opcode == wasmi.opcodes.F32_STORE:
-                raise NotImplementedError
+                v = ctx.stack.pop()
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 4] = v.data[4:]
+                continue
             if opcode == wasmi.opcodes.F64_STORE:
-                raise NotImplementedError
+                v = ctx.stack.pop()
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i64() + i
+                self.mem[a:a + 8] = v.data
+                continue
             if opcode == wasmi.opcodes.I32_STORE8:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_STORE16:
