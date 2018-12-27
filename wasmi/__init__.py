@@ -135,31 +135,31 @@ class Vm:
             opcode = code[pc]
             pc += 1
             if opcode == wasmi.opcodes.I32_CONST:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 stack.add(wasmi.stack.Entry.from_u32(i))
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                n, i = wasmi.common.decode_u64_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u64_leb128(code[pc:])
                 pc += n
                 stack.add(wasmi.stack.Entry.from_u64(i))
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 r = wasmi.stack.Entry.from_u32(i)
                 r.kind = wasmi.opcodes.VALUE_TYPE_F32
                 stack.add(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                n, i = wasmi.common.decode_u64_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u64_leb128(code[pc:])
                 pc += n
                 r = wasmi.stack.Entry.from_u64(i)
                 r.kind = wasmi.opcodes.VALUE_TYPE_F64
                 stack.add(r)
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 v = self.global_data[i]
                 stack.add(v)
@@ -186,6 +186,7 @@ class Vm:
             args[i] = wasmi.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
         pc = 0
+
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
@@ -237,32 +238,41 @@ class Vm:
                 ctx.stack.add(v3 if v1 != 0 else v2)
                 continue
             if opcode == wasmi.opcodes.GET_LOCAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.stack.add(ctx.locals_data[i])
                 continue
             if opcode == wasmi.opcodes.SET_LOCAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.locals_data[i] = ctx.stack.pop()
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.locals_data[i] = ctx.stack.data[-1]
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.stack.add(self.global_data[i])
                 continue
             if opcode == wasmi.opcodes.SET_GLOBAL:
-                n, i = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 self.global_data[i] = ctx.stack.pop()
                 continue
             if opcode == wasmi.opcodes.I32_LOAD:
-                raise NotImplementedError
+                # memory_immediate has two fields, the alignment and the offset.
+                # The former is simply an optimization hint and can be safely
+                # discarded.
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                i = wasmi.common.decode_i32(self.mem[a:a + 4])
+                ctx.stack.add_i32(i)
+                continue
             if opcode == wasmi.opcodes.I64_LOAD:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.F32_LOAD:
@@ -290,7 +300,13 @@ class Vm:
             if opcode == wasmi.opcodes.I64_LOAD_32u:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_STORE:
-                raise NotImplementedError
+                v = ctx.stack.pop()
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 4] = v.data[4:]
+                continue
             if opcode == wasmi.opcodes.I64_STORE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.F32_STORE:
@@ -312,23 +328,23 @@ class Vm:
             if opcode == wasmi.opcodes.GROW_MEMORY:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.I32_CONST:
-                n, r = wasmi.common.decode_u32_leb128(code[pc:])
+                n, r, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.stack.add_i32(r)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                n, r = wasmi.common.decode_u64_leb128(code[pc:])
+                n, r, _ = wasmi.common.decode_u64_leb128(code[pc:])
                 pc += n
                 r = wasmi.common.into_i64(r)
                 ctx.stack.add_i64(r)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                n, r = wasmi.common.decode_u32_leb128(code[pc:])
+                n, r, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 ctx.stack.add_f32(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                n, r = wasmi.common.decode_u64_leb128(code[pc:])
+                n, r, _ = wasmi.common.decode_u64_leb128(code[pc:])
                 pc += n
                 ctx.stack.add_f64(r)
             if opcode == wasmi.opcodes.I32_EQZ:

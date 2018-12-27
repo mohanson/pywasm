@@ -182,30 +182,13 @@ def read_u64(r: typing.BinaryIO):
     return decode_u64(data)
 
 
-# def read_u32_leb128(r: typing.BinaryIO):
-#     vmask = [0xffffff80, 0xffffc000, 0xffe00000, 0xf0000000, 0]
-#     bmask = [0x40, 0x40, 0x40, 0x40, 0x8]
-#     v = 0
-#     n = 0
-#     for _ in range(0, 5):
-#         b = ord(r.read(1))
-#         tmp = b & 0x7f
-#         v = tmp << (n * 7) | v
-#         if (b & 0x80) != 0x80:
-#             if bmask[n] & tmp:
-#                 v |= vmask[n]
-#             break
-#         n += 1
-#     if n == 4 and (tmp & 0xf0) != 0:
-#         return -1
-#     v = struct.unpack('i', struct.pack('I', v))[0]
-#     return n + 1, v
-
 def read_u32_leb128(r: typing.BinaryIO):
     v = 0
     n = 0
+    a = bytearray()
     for _ in range(0, 9):
         b = ord(r.read(1))
+        a.append(b)
         tmp = b & 0x7f
         v = tmp << (n * 7) | v
         if (b & 0x80) != 0x80:
@@ -213,14 +196,16 @@ def read_u32_leb128(r: typing.BinaryIO):
         n += 1
     if n == 4 and (tmp & 0xf0) != 0:
         return -1
-    return n + 1, v
+    return n + 1, v, a
 
 
 def read_u64_leb128(r: typing.BinaryIO):
     v = 0
     n = 0
+    a = bytearray()
     for _ in range(0, 9):
         b = ord(r.read(1))
+        a.append(b)
         tmp = b & 0x7f
         v = tmp << (n * 7) | v
         if (b & 0x80) != 0x80:
@@ -228,7 +213,7 @@ def read_u64_leb128(r: typing.BinaryIO):
         n += 1
     if n == 8 and (tmp & 0xf0) != 0:
         return -1
-    return n + 1, v
+    return n + 1, v, a
 
 
 def rotl_u32(x: int, k: int):
