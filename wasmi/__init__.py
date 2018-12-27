@@ -1,4 +1,3 @@
-import io
 import itertools
 import math
 import typing
@@ -114,11 +113,12 @@ class Vm:
         self.mod = mod
         self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
+        self.mem_len = 0
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.MultipleLinearMemories
-            size = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
-            self.mem = bytearray([0 for _ in range(size)])
+            self.mem_len = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
+            self.mem = bytearray([0 for _ in range(self.mem_len)])
         if self.mod.section_data:
             for e in self.mod.section_data.entries:
                 assert e.idx == 0
@@ -183,7 +183,7 @@ class Vm:
         function_body = self.mod.section_code.entries[export.idx]
         code = function_body.expression.data + chr(0x0f).encode()
         for i, kind in enumerate(function_signature.args):
-            args[i] = wasmi.Entry.from_val(args[i], kind)
+            args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
         pc = 0
 
@@ -410,19 +410,56 @@ class Vm:
                 self.mem[a:a + 8] = v.data
                 continue
             if opcode == wasmi.opcodes.I32_STORE8:
-                raise NotImplementedError
+                v = wasmi.common.into_u8(ctx.stack.pop_u32())
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 1] = wasmi.common.encode_u8(v)
+                continue
             if opcode == wasmi.opcodes.I32_STORE16:
-                raise NotImplementedError
+                v = wasmi.common.into_u16(ctx.stack.pop_u32())
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 2] = wasmi.common.encode_u16(v)
+                continue
             if opcode == wasmi.opcodes.I64_STORE8:
-                raise NotImplementedError
+                v = wasmi.common.into_u8(ctx.stack.pop_u64())
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 1] = wasmi.common.encode_u8(v)
+                continue
             if opcode == wasmi.opcodes.I64_STORE16:
-                raise NotImplementedError
+                v = wasmi.common.into_u16(ctx.stack.pop_u64())
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 2] = wasmi.common.encode_u16(v)
+                continue
             if opcode == wasmi.opcodes.I64_STORE32:
-                raise NotImplementedError
+                v = wasmi.common.into_u32(ctx.stack.pop_u64())
+                pc += 1
+                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                a = ctx.stack.pop_i32() + i
+                self.mem[a:a + 4] = wasmi.common.encode_u32(v)
+                continue
             if opcode == wasmi.opcodes.CURRENT_MEMORY:
-                raise NotImplementedError
+                pc += 1
+                ctx.stack.add_i32(self.mem_len)
+                continue
             if opcode == wasmi.opcodes.GROW_MEMORY:
-                raise NotImplementedError
+                pc += 1
+                cur_len = self.mem_len
+                n = ctx.stack.pop_i32()
+                self.mem.extend([0 for _ in range(n * 64 * 1024)])
+                ctx.stack.add_i32(cur_len)
+                continue
             if opcode == wasmi.opcodes.I32_CONST:
                 n, r, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n

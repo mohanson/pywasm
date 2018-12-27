@@ -218,6 +218,46 @@ def decode_f64(r: bytes):
     return struct.unpack('<d', r)[0]
 
 
+def encode_i8(r: int):
+    return struct.pack('<b', r)
+
+
+def encode_i16(r: int):
+    return struct.pack('<h', r)
+
+
+def encode_i32(r: int):
+    return struct.pack('<i', r)
+
+
+def encode_i64(r: int):
+    return struct.pack('<q', r)
+
+
+def encode_u8(r: int):
+    return struct.pack('<B', r)
+
+
+def encode_u16(r: int):
+    return struct.pack('<H', r)
+
+
+def encode_u32(r: int):
+    return struct.pack('<I', r)
+
+
+def encode_u64(r: int):
+    return struct.pack('<Q', r)
+
+
+def encode_f32(r: float):
+    return struct.pack('<f', r)
+
+
+def encode_f64(r: float):
+    return struct.pack('<d', r)
+
+
 def decode_u32_leb128(r: bytes):
     return read_u32_leb128(io.BytesIO(r))
 
