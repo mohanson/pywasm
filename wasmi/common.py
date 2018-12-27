@@ -1,4 +1,3 @@
-import math
 import struct
 import typing
 import io

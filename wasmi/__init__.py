@@ -1,3 +1,4 @@
+import itertools
 import math
 import typing
 
@@ -136,12 +137,12 @@ class Vm:
             if opcode == wasmi.opcodes.I32_CONST:
                 n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
-                stack.add(wasmi.stack.Entry.from_i32(i))
+                stack.add_i32(i)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
                 n, i, _ = wasmi.common.decode_u64_leb128(code[pc:])
                 pc += n
-                stack.add(wasmi.stack.Entry.from_i64(i))
+                stack.add_i64(i)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
                 n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
