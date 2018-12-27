@@ -1,6 +1,6 @@
 import wasmi
 
-path = './tests/data/add.wasm'
+path = './test/data/add.wasm'
 
 mod = wasmi.Mod.from_reader(open(path, 'rb'))
 vm = wasmi.Vm(mod)

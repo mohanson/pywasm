@@ -1,3 +1,4 @@
+import math
 import struct
 import typing
 import io
@@ -14,10 +15,14 @@ I32_LEN = 1 << 32
 I64_MAX = (1 << 63) - 1
 I64_MIN = - (1 << 63)
 I64_LEN = 1 << 64
-U8_MAX = 1 << 8
-U16_MAX = 1 << 16
-U32_MAX = 1 << 32
-U64_MAX = 1 << 64
+U8_MAX = (1 << 8) - 1
+U8_LEN = 1 << 8
+U16_MAX = (1 << 16) - 1
+U16_LEN = 1 << 16
+U32_MAX = (1 << 32) - 1
+U32_LEN = 1 << 32
+U64_MAX = (1 << 64) - 1
+U64_LEN = 1 << 64
 
 NTZ_TAB = [
     0x08, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
@@ -98,65 +103,65 @@ LEN_TAB = [
 
 def into_i8(n: int):
     if n > I8_MAX:
-        return into_i8(n - I8_LEN)
+        i = (n - I8_MAX - 1) // I8_LEN + 1
+        return n - i * I8_LEN
     if n < I8_MIN:
-        return into_i8(n + I8_LEN)
+        i = (I8_MIN - n - 1) // I8_LEN + 1
+        return n + i * I8_LEN
     return n
 
 
 def into_i16(n: int):
     if n > I16_MAX:
-        return into_i16(n - I16_LEN)
+        i = (n - I16_MAX - 1) // I16_LEN + 1
+        return n - i * I16_LEN
     if n < I16_MIN:
-        return into_i16(n + I16_LEN)
+        i = (I16_MIN - n - 1) // I16_LEN + 1
+        return n + i * I16_LEN
     return n
 
 
 def into_i32(n: int):
     if n > I32_MAX:
-        return into_i32(n - I32_LEN)
+        i = (n - I32_MAX - 1) // I32_LEN + 1
+        return n - i * I32_LEN
     if n < I32_MIN:
-        return into_i32(n + I32_LEN)
+        i = (I32_MIN - n - 1) // I32_LEN + 1
+        return n + i * I32_LEN
     return n
 
 
 def into_i64(n: int):
     if n > I64_MAX:
-        return into_i64(n - I64_LEN)
+        i = (n - I64_MAX - 1) // I64_LEN + 1
+        return n - i * I64_LEN
     if n < I64_MIN:
-        return into_i64(n + I64_LEN)
+        i = (I64_MIN - n - 1) // I64_LEN + 1
+        return n + i * I64_LEN
     return n
 
 
 def into_u8(n: int):
-    if n > U8_MAX:
-        return into_u8(n - U8_MAX)
-    if n < 0:
-        return into_u8(n + U8_MAX)
+    if n > U8_MAX or n < 0:
+        return n % U8_LEN
     return n
 
 
 def into_u16(n: int):
-    if n > U16_MAX:
-        return into_u16(n - U16_MAX)
-    if n < 0:
-        return into_u16(n + U16_MAX)
+    if n > U16_MAX or n < 0:
+        return n % U16_LEN
     return n
 
 
 def into_u32(n: int):
-    if n > U32_MAX:
-        return into_u32(n - U32_MAX)
-    if n < 0:
-        return into_u32(n + U32_MAX)
+    if n > U32_MAX or n < 0:
+        return n % U32_LEN
     return n
 
 
 def into_u64(n: int):
-    if n > U64_MAX:
-        return into_u64(n - U64_MAX)
-    if n < 0:
-        return into_u64(n + U64_MAX)
+    if n > U64_MAX or n < 0:
+        return n % U64_LEN
     return n
 
 
