@@ -1036,9 +1036,3 @@ class Vm:
             if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
                 ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
                 continue
-
-
-# -----------------------------------------------------------------------------
-# Export klasses
-# -----------------------------------------------------------------------------
-Entry = wasmi.stack.Entry
