@@ -57,13 +57,42 @@ class Expression:
                 wasmi.opcodes.GET_LOCAL,
                 wasmi.opcodes.SET_LOCAL,
                 wasmi.opcodes.TEE_LOCAL,
+                wasmi.opcodes.GET_GLOBAL,
+                wasmi.opcodes.SET_GLOBAL,
                 wasmi.opcodes.I32_CONST,
                 wasmi.opcodes.I64_CONST,
                 wasmi.opcodes.F32_CONST,
                 wasmi.opcodes.F64_CONST,
-                wasmi.opcodes.GET_GLOBAL,
-                wasmi.opcodes.SET_GLOBAL,
             ]:
+                n, _, a = wasmi.common.read_u64_leb128(r)
+                data.extend(a)
+                continue
+            if op in [
+                wasmi.opcodes.I32_LOAD,
+                wasmi.opcodes.I64_LOAD,
+                wasmi.opcodes.F32_LOAD,
+                wasmi.opcodes.F64_LOAD,
+                wasmi.opcodes.I32_LOAD_8s,
+                wasmi.opcodes.I32_LOAD_8u,
+                wasmi.opcodes.I32_LOAD_16s,
+                wasmi.opcodes.I32_LOAD_16u,
+                wasmi.opcodes.I64_LOAD_8s,
+                wasmi.opcodes.I64_LOAD_8u,
+                wasmi.opcodes.I64_LOAD_16s,
+                wasmi.opcodes.I64_LOAD_16u,
+                wasmi.opcodes.I64_LOAD_32s,
+                wasmi.opcodes.I64_LOAD_32u,
+                wasmi.opcodes.I32_STORE,
+                wasmi.opcodes.I64_STORE,
+                wasmi.opcodes.F32_STORE,
+                wasmi.opcodes.F64_STORE,
+                wasmi.opcodes.I32_STORE8,
+                wasmi.opcodes.I32_STORE16,
+                wasmi.opcodes.I64_STORE8,
+                wasmi.opcodes.I64_STORE16,
+                wasmi.opcodes.I64_STORE32,
+            ]:
+                data.extend(r.read(1))
                 n, _, a = wasmi.common.read_u64_leb128(r)
                 data.extend(a)
                 continue
