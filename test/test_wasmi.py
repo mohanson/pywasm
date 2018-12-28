@@ -173,3 +173,41 @@ def test_num():
         if b == 0:
             b = 1
         assert vm.exec('u64_div', [a, b]) == wasmi.common.into_u64(a) // wasmi.common.into_u64(b)
+
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f32_add', [a, b]) - (a + b)) / (a + b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f32_sub', [a, b]) - (a - b)) / (a - b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f32_mul', [a, b]) - (a * b)) / (a * b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        if b == 0:
+            b = 1
+        assert (vm.exec('f32_div', [a, b]) - (a / b)) / (a / b) < 0.005
+
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f64_add', [a, b]) - (a + b)) / (a + b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f64_sub', [a, b]) - (a - b)) / (a - b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        assert (vm.exec('f64_mul', [a, b]) - (a * b)) / (a * b) < 0.005
+    for _ in range(16):
+        a = random.random() * wasmi.common.I64_MAX
+        b = random.random() * wasmi.common.I64_MAX
+        if b == 0:
+            b = 1
+        assert (vm.exec('f64_div', [a, b]) - (a / b)) / (a / b) < 0.005
