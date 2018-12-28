@@ -181,12 +181,12 @@ class Vm:
         function = self.mod.section_function.entries[export.idx]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[export.idx]
-        code = function_body.expression.data + chr(0x0f).encode()
+        code = function_body.expression.data
         for i, kind in enumerate(function_signature.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
+        cdepth = 1
         pc = 0
-
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
@@ -197,19 +197,34 @@ class Vm:
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
+                cdepth += 1
+                n, kind, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
                 continue
             if opcode == wasmi.opcodes.LOOP:
+                cdepth += 1
                 raise NotImplementedError
             if opcode == wasmi.opcodes.IF:
+                cdepth += 1
                 raise NotImplementedError
             if opcode == wasmi.opcodes.ELSE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.END:
+                cdepth -= 1
+                if cdepth == 0:
+                    break
                 continue
             if opcode == wasmi.opcodes.BR:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.BR_IF:
-                raise NotImplementedError
+                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                cond = ctx.stack.pop_i32()
+                if cond:
+                    for _ in range(1 << 32):
+                        if code[pc] == wasmi.opcodes.END:
+                            break
+                        pc += 1
             if opcode == wasmi.opcodes.BR_TABLE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.RETURN:
@@ -245,11 +260,17 @@ class Vm:
             if opcode == wasmi.opcodes.SET_LOCAL:
                 n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
+                d = i - len(ctx.locals_data) + 1
+                if d > 0:
+                    ctx.locals_data.extend([0 for i in range(d)])
                 ctx.locals_data[i] = ctx.stack.pop()
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
                 n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
+                d = i - len(ctx.locals_data) + 1
+                if d > 0:
+                    ctx.locals_data.extend([0 for i in range(d)])
                 ctx.locals_data[i] = ctx.stack.data[-1]
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
@@ -1073,3 +1094,7 @@ class Vm:
             if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
                 ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
                 continue
+
+        if ctx.stack.len():
+            return ctx.stack.pop().into_val()
+        return None
