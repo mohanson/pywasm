@@ -248,10 +248,13 @@ class Vm:
                 ctx.stack.pop()
                 continue
             if opcode == wasmi.opcodes.SELECT:
-                v1 = ctx.stack.pop_i64()
-                v2 = ctx.stack.pop()
-                v3 = ctx.stack.pop()
-                ctx.stack.add(v3 if v1 != 0 else v2)
+                cond = ctx.stack.pop_i32()
+                a = ctx.stack.pop()
+                b = ctx.stack.pop()
+                if cond:
+                    ctx.stack.add(b)
+                else:
+                    ctx.stack.add(a)
                 continue
             if opcode == wasmi.opcodes.GET_LOCAL:
                 n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
