@@ -184,7 +184,7 @@ class Export:
         name = 'Export'
         seps = []
         seps.append(f'name={self.name}')
-        seps.append(f'kind={self.kind}')
+        seps.append(f'kind={wasmi.opcodes.EXTERNAL_NAME[self.kind]}')
         seps.append(f'idx={self.idx}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -262,7 +262,7 @@ class Table:
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'kind={self.kind}')
+        seps.append(f'kind={wasmi.opcodes.CODE_NAME[self.kind]}')
         seps.append(f'limit={self.limit}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -360,7 +360,7 @@ class Section:
     def __repr__(self):
         name = 'Section'
         seps = []
-        seps.append(f'sid={hex(self.sid)}')
+        seps.append(f'sid={wasmi.opcodes.SECTION_NAME[self.sid]}')
         seps.append(f'raw=0x{self.raw.hex()}')
         return f'{name}<{" ".join(seps)}>'
 

@@ -13,7 +13,7 @@ def main():
             line = f.read(8)
             if not line:
                 break
-            print(fmth(i, 8), ' '.join([fmth(i, 2) for i in line]))
+            print(fmth(i * 8, 8), ' '.join([fmth(i, 2) for i in line]))
 
 
 if __name__ == '__main__':
