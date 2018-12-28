@@ -190,8 +190,8 @@ class Vm:
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
-            name = wasmi.opcodes.CODE_DICT.get(opcode, f'Invalid Opcode {opcode}')
-            wasmi.log.println(name, ctx.stack.data)
+            name = wasmi.opcodes.CODE_NAME[opcode]
+            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.Unreachable
             if opcode == wasmi.opcodes.NOP:

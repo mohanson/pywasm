@@ -48,12 +48,21 @@ class Expression:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
+        depth = 1
         for _ in range(1 << 32):
             op = ord(r.read(1))
             if not op:
                 break
             data.append(op)
             if op in [
+                wasmi.opcodes.BLOCK,
+                wasmi.opcodes.LOOP,
+                wasmi.opcodes.IF,
+            ]:
+                depth += 1
+            if op in [
+                wasmi.opcodes.BR,
+                wasmi.opcodes.BR_IF,
                 wasmi.opcodes.GET_LOCAL,
                 wasmi.opcodes.SET_LOCAL,
                 wasmi.opcodes.TEE_LOCAL,
@@ -97,7 +106,9 @@ class Expression:
                 data.extend(a)
                 continue
             if op == wasmi.opcodes.END:
-                break
+                depth -= 1
+                if depth == 0:
+                    break
         return Expression(data)
 
 

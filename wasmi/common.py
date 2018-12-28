@@ -334,3 +334,8 @@ def rotr_u32(x: int, k: int):
 
 def rotr_u64(x: int, k: int):
     return rotl_u64(x, -k)
+
+
+def fmth(n: int, l: int):
+    a = hex(n)
+    return a[2:].rjust(l, '0')
