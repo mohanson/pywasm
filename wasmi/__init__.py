@@ -187,6 +187,7 @@ class Vm:
         ctx = Ctx(args)
         cdepth = 1
         pc = 0
+        wasmi.log.println(code.hex())
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1

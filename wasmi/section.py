@@ -48,26 +48,13 @@ class Expression:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
-        depth = 1
         for _ in range(1 << 32):
             op = ord(r.read(1))
             if not op:
                 break
             data.append(op)
             if op in [
-                wasmi.opcodes.BLOCK,
-                wasmi.opcodes.LOOP,
-                wasmi.opcodes.IF,
-            ]:
-                depth += 1
-            if op in [
-                wasmi.opcodes.BR,
-                wasmi.opcodes.BR_IF,
                 wasmi.opcodes.GET_LOCAL,
-                wasmi.opcodes.SET_LOCAL,
-                wasmi.opcodes.TEE_LOCAL,
-                wasmi.opcodes.GET_GLOBAL,
-                wasmi.opcodes.SET_GLOBAL,
                 wasmi.opcodes.I32_CONST,
                 wasmi.opcodes.I64_CONST,
                 wasmi.opcodes.F32_CONST,
@@ -76,39 +63,8 @@ class Expression:
                 n, _, a = wasmi.common.read_u64_leb128(r)
                 data.extend(a)
                 continue
-            if op in [
-                wasmi.opcodes.I32_LOAD,
-                wasmi.opcodes.I64_LOAD,
-                wasmi.opcodes.F32_LOAD,
-                wasmi.opcodes.F64_LOAD,
-                wasmi.opcodes.I32_LOAD_8s,
-                wasmi.opcodes.I32_LOAD_8u,
-                wasmi.opcodes.I32_LOAD_16s,
-                wasmi.opcodes.I32_LOAD_16u,
-                wasmi.opcodes.I64_LOAD_8s,
-                wasmi.opcodes.I64_LOAD_8u,
-                wasmi.opcodes.I64_LOAD_16s,
-                wasmi.opcodes.I64_LOAD_16u,
-                wasmi.opcodes.I64_LOAD_32s,
-                wasmi.opcodes.I64_LOAD_32u,
-                wasmi.opcodes.I32_STORE,
-                wasmi.opcodes.I64_STORE,
-                wasmi.opcodes.F32_STORE,
-                wasmi.opcodes.F64_STORE,
-                wasmi.opcodes.I32_STORE8,
-                wasmi.opcodes.I32_STORE16,
-                wasmi.opcodes.I64_STORE8,
-                wasmi.opcodes.I64_STORE16,
-                wasmi.opcodes.I64_STORE32,
-            ]:
-                data.extend(r.read(1))
-                n, _, a = wasmi.common.read_u64_leb128(r)
-                data.extend(a)
-                continue
             if op == wasmi.opcodes.END:
-                depth -= 1
-                if depth == 0:
-                    break
+                break
         return Expression(data)
 
 
@@ -227,7 +183,7 @@ class Code:
         r = io.BytesIO(full)
         _, n, _ = wasmi.common.read_u32_leb128(r)
         locs = [Local.from_reader(r) for _ in range(n)]
-        expression = Expression.from_reader(r)
+        expression = Expression(bytearray(r.read()))
         return Code(locs, expression)
 
 

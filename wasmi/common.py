@@ -266,6 +266,10 @@ def decode_u32_leb128(r: bytes):
     return read_u32_leb128(io.BytesIO(r))
 
 
+def decode_u64_leb128(r: bytes):
+    return read_u64_leb128(io.BytesIO(r))
+
+
 def read_u32(r: typing.BinaryIO):
     data = r.read(4)
     assert len(data) == 4
