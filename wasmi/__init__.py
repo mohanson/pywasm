@@ -229,6 +229,7 @@ class Vm:
             if opcode == wasmi.opcodes.END:
                 if not ctx.ctack:
                     break
+                b = ctx.ctack.pop()
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
