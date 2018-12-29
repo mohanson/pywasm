@@ -178,7 +178,7 @@ class Vm:
                 export = e
                 break
         if not export:
-            raise NotImplementedError
+            raise wasmi.error.WAException(f'function not found')
         function = self.mod.section_function.entries[export.idx]
         function_signature = self.mod.section_type.entries[function]
         function_body = self.mod.section_code.entries[export.idx]
