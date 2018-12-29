@@ -252,15 +252,7 @@ class Vm:
             if opcode == wasmi.opcodes.RETURN:
                 if not ctx.stack.len():
                     return 0
-                data = ctx.stack.pop()
-                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I32:
-                    return data.into_i32()
-                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_I64:
-                    return data.into_i64()
-                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F32:
-                    return data.into_f32()
-                if function_signature.rets[0] == wasmi.opcodes.VALUE_TYPE_F64:
-                    return data.into_f64()
+                return ctx.stack.pop().into_val()
             if opcode == wasmi.opcodes.CALL:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.CALL_INDIRECT:
