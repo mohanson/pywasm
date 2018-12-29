@@ -200,18 +200,13 @@ class Local:
 
 
 class Block:
-    def __init__(self, kind, type, start):
-        self.kind = kind  # block opcode (0x00 for init_expr)
-        self.type = type  # value_type
-        self.locals = []
-        self.start = start
-        self.end = 0
-        self.else_addr = 0
-        self.br_addr = 0
-
-    def update(self, end, br_addr):
-        self.end = end
-        self.br_addr = br_addr
+    def __init__(self, opcode, kind, pos_head):
+        self.opcode = opcode  # block opcode (0x00 for init_expr)
+        self.kind = kind  # value_type
+        self.pos_head = pos_head
+        self.pos_stop = 0
+        self.pos_else = 0
+        self.pos_br = 0
 
 
 class Code:
@@ -252,9 +247,11 @@ class Code:
                     break
                 b = bstack.pop()
                 if b.kind == wasmi.opcodes.LOOP:
-                    b.update(pc - 1, b.start + 2)
+                    b.pos_stop = pc - 1
+                    b.pos_br = b.pos_head + 2
                     continue
-                b.update(pc - 1, pc - 1)
+                b.pos_stop = pc - 1
+                b.pos_br = pc - 1
                 continue
             # skip immediates
             c = 0
