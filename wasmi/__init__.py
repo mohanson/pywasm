@@ -39,7 +39,7 @@ class Mod:
         mod = Mod()
         mag = wasmi.common.decode_u32(r.read(4))
         if mag != 0x6d736100:
-            raise wasmi.error.InvalidMagicNumber
+            raise wasmi.error.WAException(f'magicv')
         ver = wasmi.common.decode_u32(r.read(4))
         mod.version = ver
         for _ in range(1 << 32):
@@ -117,7 +117,7 @@ class Vm:
         self.mem_len = 0
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
-                raise wasmi.error.MultipleLinearMemories
+                raise wasmi.error.Exception('multiple linear memories')
             self.mem_len = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
             self.mem = bytearray([0 for _ in range(self.mem_len)])
         if self.mod.section_data:
@@ -130,7 +130,7 @@ class Vm:
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
         if not code:
-            raise wasmi.error.EmptyInitExpr
+            raise wasmi.error.WAException('empty init expr')
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
@@ -194,7 +194,7 @@ class Vm:
             name = wasmi.opcodes.OP_INFO[opcode][0]
             wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
-                raise wasmi.error.WAException("unreachable")
+                raise wasmi.error.WAException('unreachable')
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
@@ -586,27 +586,27 @@ class Vm:
                     continue
                 if opcode == wasmi.opcodes.I32_DIVS:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     if a == 0x80000000 and b == -1:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     r = wasmi.common.idiv_s(a, b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_DIVU:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.into_u32(a) // wasmi.common.into_u32(b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_REMS:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.irem_s(a, b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_REMU:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.into_u32(a) % wasmi.common.into_u32(b)
                     continue
                 if opcode == wasmi.opcodes.I32_AND:
@@ -681,25 +681,25 @@ class Vm:
                     continue
                 if opcode == wasmi.opcodes.I64_DIVS:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.idiv_s(a, b)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_DIVU:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.into_u64(a) // wasmi.common.into_u64(b)
                     r = wasmi.common.into_i64(r)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_REMS:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.irem_s(a, b)
                     ctx.stack.add_i64(r)
                 if opcode == wasmi.opcodes.I64_REMU:
                     if b == 0:
-                        raise wasmi.error.WAException("integer divide by zero")
+                        raise wasmi.error.WAException('integer divide by zero')
                     r = wasmi.common.into_u64(a) % wasmi.common.into_u64(b)
                     ctx.stack.add_i64(r)
                     continue
@@ -846,7 +846,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2**31 - 1 or v < -2**32:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i32(int(v))
                     continue
                 if opcode == wasmi.opcodes.I32_TRUNC_UF32:
@@ -854,7 +854,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2 ** 32 - 1 or v < -1:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i32(int(v))
                     continue
                 if opcode == wasmi.opcodes.I32_TRUNC_SF64:
@@ -862,7 +862,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2**31 - 1 or v < -2**31:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i32(int(v))
                     continue
                 if opcode == wasmi.opcodes.I32_TRUNC_UF64:
@@ -870,7 +870,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2**32 - 1 or v < -1:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i32(int(v))
                     continue
                 if opcode == wasmi.opcodes.I64_EXTEND_SI32:
@@ -886,7 +886,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2**63 - 1 or v < -2**63:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i64(int(v))
                     continue
                 if opcode == wasmi.opcodes.I64_TRUNC_UF32:
@@ -894,7 +894,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v > 2**63 - 1 or v < -1:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i64(int(v))
                     continue
                 if opcode == wasmi.opcodes.I64_TRUNC_SF64:
@@ -908,7 +908,7 @@ class Vm:
                     if math.isnan(v):
                         raise wasmi.error.WAException("invalid conversion to integer")
                     if v < -1:
-                        raise wasmi.error.WAException("integer overflow")
+                        raise wasmi.error.WAException('integer overflow')
                     ctx.stack.add_i64(int(v))
                     continue
                 if opcode == wasmi.opcodes.F32_CONVERT_SI32:
