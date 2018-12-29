@@ -45,26 +45,61 @@ class Expression:
         seps.append(f'data=0x{self.data.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
+    # @classmethod
+    # def from_reader(cls, r: typing.BinaryIO):
+    #     data = bytearray()
+    #     for _ in range(1 << 32):
+    #         op = ord(r.read(1))
+    #         if not op:
+    #             break
+    #         data.append(op)
+    #         if op in [
+    #             wasmi.opcodes.GET_LOCAL,
+    #             wasmi.opcodes.I32_CONST,
+    #             wasmi.opcodes.I64_CONST,
+    #             wasmi.opcodes.F32_CONST,
+    #             wasmi.opcodes.F64_CONST,
+    #         ]:
+    #             n, _, a = wasmi.common.read_u64_leb128(r)
+    #             data.extend(a)
+    #             continue
+    #         if op == wasmi.opcodes.END:
+    #             break
+    #     return Expression(data)
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
+        d = 1
         for _ in range(1 << 32):
             op = ord(r.read(1))
             if not op:
                 break
             data.append(op)
-            if op in [
-                wasmi.opcodes.GET_LOCAL,
-                wasmi.opcodes.I32_CONST,
-                wasmi.opcodes.I64_CONST,
-                wasmi.opcodes.F32_CONST,
-                wasmi.opcodes.F64_CONST,
-            ]:
-                n, _, a = wasmi.common.read_u64_leb128(r)
-                data.extend(a)
-                continue
+            if op in [wasmi.opcodes.BLOCK, wasmi.opcodes.LOOP, wasmi.opcodes.IF]:
+                d += 1
             if op == wasmi.opcodes.END:
-                break
+                d -= 1
+                if not d:
+                    break
+            c = 0
+            for e in wasmi.opcodes.OP_INFO[op][1]:
+                if e == 0x01:
+                    data.extend(r.read(1))
+                    continue
+                if e == 0x20:
+                    _, c, a = wasmi.common.read_u32_leb128(r)
+                    data.extend(a)
+                    continue
+                if e == 0x40:
+                    _, c, a = wasmi.common.read_u64_leb128(r)
+                    data.extend(a)
+                    continue
+                if e == 0xFF:
+                    for _ in range(c):
+                        _, _, a = wasmi.common.read_u64_leb128(r)
+                        data.extend(a)
+                    continue
         return Expression(data)
 
 
@@ -164,17 +199,87 @@ class Local:
         return Local(count, kind)
 
 
+class Block:
+    def __init__(self, kind, type, start):
+        self.kind = kind  # block opcode (0x00 for init_expr)
+        self.type = type  # value_type
+        self.locals = []
+        self.start = start
+        self.end = 0
+        self.else_addr = 0
+        self.br_addr = 0
+
+    def update(self, end, br_addr):
+        self.end = end
+        self.br_addr = br_addr
+
+
 class Code:
     def __init__(self, locs: typing.List[Local], expression: Expression):
         self.locs = locs
         self.expression = expression
+        self.bmap = self.imap()
 
     def __repr__(self):
         name = 'Code'
         seps = []
         seps.append(f'locs={self.locs}')
         seps.append(f'expression={self.expression}')
+        seps.append(f'bmap={self.bmap}')
         return f'{name}<{" ".join(seps)}>'
+
+    def imap(self) -> typing.Dict[int, Block]:
+        # referenced codes of warpy
+        pc = 0
+        bmap: typing.Dict[int, Block] = {}
+        bstack: typing.List[Block] = []
+        code = self.expression.data
+        for _ in range(1 << 32):
+            op = code[pc]
+            pc += 1
+            if op >= wasmi.opcodes.BLOCK and op <= wasmi.opcodes.IF:
+                b = Block(op, code[pc], pc - 1)
+                bstack.append(b)
+                bmap[pc - 1] = b
+                continue
+            if op == wasmi.opcodes.ELSE:
+                if bstack[-1].kind != wasmi.opcodes.IF:
+                    raise wasmi.error.WAException('else not matched with if')
+                bstack[-1].else_addr = pc
+                continue
+            if op == wasmi.opcodes.END:
+                if pc == len(code):
+                    break
+                b = bstack.pop()
+                if b.kind == wasmi.opcodes.LOOP:
+                    b.update(pc - 1, b.start + 2)
+                    continue
+                b.update(pc - 1, pc - 1)
+                continue
+            # skip immediates
+            c = 0
+            for e in wasmi.opcodes.OP_INFO[op][1]:
+                if e == 0x01:
+                    pc += 1
+                    continue
+                if e == 0x20:
+                    n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                    pc += n
+                    continue
+                if e == 0x40:
+                    n, c, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                    pc += n
+                    continue
+                if e == 0xFF:
+                    for _ in range(c):
+                        n, _, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                        pc += n
+                    continue
+        if op != wasmi.opcodes.END:
+            raise wasmi.error.WAException('function block did not end with 0xb')
+        if bstack:
+            raise wasmi.error.WAException('function ended in middle of block')
+        return bmap
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -183,7 +288,7 @@ class Code:
         r = io.BytesIO(full)
         _, n, _ = wasmi.common.read_u32_leb128(r)
         locs = [Local.from_reader(r) for _ in range(n)]
-        expression = Expression(bytearray(r.read()))
+        expression = Expression.from_reader(r)
         return Code(locs, expression)
 
 
@@ -218,7 +323,7 @@ class Table:
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'kind={wasmi.opcodes.CODE_NAME[self.kind]}')
+        seps.append(f'kind={wasmi.opcodes.OP_INFO[self.kind][0]}')
         seps.append(f'limit={self.limit}')
         return f'{name}<{" ".join(seps)}>'
 

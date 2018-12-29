@@ -185,36 +185,27 @@ class Vm:
         for i, kind in enumerate(function_signature.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
-        cdepth = 1
         pc = 0
         wasmi.log.println(code.hex())
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
-            name = wasmi.opcodes.CODE_NAME[opcode]
+            name = wasmi.opcodes.OP_INFO[opcode][0]
             wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data)
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.WAException("unreachable")
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
-                cdepth += 1
-                n, kind, _ = wasmi.common.decode_u32_leb128(code[pc:])
-                pc += n
-                continue
+                raise NotImplementedError
             if opcode == wasmi.opcodes.LOOP:
-                cdepth += 1
                 raise NotImplementedError
             if opcode == wasmi.opcodes.IF:
-                cdepth += 1
                 raise NotImplementedError
             if opcode == wasmi.opcodes.ELSE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.END:
-                cdepth -= 1
-                if cdepth == 0:
-                    break
-                continue
+                break
             if opcode == wasmi.opcodes.BR:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.BR_IF:

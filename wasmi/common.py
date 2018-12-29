@@ -220,7 +220,7 @@ def read_u32_leb128(r: typing.BinaryIO):
     v = 0
     n = 0
     a = bytearray()
-    for _ in range(0, 9):
+    for _ in range(0, 5):
         b = ord(r.read(1))
         a.append(b)
         tmp = b & 0x7f
