@@ -1,7 +1,6 @@
 import io
 import math
 import struct
-import typing
 
 I8_MAX = (1 << 7) - 1
 I8_MIN = - (1 << 7)
@@ -187,26 +186,9 @@ def encode_f64(r: float):
     return struct.pack('<d', r)
 
 
-def into_reader(rb):
-    if isinstance(rb, (bytes, bytearray)):
-        return io.BytesIO(rb)
-    return rb
-
-
-def read_u32(r: typing.BinaryIO):
-    data = r.read(4)
-    assert len(data) == 4
-    return decode_u32(data)
-
-
-def read_u64(r: typing.BinaryIO):
-    data = r.read(8)
-    assert len(data) == 8
-    return decode_u64(data)
-
-
 def read_leb(reader, maxbits=32, signed=False):
-    reader = into_reader(reader)
+    if isinstance(reader, (bytes, bytearray)):
+        reader = io.BytesIO(reader)
     r = 0
     s = 0
     b = 0

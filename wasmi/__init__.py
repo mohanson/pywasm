@@ -37,10 +37,10 @@ class Mod:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         mod = Mod()
-        mag = wasmi.common.read_u32(r)
+        mag = wasmi.common.decode_u32(r.read(4))
         if mag != 0x6d736100:
             raise wasmi.error.InvalidMagicNumber
-        ver = mag = wasmi.common.read_u32(r)
+        ver = wasmi.common.decode_u32(r.read(4))
         mod.version = ver
         for _ in range(1 << 32):
             try:
