@@ -187,22 +187,10 @@ def encode_f64(r: float):
     return struct.pack('<d', r)
 
 
-def decode_i32_leb128(r: bytes):
-    n, i, c = decode_u32_leb128(r)
-    return n, into_i32(i), c
-
-
-def decode_i64_leb128(r: bytes):
-    n, i, c = decode_u64_leb128(r)
-    return n, into_i64(i), c
-
-
-def decode_u32_leb128(r: bytes):
-    return read_u32_leb128(io.BytesIO(r))
-
-
-def decode_u64_leb128(r: bytes):
-    return read_u64_leb128(io.BytesIO(r))
+def into_reader(rb):
+    if isinstance(rb, (bytes, bytearray)):
+        return io.BytesIO(rb)
+    return rb
 
 
 def read_u32(r: typing.BinaryIO):
@@ -217,14 +205,15 @@ def read_u64(r: typing.BinaryIO):
     return decode_u64(data)
 
 
-def decode_leb(data, maxbits=32, signed=False):
+def read_leb(reader, maxbits=32, signed=False):
+    reader = into_reader(reader)
     r = 0
     s = 0
     b = 0
     i = 0
     a = bytearray()
     while True:
-        byte = data[i]
+        byte = ord(reader.read(1))
         i += 1
         a.append(byte)
         r |= ((byte & 0x7f) << s)
@@ -236,40 +225,6 @@ def decode_leb(data, maxbits=32, signed=False):
     if signed and (s < maxbits) and (byte & 0x40):
         r |= - (1 << s)
     return (i, r, a)
-
-
-def read_u32_leb128(r: typing.BinaryIO):
-    v = 0
-    n = 0
-    a = bytearray()
-    for _ in range(0, 5):
-        b = ord(r.read(1))
-        a.append(b)
-        tmp = b & 0x7f
-        v = tmp << (n * 7) | v
-        if (b & 0x80) != 0x80:
-            break
-        n += 1
-    if n == 4 and (tmp & 0xf0) != 0:
-        return -1
-    return n + 1, v, a
-
-
-def read_u64_leb128(r: typing.BinaryIO):
-    v = 0
-    n = 0
-    a = bytearray()
-    for _ in range(0, 9):
-        b = ord(r.read(1))
-        a.append(b)
-        tmp = b & 0x7f
-        v = tmp << (n * 7) | v
-        if (b & 0x80) != 0x80:
-            break
-        n += 1
-    if n == 8 and (tmp & 0xf0) != 0:
-        return -1
-    return n + 1, v, a
 
 
 def rotl_u32(x: int, k: int):

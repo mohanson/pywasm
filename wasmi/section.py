@@ -27,9 +27,9 @@ class Limit:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         flag = ord(r.read(1))
-        _, initial, _ = wasmi.common.read_u32_leb128(r)
+        _, initial, _ = wasmi.common.read_leb(r, 32)
         if flag == 1:
-            maximum, _, _ = wasmi.common.read_u32_leb128(r)
+            maximum, _, _ = wasmi.common.read_leb(r, 32)
         else:
             maximum = 0
         return Limit(flag, initial, maximum)
@@ -60,7 +60,7 @@ class Expression:
     #             wasmi.opcodes.F32_CONST,
     #             wasmi.opcodes.F64_CONST,
     #         ]:
-    #             n, _, a = wasmi.common.read_u64_leb128(r)
+    #             n, _, a = wasmi.common.read_leb(r, 64)
     #             data.extend(a)
     #             continue
     #         if op == wasmi.opcodes.END:
@@ -88,16 +88,16 @@ class Expression:
                     data.extend(r.read(1))
                     continue
                 if e == 0x20:
-                    _, c, a = wasmi.common.read_u32_leb128(r)
+                    _, c, a = wasmi.common.read_leb(r, 32)
                     data.extend(a)
                     continue
                 if e == 0x40:
-                    _, c, a = wasmi.common.read_u64_leb128(r)
+                    _, c, a = wasmi.common.read_leb(r, 64)
                     data.extend(a)
                     continue
                 if e == 0xFF:
                     for _ in range(c):
-                        _, _, a = wasmi.common.read_u64_leb128(r)
+                        _, _, a = wasmi.common.read_leb(r, 64)
                         data.extend(a)
                     continue
         return Expression(data)
@@ -120,9 +120,9 @@ class Type:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         form = ord(r.read(1))
-        _, n_args, _ = wasmi.common.read_u32_leb128(r)
+        _, n_args, _ = wasmi.common.read_leb(r, 32)
         args = r.read(n_args)
-        _, n_rets, _ = wasmi.common.read_u32_leb128(r)
+        _, n_rets, _ = wasmi.common.read_leb(r, 32)
         rets = r.read(n_rets)
         return Type(form, bytearray(args), bytearray(rets))
 
@@ -194,7 +194,7 @@ class Local:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, count, _ = wasmi.common.read_u32_leb128(r)
+        _, count, _ = wasmi.common.read_leb(r, 32)
         kind = ord(r.read(1))
         return Local(count, kind)
 
@@ -261,16 +261,16 @@ class Code:
                     pc += 1
                     continue
                 if e == 0x20:
-                    n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                    n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                     pc += n
                     continue
                 if e == 0x40:
-                    n, c, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                    n, c, _ = wasmi.common.read_leb(code[pc:], 64)
                     pc += n
                     continue
                 if e == 0xFF:
                     for _ in range(c):
-                        n, _, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                        n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                         pc += n
                     continue
         if op != wasmi.opcodes.END:
@@ -281,10 +281,10 @@ class Code:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         full = r.read(n)
         r = io.BytesIO(full)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         locs = [Local.from_reader(r) for _ in range(n)]
         expression = Expression.from_reader(r)
         return Code(locs, expression)
@@ -306,9 +306,9 @@ class Data:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, idx, _ = wasmi.common.read_u32_leb128(r)
+        _, idx, _ = wasmi.common.read_leb(r, 32)
         expression = Expression.from_reader(r)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         init = r.read(n)
         return Data(idx, expression, bytearray(init))
 
@@ -365,14 +365,14 @@ class Import:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         module = r.read(n).decode()
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         name = r.read(n).decode()
         kind = ord(r.read(1))
         r = Import(kind, module, name)
         if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
-            _, idx, _ = wasmi.common.read_u32_leb128(r)
+            _, idx, _ = wasmi.common.read_leb(r, 32)
             r.description = idx
         if kind == wasmi.opcodes.EXTERNAL_TABLE:
             r.description = Table.from_reader(r)
@@ -399,9 +399,9 @@ class Element:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, idx, _ = wasmi.common.read_u32_leb128(r)
+        _, idx, _ = wasmi.common.read_leb(r, 32)
         expression = Expression.from_reader(r)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         init = [ord(e) for e in r.read(n)]
         return Element(idx, expression, init)
 
@@ -425,8 +425,8 @@ class Section:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, section_sid, _ = wasmi.common.read_u32_leb128(r)
-        _, n_remain, _ = wasmi.common.read_u32_leb128(r)
+        _, section_sid, _ = wasmi.common.read_leb(r, 32)
+        _, n_remain, _ = wasmi.common.read_leb(r, 32)
         section_raw = r.read(n_remain)
         sec = Section()
         sec.sid = section_sid
@@ -451,7 +451,7 @@ class SectionUnknown:
     def from_section(cls, f: Section):
         sec = SectionUnknown(f)
         r = io.BytesIO(f.raw)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         sec.name = r.read(n).decode()
         sec.data = bytearray(r.read(-1))
         return sec
@@ -472,7 +472,7 @@ class SectionType:
     def from_section(cls, f: Section):
         sec = SectionType(f)
         r = io.BytesIO(f.raw)
-        _, n_func, _ = wasmi.common.read_u32_leb128(r)
+        _, n_func, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_func):
             e = Type.from_reader(r)
             sec.entries.append(e)
@@ -494,7 +494,7 @@ class SectionImport:
     def from_section(cls, f: Section):
         sec = SectionImport(f)
         r = io.BytesIO(f.raw)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             sec.entries.append(Import.from_read(r))
         return sec
@@ -515,9 +515,9 @@ class SectionFunction:
     def from_section(cls, f: Section):
         sec = SectionFunction(f)
         r = io.BytesIO(f.raw)
-        _, n_func, _ = wasmi.common.read_u32_leb128(r)
+        _, n_func, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_func):
-            _, i, _ = wasmi.common.read_u32_leb128(r)
+            _, i, _ = wasmi.common.read_leb(r, 32)
             sec.entries.append(i)
         return sec
 
@@ -537,7 +537,7 @@ class SectionTable:
     def from_section(cls, f: Section):
         sec = SectionTable(f)
         r = io.BytesIO(f.raw)
-        _, n_table, _ = wasmi.common.read_u32_leb128(r)
+        _, n_table, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_table):
             table = Table.from_reader(r)
             sec.entries.append(table)
@@ -559,7 +559,7 @@ class SectionMemory:
     def from_section(cls, f: Section):
         sec = SectionMemory(f)
         r = io.BytesIO(f.raw)
-        _, n_memory, _ = wasmi.common.read_u32_leb128(r)
+        _, n_memory, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_memory):
             memory = Memory.from_reader(r)
             sec.entries.append(memory)
@@ -581,7 +581,7 @@ class SectionGlobal:
     def from_section(cls, f: Section):
         sec = SectionGlobal(f)
         r = io.BytesIO(f.raw)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             sec.entries.append(Global.from_reader(r))
         return sec
@@ -602,12 +602,12 @@ class SectionExport:
     def from_section(cls, f: Section):
         sec = SectionExport(f)
         r = io.BytesIO(f.raw)
-        _, n_entry, _ = wasmi.common.read_u32_leb128(r)
+        _, n_entry, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_entry):
-            _, n_name, _ = wasmi.common.read_u32_leb128(r)
+            _, n_name, _ = wasmi.common.read_leb(r, 32)
             name = r.read(n_name).decode()
             kind = ord(r.read(1))
-            _, idx, _ = wasmi.common.read_u32_leb128(r)
+            _, idx, _ = wasmi.common.read_leb(r, 32)
             sec.entries.append(Export(name, kind, idx))
         return sec
 
@@ -627,7 +627,7 @@ class SectionStart:
     def from_section(cls, f: Section):
         sec = SectionStart(f)
         r = io.BytesIO(f.raw)
-        _, idx, _ = wasmi.common.read_u32_leb128(r)
+        _, idx, _ = wasmi.common.read_leb(r, 32)
         sec.idx = idx
         return sec
 
@@ -647,7 +647,7 @@ class SectionElement:
     def from_section(cls, f: Section):
         sec = SectionElement(f)
         r = io.BytesIO(f.raw)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             element = Element.from_reader(r)
             sec.entries.append(element)
@@ -669,7 +669,7 @@ class SectionCode:
     def from_section(cls, f: Section):
         sec = SectionCode(f)
         r = io.BytesIO(f.raw)
-        _, n, _ = wasmi.common.read_u32_leb128(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             code = Code.from_reader(r)
             sec.entries.append(code)
@@ -691,7 +691,7 @@ class SectionData:
     def from_section(cls, f: Section):
         sec = SectionData(f)
         r = io.BytesIO(f.raw)
-        a, n, _ = wasmi.common.read_u32_leb128(r)
+        a, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             data = Data.from_reader(r)
             sec.entries.append(data)

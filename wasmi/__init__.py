@@ -136,31 +136,31 @@ class Vm:
             opcode = code[pc]
             pc += 1
             if opcode == wasmi.opcodes.I32_CONST:
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 stack.add_i32(i)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                n, i, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
                 pc += n
                 stack.add_i64(i)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 r = wasmi.stack.Entry.from_u32(i)
                 r.kind = wasmi.opcodes.VALUE_TYPE_F32
                 stack.add(r)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                n, i, _ = wasmi.common.decode_u64_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
                 pc += n
                 r = wasmi.stack.Entry.from_u64(i)
                 r.kind = wasmi.opcodes.VALUE_TYPE_F64
                 stack.add(r)
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 v = self.global_data[i]
                 stack.add(v)
@@ -198,19 +198,19 @@ class Vm:
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
-                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = function_body.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
                 continue
             if opcode == wasmi.opcodes.LOOP:
-                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = function_body.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
                 continue
             if opcode == wasmi.opcodes.IF:
-                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = function_body.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
@@ -231,14 +231,14 @@ class Vm:
                     break
                 continue
             if opcode == wasmi.opcodes.BR:
-                n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 for _ in range(c):
                     ctx.ctack.pop()
                 b = ctx.ctack.pop()
                 pc = b.pos_br
             if opcode == wasmi.opcodes.BR_IF:
-                n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
@@ -277,30 +277,30 @@ class Vm:
                     ctx.stack.add(a)
                 continue
             if opcode == wasmi.opcodes.GET_LOCAL:
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 ctx.stack.add(ctx.locals_data[i])
                 continue
             if opcode == wasmi.opcodes.SET_LOCAL:
                 v = ctx.stack.pop()
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
                 v = ctx.stack.data[-1]
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 ctx.stack.add(self.global_data[i])
                 continue
             if opcode == wasmi.opcodes.SET_GLOBAL:
                 v = ctx.stack.pop()
-                n, i, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 self.global_data[i] = v
                 continue
@@ -309,7 +309,7 @@ class Vm:
                 # The former is simply an optimization hint and can be safely
                 # discarded.
                 pc += 1
-                n, mem_offset, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 a = ctx.stack.pop_i64() + mem_offset
                 if opcode == wasmi.opcodes.I32_LOAD:
@@ -371,7 +371,7 @@ class Vm:
             if opcode >= wasmi.opcodes.I32_STORE and opcode <= wasmi.opcodes.I64_STORE32:
                 v = ctx.stack.pop()
                 pc += 1
-                n, mem_offset, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 a = ctx.stack.pop_i64() + mem_offset
                 if opcode == wasmi.opcodes.I32_STORE:
@@ -414,12 +414,12 @@ class Vm:
                 continue
             if opcode >= wasmi.opcodes.I32_CONST and opcode <= wasmi.opcodes.F64_CONST:
                 if opcode == wasmi.opcodes.I32_CONST:
-                    n, r, _ = wasmi.common.decode_leb(code[pc:], 32, True)
+                    n, r, _ = wasmi.common.read_leb(code[pc:], 32, True)
                     pc += n
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I64_CONST:
-                    n, r, _ = wasmi.common.decode_leb(code[pc:], 64, True)
+                    n, r, _ = wasmi.common.read_leb(code[pc:], 64, True)
                     pc += n
                     ctx.stack.add_i64(r)
                     continue
