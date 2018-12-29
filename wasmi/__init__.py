@@ -105,6 +105,7 @@ class Mod:
 class Ctx:
     def __init__(self, data: typing.List[wasmi.stack.Entry]):
         self.stack = wasmi.stack.Stack()
+        self.ctack = []
         self.locals_data = data
 
 
@@ -197,26 +198,54 @@ class Vm:
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.LOOP:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.IF:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.ELSE:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.END:
-                break
-            if opcode == wasmi.opcodes.BR:
-                raise NotImplementedError
-            if opcode == wasmi.opcodes.BR_IF:
                 n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                b = function_body.bmap[pc - 1]
+                pc += n
+                ctx.ctack.append(b)
+                continue
+            if opcode == wasmi.opcodes.LOOP:
+                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                b = function_body.bmap[pc - 1]
+                pc += n
+                ctx.ctack.append(b)
+                continue
+            if opcode == wasmi.opcodes.IF:
+                n, _, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                b = function_body.bmap[pc - 1]
+                pc += n
+                ctx.ctack.append(b)
+                cond = ctx.stack.pop_i32()
+                if not cond:
+                    if b.pos_else == 0:
+                        ctx.ctack.pop()
+                        pc = b.pos_br + 1
+                        continue
+                    pc = b.pos_else
+                continue
+            if opcode == wasmi.opcodes.ELSE:
+                b = ctx.ctack.pop()
+                pc = b.pos_br
+                continue
+            if opcode == wasmi.opcodes.END:
+                if not ctx.ctack:
+                    break
+                continue
+            if opcode == wasmi.opcodes.BR:
+                n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
+                pc += n
+                for _ in range(c):
+                    ctx.ctack.pop()
+                b = ctx.ctack.pop()
+                pc = b.pos_br
+            if opcode == wasmi.opcodes.BR_IF:
+                n, c, _ = wasmi.common.decode_u32_leb128(code[pc:])
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
-                    for _ in range(1 << 32):
-                        if code[pc] == wasmi.opcodes.END:
-                            break
-                        pc += 1
+                    for _ in range(c):
+                        ctx.ctack.pop()
+                    b = ctx.ctack.pop()
+                    pc = b.pos_br
             if opcode == wasmi.opcodes.BR_TABLE:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.RETURN:
@@ -385,12 +414,12 @@ class Vm:
                 continue
             if opcode >= wasmi.opcodes.I32_CONST and opcode <= wasmi.opcodes.F64_CONST:
                 if opcode == wasmi.opcodes.I32_CONST:
-                    n, r, _ = wasmi.common.decode_i32_leb128(code[pc:])
+                    n, r, _ = wasmi.common.decode_leb(code[pc:], 32, True)
                     pc += n
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I64_CONST:
-                    n, r, _ = wasmi.common.decode_i64_leb128(code[pc:])
+                    n, r, _ = wasmi.common.decode_leb(code[pc:], 64, True)
                     pc += n
                     ctx.stack.add_i64(r)
                     continue

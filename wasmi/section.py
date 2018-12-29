@@ -227,6 +227,7 @@ class Code:
         # referenced codes of warpy
         pc = 0
         bmap: typing.Dict[int, Block] = {}
+        bmap[0] = 'Function'
         bstack: typing.List[Block] = []
         code = self.expression.data
         for _ in range(1 << 32):

@@ -1,6 +1,7 @@
+import io
+import math
 import struct
 import typing
-import io
 
 I8_MAX = (1 << 7) - 1
 I8_MIN = - (1 << 7)
@@ -214,6 +215,27 @@ def read_u64(r: typing.BinaryIO):
     data = r.read(8)
     assert len(data) == 8
     return decode_u64(data)
+
+
+def decode_leb(data, maxbits=32, signed=False):
+    r = 0
+    s = 0
+    b = 0
+    i = 0
+    a = bytearray()
+    while True:
+        byte = data[i]
+        i += 1
+        a.append(byte)
+        r |= ((byte & 0x7f) << s)
+        s += 7
+        if (byte & 0x80) == 0:
+            break
+        b += 1
+        assert b <= math.ceil(maxbits / 7.0)
+    if signed and (s < maxbits) and (byte & 0x40):
+        r |= - (1 << s)
+    return (i, r, a)
 
 
 def read_u32_leb128(r: typing.BinaryIO):
