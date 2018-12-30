@@ -25,15 +25,15 @@ $ pip3 install wasmi # The version may be outdate.
 
 # Example
 
-A few small examples have been provided. The code is in the `example` directory, you can try these examples quickly just:
+A few small examples have been provided in the `example` directory, you can try these examples quickly just:
 
 ```sh
 $ cd py-wasmi
 $ python examples add 40 2      => (i32.add) 42
-$ python examples fib 10        => (10th of fibonacci, return 55) 55
+$ python examples fib 10        => (10th of fibonacci) 55
 ```
 
-With detailed, write some c code belows:
+With detailed, we use `./examples/fib.wasm` as an example, write some c code belows:
 
 ```c
 int fib(int n) {
@@ -53,7 +53,7 @@ path = './examples/fib.wasm'
 mod = wasmi.Mod.from_reader(open(path, 'rb'))
 vm = wasmi.Vm(mod)
 r = vm.exec('fib', [10])
-print(r)
+print(r) # 55
 ```
 
 # FAQ
