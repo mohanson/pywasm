@@ -1,12 +1,17 @@
-# py-wasmi
+# py-wasmi: A WebAssembly interpreter written in pure Python.
 
-A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
+A WebAssembly interpreter written in pure Python.
+
+WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
+
+Inspired by [warpy](https://github.com/kanaka/warpy) and [wagon](https://github.com/go-interpreter/wagon), but all the code is rewritten. Thanks open source author.
 
 # Requirements
 - py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
+- No any third party libraries.
 - Python3.6 or newer.
 
-# Install
+# Installition
 
 ```sh
 $ git clone https://github.com/mohanson/py-wasmi
@@ -21,7 +26,7 @@ $ pip3 install wasmi # The version may be outdate.
 
 # Example
 
-py-wasmi is dead simple to use. Write some c code belows:
+py-wasmi is very simple to use. Write some c code belows:
 
 ```c
 int add(int a, int b) {
@@ -44,8 +49,8 @@ print(r) # 42
 
 # FAQ
 
-F: How is the py-wasmi performance? <br>
-Q: It's doesn't care about performance especially on **Python**.
+Q: How is the py-wasmi performance? <br>
+A: Very bad. Concise implementation for the wasm core specification.
 
 # License
 

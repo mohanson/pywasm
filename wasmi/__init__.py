@@ -171,21 +171,11 @@ class Vm:
             return 0
         return stack.data.pop().into_val()
 
-    def exec(self, name: str, args: typing.List):
-        export: wasmi.section.Export = None
-        for e in self.mod.section_export.entries:
-            if e.name == name:
-                export = e
-                break
-        if not export:
-            raise wasmi.error.WAException(f'function not found')
-        function = self.mod.section_function.entries[export.idx]
-        function_signature = self.mod.section_type.entries[function]
-        function_body = self.mod.section_code.entries[export.idx]
+    def exec_step(self, function_idx: int, ctx: Ctx):
+        function_signature = self.mod.section_type.entries[function_idx]
+        function_body = self.mod.section_code.entries[function_idx]
+        ctx.ctack.append(function_body)
         code = function_body.expression.data
-        for i, kind in enumerate(function_signature.args):
-            args[i] = wasmi.stack.Entry.from_val(args[i], kind)
-        ctx = Ctx(args)
         pc = 0
         wasmi.log.println(code.hex())
         for _ in range(1 << 32):
@@ -227,9 +217,13 @@ class Vm:
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.END:
-                if not ctx.ctack:
-                    break
                 b = ctx.ctack.pop()
+                if isinstance(b, wasmi.section.Code):
+                    if ctx.ctack:
+                        return
+                    break
+                if isinstance(b, wasmi.section.Block):
+                    continue
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
@@ -270,7 +264,14 @@ class Vm:
                     return 0
                 return ctx.stack.pop().into_val()
             if opcode == wasmi.opcodes.CALL:
-                raise NotImplementedError
+                n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
+                pc += n
+                f_sig = self.mod.section_type.entries[f_idx]
+                f_cnt = self.mod.section_code.entries[f_idx]
+                f_ctx = ctx
+                f_ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
+                self.exec_step(f_idx, f_ctx)
+                continue
             if opcode == wasmi.opcodes.CALL_INDIRECT:
                 raise NotImplementedError
             if opcode == wasmi.opcodes.DROP:
@@ -975,3 +976,18 @@ class Vm:
         if ctx.stack.len():
             return ctx.stack.pop().into_val()
         return None
+
+    def exec(self, name: str, args: typing.List):
+        export: wasmi.section.Export = None
+        for e in self.mod.section_export.entries:
+            if e.name == name:
+                export = e
+                break
+        if not export:
+            raise wasmi.error.WAException(f'function not found')
+        function_idx = self.mod.section_function.entries[export.idx]
+        function_signature = self.mod.section_type.entries[function_idx]
+        for i, kind in enumerate(function_signature.args):
+            args[i] = wasmi.stack.Entry.from_val(args[i], kind)
+        ctx = Ctx(args)
+        return self.exec_step(function_idx, ctx)
