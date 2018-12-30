@@ -15,7 +15,6 @@ Inspired by [warpy](https://github.com/kanaka/warpy) and [wagon](https://github.
 
 ```sh
 $ git clone https://github.com/mohanson/py-wasmi
-$ cd py-wasmi && python3 main.py # Run quick test
 ```
 
 **OR**
@@ -26,25 +25,35 @@ $ pip3 install wasmi # The version may be outdate.
 
 # Example
 
-py-wasmi is very simple to use. Write some c code belows:
+A few small examples have been provided. The code is in the `example` directory, you can try these examples quickly just:
+
+```sh
+$ cd py-wasmi
+$ python examples add 40 2      => (i32.add) 42
+$ python examples fib 10        => (10th of fibonacci, return 55) 55
+```
+
+With detailed, write some c code belows:
 
 ```c
-int add(int a, int b) {
-    return a + b;
+int fib(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
 }
 ```
 
-Generate `add.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
+Generate `fib.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
 
 ```py
 import wasmi
 
-path = './tests/data/add.wasm'
-
+path = './examples/fib.wasm'
 mod = wasmi.Mod.from_reader(open(path, 'rb'))
 vm = wasmi.Vm(mod)
-r = vm.exec('add', [40, 2])
-print(r) # 42
+r = vm.exec('fib', [10])
+print(r)
 ```
 
 # FAQ
