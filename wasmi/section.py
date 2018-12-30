@@ -45,28 +45,6 @@ class Expression:
         seps.append(f'data=0x{self.data.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
-    # @classmethod
-    # def from_reader(cls, r: typing.BinaryIO):
-    #     data = bytearray()
-    #     for _ in range(1 << 32):
-    #         op = ord(r.read(1))
-    #         if not op:
-    #             break
-    #         data.append(op)
-    #         if op in [
-    #             wasmi.opcodes.GET_LOCAL,
-    #             wasmi.opcodes.I32_CONST,
-    #             wasmi.opcodes.I64_CONST,
-    #             wasmi.opcodes.F32_CONST,
-    #             wasmi.opcodes.F64_CONST,
-    #         ]:
-    #             n, _, a = wasmi.common.read_leb(r, 64)
-    #             data.extend(a)
-    #             continue
-    #         if op == wasmi.opcodes.END:
-    #             break
-    #     return Expression(data)
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
@@ -525,6 +503,7 @@ class SectionTable:
     def __init__(self, father: Section):
         self.father = father
         self.entries: typing.List[Table] = []
+        self.dict = {}
 
     def __repr__(self):
         name = 'SectionTable'
@@ -537,9 +516,11 @@ class SectionTable:
         sec = SectionTable(f)
         r = io.BytesIO(f.raw)
         _, n_table, _ = wasmi.common.read_leb(r, 32)
+        assert n_table == 1
         for _ in range(n_table):
             table = Table.from_reader(r)
             sec.entries.append(table)
+            sec.dict[table.kind] = table.limit.initial
         return sec
 
 

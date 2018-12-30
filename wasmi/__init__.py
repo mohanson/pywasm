@@ -222,8 +222,8 @@ class Vm:
                     if ctx.ctack:
                         return
                     break
-                if isinstance(b, wasmi.section.Block):
-                    continue
+                if isinstance(b, wasmi.section.Block) and b.kind == 0x00:
+                    break
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
@@ -232,15 +232,17 @@ class Vm:
                     ctx.ctack.pop()
                 b = ctx.ctack.pop()
                 pc = b.pos_br
+                continue
             if opcode == wasmi.opcodes.BR_IF:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
+                    b = ctx.ctack[-1]
                     for _ in range(c):
-                        ctx.ctack.pop()
-                    b = ctx.ctack.pop()
+                        b = ctx.ctack.pop()
                     pc = b.pos_br
+                continue
             if opcode == wasmi.opcodes.BR_TABLE:
                 n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
@@ -260,20 +262,36 @@ class Vm:
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.RETURN:
-                if not ctx.stack.len():
-                    return 0
-                return ctx.stack.pop().into_val()
+                while ctx.ctack:
+                    if isinstance(ctx.ctack[-1], wasmi.section.Code):
+                        break
+                    ctx.ctack.pop()
+                b: wasmi.section.Code = ctx.ctack[-1]
+                pc = len(b.expression.data) - 1
+                continue
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
+                f_sig = self.mod.section_type.entries[f_idx]
+                f_cnt = self.mod.section_code.entries[f_idx]
+                pre_locals_data = ctx.locals_data
+                ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
+                self.exec_step(f_idx, ctx)
+                ctx.locals_data = pre_locals_data
+                continue
+            if opcode == wasmi.opcodes.CALL_INDIRECT:
+                n, _, _ = wasmi.common.read_leb(code[pc:], 32)
+                pc += n
+                n, _, _ = wasmi.common.read_leb(code[pc:], 1)
+                pc += n
+                t_idx = ctx.stack.pop_i32()
+                f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
                 f_sig = self.mod.section_type.entries[f_idx]
                 f_cnt = self.mod.section_code.entries[f_idx]
                 f_ctx = ctx
                 f_ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
                 self.exec_step(f_idx, f_ctx)
                 continue
-            if opcode == wasmi.opcodes.CALL_INDIRECT:
-                raise NotImplementedError
             if opcode == wasmi.opcodes.DROP:
                 ctx.stack.pop()
                 continue
