@@ -27,14 +27,11 @@ class Entry:
 
     @classmethod
     def from_u32(cls, n):
-        data = struct.pack('>I', n)
-        data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_I32)
+        return cls.from_i32(wasmi.common.into_i32(n))
 
     @classmethod
     def from_u64(cls, n):
-        data = struct.pack('>Q', n)
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_I64)
+        return cls.from_i64(wasmi.common.into_i64(n))
 
     @classmethod
     def from_f32(cls, n):
@@ -66,10 +63,10 @@ class Entry:
         return struct.unpack('>q', self.data)[0]
 
     def into_u32(self):
-        return struct.unpack('>I', self.data[4:])[0]
+        return wasmi.common.into_u32(self.into_i32())
 
     def into_u64(self):
-        return struct.unpack('>Q', self.data)[0]
+        return wasmi.common.into_u64(self.into_i64())
 
     def into_f32(self):
         return struct.unpack('>f', self.data[4:])[0]

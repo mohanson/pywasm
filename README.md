@@ -1,16 +1,20 @@
-# py-wasmi
+# py-wasmi: A WebAssembly interpreter written in pure Python.
 
-A WebAssembly interpreter by pure Python. WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
+A WebAssembly interpreter written in pure Python.
+
+WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
+
+Inspired by [warpy](https://github.com/kanaka/warpy) and [wagon](https://github.com/go-interpreter/wagon), but all the code is rewritten. Thanks open source authors.
 
 # Requirements
 - py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
+- No third party dependences.
 - Python3.6 or newer.
 
-# Install
+# Installition
 
 ```sh
 $ git clone https://github.com/mohanson/py-wasmi
-$ cd py-wasmi && python3 main.py # Run quick test
 ```
 
 **OR**
@@ -21,31 +25,41 @@ $ pip3 install wasmi # The version may be outdate.
 
 # Example
 
-py-wasmi is dead simple to use. Write some c code belows:
+A few small examples have been provided. The code is in the `example` directory, you can try these examples quickly just:
+
+```sh
+$ cd py-wasmi
+$ python examples add 40 2      => (i32.add) 42
+$ python examples fib 10        => (10th of fibonacci, return 55) 55
+```
+
+With detailed, write some c code belows:
 
 ```c
-int add(int a, int b) {
-    return a + b;
+int fib(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
 }
 ```
 
-Generate `add.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
+Generate `fib.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
 
 ```py
 import wasmi
 
-path = './tests/data/add.wasm'
-
+path = './examples/fib.wasm'
 mod = wasmi.Mod.from_reader(open(path, 'rb'))
 vm = wasmi.Vm(mod)
-r = vm.exec('add', [40, 2])
-print(r) # 42
+r = vm.exec('fib', [10])
+print(r)
 ```
 
 # FAQ
 
-F: How is the py-wasmi performance? <br>
-Q: It's doesn't care about performance especially on **Python**.
+Q: How is the py-wasmi performance? <br>
+A: Very bad. Concise implementation for the wasm core specification.
 
 # License
 
