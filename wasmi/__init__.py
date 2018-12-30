@@ -248,7 +248,23 @@ class Vm:
                     b = ctx.ctack.pop()
                     pc = b.pos_br
             if opcode == wasmi.opcodes.BR_TABLE:
-                raise NotImplementedError
+                n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
+                pc += n
+                depths = []
+                for c in range(lcount):
+                    n, ldepth, _ = wasmi.common.read_leb(code[pc:], 32)
+                    pc += n
+                    depths.append(ldepth)
+                n, ddepth, _ = wasmi.common.read_leb(code[pc:], 32)
+                pc += n
+                didx = ctx.stack.pop_i32()
+                if didx >= 0 and didx < len(depths):
+                    ddepth = depths[didx]
+                for _ in range(ddepth):
+                    ctx.ctack.pop()
+                b = ctx.ctack.pop()
+                pc = b.pos_br
+                continue
             if opcode == wasmi.opcodes.RETURN:
                 if not ctx.stack.len():
                     return 0
