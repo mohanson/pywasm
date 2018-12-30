@@ -20,7 +20,7 @@ $ git clone https://github.com/mohanson/py-wasmi
 **OR**
 
 ```sh
-$ pip3 install wasmi # The version may be outdate.
+$ pip3 install wasmi
 ```
 
 # Example
