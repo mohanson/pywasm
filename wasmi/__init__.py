@@ -42,6 +42,7 @@ class Mod:
             raise wasmi.error.WAException(f'magicv')
         ver = wasmi.common.decode_u32(r.read(4))
         mod.version = ver
+        wasmi.log.println('Section slice'.center(80, '-'))
         for _ in range(1 << 32):
             try:
                 sec = wasmi.section.Section.from_reader(r)
@@ -50,6 +51,7 @@ class Mod:
             else:
                 wasmi.log.println(sec)
                 mod.sections.append(sec)
+        wasmi.log.println('Section parse'.center(80, '-'))
         for e in mod.sections:
             if e.sid == wasmi.opcodes.SECTION_ID_UNKNOWN:
                 mod.section_unknown = wasmi.section.SectionUnknown.from_section(e)
@@ -57,7 +59,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_TYPE:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
-                wasmi.log.println(mod.section_type)
+                wasmi.log.println(f'SectionType')
+                for e in mod.section_type.entries:
+                    wasmi.log.println(' ' * 4 + str(e))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
@@ -73,7 +77,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_MEMORY:
                 mod.section_memory = wasmi.section.SectionMemory.from_section(e)
-                wasmi.log.println(mod.section_memory)
+                wasmi.log.println(f'SectionMemory')
+                for e in mod.section_memory.entries:
+                    wasmi.log.println(' ' * 4 + str(e))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
@@ -81,7 +87,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
-                wasmi.log.println(mod.section_export)
+                wasmi.log.println(f'SectionExport')
+                for e in mod.section_export.entries:
+                    wasmi.log.println(' ' * 4 + str(e))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_START:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
@@ -93,11 +101,15 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
-                wasmi.log.println(mod.section_code)
+                wasmi.log.println(f'SectionCode')
+                for e in mod.section_code.entries:
+                    wasmi.log.println(' ' * 4 + str(e))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_DATA:
                 mod.section_data = wasmi.section.SectionData.from_section(e)
-                wasmi.log.println(mod.section_data)
+                wasmi.log.println(f'SectionData')
+                for e in mod.section_data.entries:
+                    wasmi.log.println(' ' * 4 + str(e))
                 continue
         return mod
 
