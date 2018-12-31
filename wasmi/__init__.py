@@ -182,11 +182,12 @@ class Vm:
             return 0
         return stack.data.pop().into_val()
 
-    def exec_step(self, function_idx: int, ctx: Ctx):
-        function_signature = self.mod.section_type.entries[self.mod.section_function.entries[function_idx]]
-        function_body = self.mod.section_code.entries[function_idx]
-        ctx.ctack.append(function_body)
-        code = function_body.expression.data
+    def exec_step(self, f_idx: int, ctx: Ctx):
+        f_sig_idx = self.mod.section_function.entries[f_idx]
+        f_sig = self.mod.section_type.entries[f_sig_idx]
+        f_sec = self.mod.section_code.entries[f_idx]
+        ctx.ctack.append(f_sec)
+        code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())
         pc = 0
         for _ in range(1 << 32):
@@ -200,19 +201,19 @@ class Vm:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
                 continue
             if opcode == wasmi.opcodes.LOOP:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
                 continue
             if opcode == wasmi.opcodes.IF:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
                 ctx.ctack.append(b)
                 cond = ctx.stack.pop_i32()
@@ -1025,10 +1026,11 @@ class Vm:
                 break
         if not export:
             raise wasmi.error.WAException(f'function not found')
-        function_idx = self.mod.section_function.entries[export.idx]
-        function_signature = self.mod.section_type.entries[function_idx]
-        for i, kind in enumerate(function_signature.args):
+        f_idx = export.idx
+        f_sig_idx = self.mod.section_function.entries[f_idx]
+        f_sig = self.mod.section_type.entries[f_sig_idx]
+        for i, kind in enumerate(f_sig.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
         wasmi.log.println('Exec'.center(80, '-'))
-        return self.exec_step(export.idx, ctx)
+        return self.exec_step(f_idx, ctx)
