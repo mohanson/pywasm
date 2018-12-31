@@ -46,13 +46,34 @@ class Expression:
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
+    def skip(cls, opcode: int, r: typing.BinaryIO):
+        data = bytearray()
+        c = 0
+        for e in wasmi.opcodes.OP_INFO[opcode][1]:
+            if e == 0x01:
+                data.extend(r.read(1))
+                continue
+            if e == 0x20:
+                _, c, a = wasmi.common.read_leb(r, 32)
+                data.extend(a)
+                continue
+            if e == 0x40:
+                _, c, a = wasmi.common.read_leb(r, 64)
+                data.extend(a)
+                continue
+            if e == 0xFF:
+                for _ in range(c):
+                    _, _, a = wasmi.common.read_leb(r, 64)
+                    data.extend(a)
+                continue
+        return data
+
+    @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         data = bytearray()
         d = 1
         for _ in range(1 << 32):
             op = ord(r.read(1))
-            if not op:
-                break
             data.append(op)
             if op in [wasmi.opcodes.BLOCK, wasmi.opcodes.LOOP, wasmi.opcodes.IF]:
                 d += 1
@@ -60,24 +81,7 @@ class Expression:
                 d -= 1
                 if not d:
                     break
-            c = 0
-            for e in wasmi.opcodes.OP_INFO[op][1]:
-                if e == 0x01:
-                    data.extend(r.read(1))
-                    continue
-                if e == 0x20:
-                    _, c, a = wasmi.common.read_leb(r, 32)
-                    data.extend(a)
-                    continue
-                if e == 0x40:
-                    _, c, a = wasmi.common.read_leb(r, 64)
-                    data.extend(a)
-                    continue
-                if e == 0xFF:
-                    for _ in range(c):
-                        _, _, a = wasmi.common.read_leb(r, 64)
-                        data.extend(a)
-                    continue
+            data.extend(cls.skip(op, r))
         return Expression(data)
 
 
@@ -202,7 +206,6 @@ class Code:
         return f'{name}<{" ".join(seps)}>'
 
     def imap(self) -> typing.Dict[int, Block]:
-        # referenced codes of warpy
         pc = 0
         bmap: typing.Dict[int, Block] = {}
         bstack: typing.List[Block] = []
@@ -214,42 +217,23 @@ class Code:
                 b = Block(op, code[pc], pc - 1)
                 bstack.append(b)
                 bmap[pc - 1] = b
-                continue
-            if op == wasmi.opcodes.ELSE:
+            elif op == wasmi.opcodes.ELSE:
                 if bstack[-1].kind != wasmi.opcodes.IF:
                     raise wasmi.error.WAException('else not matched with if')
                 bstack[-1].else_addr = pc
                 continue
-            if op == wasmi.opcodes.END:
+            elif op == wasmi.opcodes.END:
                 if pc == len(code):
                     break
                 b = bstack.pop()
                 if b.kind == wasmi.opcodes.LOOP:
                     b.pos_stop = pc - 1
                     b.pos_br = b.pos_head + 2
-                    continue
-                b.pos_stop = pc - 1
-                b.pos_br = pc - 1
-                continue
-            # skip immediates
-            c = 0
-            for e in wasmi.opcodes.OP_INFO[op][1]:
-                if e == 0x01:
-                    pc += 1
-                    continue
-                if e == 0x20:
-                    n, c, _ = wasmi.common.read_leb(code[pc:], 32)
-                    pc += n
-                    continue
-                if e == 0x40:
-                    n, c, _ = wasmi.common.read_leb(code[pc:], 64)
-                    pc += n
-                    continue
-                if e == 0xFF:
-                    for _ in range(c):
-                        n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                        pc += n
-                    continue
+                else:
+                    b.pos_stop = pc - 1
+                    b.pos_br = pc - 1
+            data = Expression.skip(op, io.BytesIO(code[pc:]))
+            pc += len(data)
         if op != wasmi.opcodes.END:
             raise wasmi.error.WAException('function block did not end with 0xb')
         if bstack:
