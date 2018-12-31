@@ -18,7 +18,10 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        if file != 'block.wasm':
+        if file not in [
+            # 'address.wasm',
+            'block.wasm',
+        ]:
             continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
             mod = wasmi.Mod.from_reader(f)
@@ -36,7 +39,7 @@ def test_spec():
                 else:
                     assert False
                 continue
-            rets = parse_vype(test['return'])
+            rets = parse_vype(test['return']) if test['return'] else None
             r = vm.exec(function, args)
             print(f'{file} {function} {args}: {rets} == {r}')
             assert r == rets

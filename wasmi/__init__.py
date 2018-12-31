@@ -465,15 +465,13 @@ class Vm:
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.F32_CONST:
-                    n, r, _ = wasmi.common.decode_i32_leb128(code[pc:])
-                    pc += n
-                    r = wasmi.common.decode_f32(wasmi.common.encode_i32(r))
+                    r = wasmi.common.read_f32(code[pc:])
+                    pc += 4
                     ctx.stack.add_f32(r)
                     continue
                 if opcode == wasmi.opcodes.F64_CONST:
-                    n, r, _ = wasmi.common.decode_i64_leb128(code[pc:])
-                    pc += n
-                    r = wasmi.common.decode_f64(wasmi.common.encode_i64(r))
+                    r = wasmi.common.read_f64(code[pc:])
+                    pc += 8
                     ctx.stack.add_f32(r)
                     continue
             if opcode == wasmi.opcodes.I32_EQZ:
@@ -588,6 +586,7 @@ class Vm:
                     ctx.stack.add_i32(a.into_f64() >= b.into_f64())
                     continue
             if opcode >= wasmi.opcodes.I32_CLZ and opcode <= wasmi.opcodes.I32_POPCNT:
+                v = ctx.stack.pop_i32()
                 if opcode == wasmi.opcodes.I32_CLZ:
                     c = 0
                     while c < 32 and (v & 0x80000000) == 0:

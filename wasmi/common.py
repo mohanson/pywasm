@@ -186,6 +186,18 @@ def encode_f64(r: float):
     return struct.pack('<d', r)
 
 
+def read_f32(reader):
+    if isinstance(reader, (bytes, bytearray)):
+        reader = io.BytesIO(reader)
+    return decode_f32(reader.read(4))
+
+
+def read_f64(reader):
+    if isinstance(reader, (bytes, bytearray)):
+        reader = io.BytesIO(reader)
+    return decode_f64(reader.read(8))
+
+
 def read_leb(reader, maxbits=32, signed=False):
     if isinstance(reader, (bytes, bytearray)):
         reader = io.BytesIO(reader)
