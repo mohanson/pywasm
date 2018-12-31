@@ -183,7 +183,7 @@ class Vm:
         return stack.data.pop().into_val()
 
     def exec_step(self, function_idx: int, ctx: Ctx):
-        function_signature = self.mod.section_type.entries[function_idx]
+        function_signature = self.mod.section_type.entries[self.mod.section_function.entries[function_idx]]
         function_body = self.mod.section_code.entries[function_idx]
         ctx.ctack.append(function_body)
         code = function_body.expression.data

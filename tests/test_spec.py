@@ -26,15 +26,15 @@ def test_spec():
             mod = wasmi.Mod.from_reader(f)
         vm = wasmi.Vm(mod)
         for test in case['tests']:
-            rets = test['return']
-            args = test['args']
             function = test['function']
-
-            args = [parse_vype(e) for e in args]
-            rets = parse_vype(rets)
+            args = [parse_vype(e) for e in test['args']]
+            if 'trap' in test:
+                trap = test['trap']
+                continue
+            rets = parse_vype(test['return'])
             r = vm.exec(function, args)
             print(file, function, args, rets, r)
             assert r == rets
 
-wasmi.log.switch = 1
+
 test_spec()
