@@ -190,6 +190,17 @@ class Block:
         self.pos_else = 0
         self.pos_br = 0
 
+    def __repr__(self):
+        name = 'Block'
+        seps = []
+        seps.append(f'opcode={wasmi.opcodes.OP_INFO[self.opcode][0]}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
+        seps.append(f'pos_head={self.pos_head}')
+        seps.append(f'pos_stop={self.pos_stop}')
+        seps.append(f'pos_else={self.pos_else}')
+        seps.append(f'pos_br={self.pos_br}')
+        return f'{name}<{" ".join(seps)}>'
+
 
 class Code:
     def __init__(self, locs: typing.List[Local], expression: Expression):
@@ -223,7 +234,8 @@ class Code:
             if op == wasmi.opcodes.ELSE:
                 if bstack[-1].opcode != wasmi.opcodes.IF:
                     raise wasmi.error.WAException('else not matched with if')
-                bstack[-1].else_addr = pc
+                bstack[-1].pos_else = pc
+                bmap[bstack[-1].pos_head].pos_else = pc
                 continue
             if op == wasmi.opcodes.END:
                 if pc == len(code):

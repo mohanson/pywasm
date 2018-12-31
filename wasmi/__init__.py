@@ -216,12 +216,13 @@ class Vm:
                 pc += n
                 ctx.ctack.append(b)
                 cond = ctx.stack.pop_i32()
-                if not cond:
-                    if b.pos_else == 0:
-                        ctx.ctack.pop()
-                        pc = b.pos_br + 1
-                        continue
-                    pc = b.pos_else
+                if cond:
+                    continue
+                if b.pos_else == 0:
+                    ctx.ctack.pop()
+                    pc = b.pos_br + 1
+                    continue
+                pc = b.pos_else
                 continue
             if opcode == wasmi.opcodes.ELSE:
                 b = ctx.ctack.pop()
