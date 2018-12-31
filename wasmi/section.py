@@ -217,21 +217,25 @@ class Code:
                 b = Block(op, code[pc], pc - 1)
                 bstack.append(b)
                 bmap[pc - 1] = b
-            elif op == wasmi.opcodes.ELSE:
-                if bstack[-1].kind != wasmi.opcodes.IF:
+                data = Expression.skip(op, io.BytesIO(code[pc:]))
+                pc += len(data)
+                continue
+            if op == wasmi.opcodes.ELSE:
+                if bstack[-1].opcode != wasmi.opcodes.IF:
                     raise wasmi.error.WAException('else not matched with if')
                 bstack[-1].else_addr = pc
                 continue
-            elif op == wasmi.opcodes.END:
+            if op == wasmi.opcodes.END:
                 if pc == len(code):
                     break
                 b = bstack.pop()
-                if b.kind == wasmi.opcodes.LOOP:
+                if b.opcode == wasmi.opcodes.LOOP:
                     b.pos_stop = pc - 1
                     b.pos_br = b.pos_head + 2
-                else:
-                    b.pos_stop = pc - 1
-                    b.pos_br = pc - 1
+                    continue
+                b.pos_stop = pc - 1
+                b.pos_br = pc - 1
+                continue
             data = Expression.skip(op, io.BytesIO(code[pc:]))
             pc += len(data)
         if op != wasmi.opcodes.END:

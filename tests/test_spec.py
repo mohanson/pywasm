@@ -23,6 +23,7 @@ def test_spec():
         if file not in [
             'address.wasm',
             'block.wasm',
+            'fac.wasm',
         ]:
             continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
