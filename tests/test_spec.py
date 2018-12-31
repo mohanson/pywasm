@@ -1,7 +1,5 @@
-import os
-import pathlib
-import sys
 import json
+import os
 
 import wasmi
 
@@ -20,8 +18,8 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        if file != 'address.wasm':
-            break
+        if file != 'block.wasm':
+            continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
             mod = wasmi.Mod.from_reader(f)
         vm = wasmi.Vm(mod)
@@ -30,10 +28,17 @@ def test_spec():
             args = [parse_vype(e) for e in test['args']]
             if 'trap' in test:
                 trap = test['trap']
+                try:
+                    vm.exec(function, args)
+                except wasmi.error.WAException as e:
+                    print(f'{file} {function} {args}: {trap} == {e.message}')
+                    assert e.message == trap.split(':')[1].strip()
+                else:
+                    assert False
                 continue
             rets = parse_vype(test['return'])
             r = vm.exec(function, args)
-            print(file, function, args, rets, r)
+            print(f'{file} {function} {args}: {rets} == {r}')
             assert r == rets
 
 

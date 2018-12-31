@@ -187,6 +187,7 @@ class Vm:
         function_body = self.mod.section_code.entries[function_idx]
         ctx.ctack.append(function_body)
         code = function_body.expression.data
+        wasmi.log.println('Code', code.hex())
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
@@ -350,6 +351,8 @@ class Vm:
                 n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 a = ctx.stack.pop_i64() + mem_offset
+                if a + wasmi.opcodes.OP_INFO[opcode][2] > len(self.mem):
+                    raise wasmi.error.WAException('out of bounds memory access')
                 if opcode == wasmi.opcodes.I32_LOAD:
                     r = wasmi.common.decode_i32(self.mem[a:a + 4])
                     ctx.stack.add_i32(r)
@@ -1018,4 +1021,5 @@ class Vm:
         for i, kind in enumerate(function_signature.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
+        wasmi.log.println('Exec'.center(80, '-'))
         return self.exec_step(export.idx, ctx)
