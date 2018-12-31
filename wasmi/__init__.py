@@ -60,8 +60,8 @@ class Mod:
             if e.sid == wasmi.opcodes.SECTION_ID_TYPE:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(f'SectionType')
-                for e in mod.section_type.entries:
-                    wasmi.log.println(' ' * 4 + str(e))
+                for i in mod.section_type.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
@@ -78,8 +78,8 @@ class Mod:
             if e.sid == wasmi.opcodes.SECTION_ID_MEMORY:
                 mod.section_memory = wasmi.section.SectionMemory.from_section(e)
                 wasmi.log.println(f'SectionMemory')
-                for e in mod.section_memory.entries:
-                    wasmi.log.println(' ' * 4 + str(e))
+                for i in mod.section_memory.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
@@ -88,8 +88,8 @@ class Mod:
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
                 wasmi.log.println(f'SectionExport')
-                for e in mod.section_export.entries:
-                    wasmi.log.println(' ' * 4 + str(e))
+                for i in mod.section_export.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_START:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
@@ -102,14 +102,14 @@ class Mod:
             if e.sid == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(f'SectionCode')
-                for e in mod.section_code.entries:
-                    wasmi.log.println(' ' * 4 + str(e))
+                for i in mod.section_code.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_DATA:
                 mod.section_data = wasmi.section.SectionData.from_section(e)
                 wasmi.log.println(f'SectionData')
-                for e in mod.section_data.entries:
-                    wasmi.log.println(' ' * 4 + str(e))
+                for i in mod.section_data.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
         return mod
 
@@ -136,7 +136,6 @@ class Vm:
             for e in self.mod.section_data.entries:
                 assert e.idx == 0
                 offset = self.exec_init_expr(e.expression.data)
-                wasmi.log.println(f'VM.SetMem<offset={offset} init=0x{e.init.hex()}>')
                 self.mem[offset: offset + len(e.init)] = e.init
 
     def exec_init_expr(self, code: bytearray):
@@ -189,7 +188,6 @@ class Vm:
         ctx.ctack.append(function_body)
         code = function_body.expression.data
         pc = 0
-        wasmi.log.println(code.hex())
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
@@ -1020,4 +1018,4 @@ class Vm:
         for i, kind in enumerate(function_signature.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
-        return self.exec_step(function_idx, ctx)
+        return self.exec_step(export.idx, ctx)
