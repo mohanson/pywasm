@@ -7,6 +7,8 @@ import wasmi
 def parse_vype(s: str):
     t, v = s.split(':')
     if t in ['i32', 'i64']:
+        if v.startswith('0x'):
+            return int(v, 16)
         return int(v)
     if t in ['f32', 'f64']:
         return float(v)
@@ -19,7 +21,7 @@ def test_spec():
     for case in data:
         file = case['file']
         if file not in [
-            # 'address.wasm',
+            'address.wasm',
             'block.wasm',
         ]:
             continue

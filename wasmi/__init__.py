@@ -241,7 +241,7 @@ class Vm:
                 pc += n
                 for _ in range(c):
                     ctx.ctack.pop()
-                b = ctx.ctack.pop()
+                b = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_IF:
@@ -269,7 +269,7 @@ class Vm:
                     ddepth = depths[didx]
                 for _ in range(ddepth):
                     ctx.ctack.pop()
-                b = ctx.ctack.pop()
+                b = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.RETURN:
@@ -324,12 +324,20 @@ class Vm:
                 v = ctx.stack.pop()
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
+                if i >= len(ctx.locals_data):
+                    ctx.locals_data.extend(
+                        [wasmi.stack.Entry.from_i32(0) for _ in range(i - len(ctx.locals_data) + 1)]
+                    )
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
                 v = ctx.stack.data[-1]
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
+                if i >= len(ctx.locals_data):
+                    ctx.locals_data.extend(
+                        [wasmi.stack.Entry.from_i32(0) for _ in range(i - len(ctx.locals_data) + 1)]
+                    )
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
