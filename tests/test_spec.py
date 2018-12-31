@@ -24,6 +24,7 @@ def test_spec():
             'address.wasm',
             'block.wasm',
             'fac.wasm',
+            'br.wasm',
         ]:
             continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
@@ -45,6 +46,9 @@ def test_spec():
             rets = parse_vype(test['return']) if test['return'] else None
             r = vm.exec(function, args)
             print(f'{file} {function} {args}: {rets} == {r}')
+            if isinstance(r, float):
+                assert abs(r - rets) < 0.005
+                continue
             assert r == rets
 
 

@@ -48,20 +48,34 @@ class Expression:
     @classmethod
     def skip(cls, opcode: int, r: typing.BinaryIO):
         data = bytearray()
-        c = 0
         for e in wasmi.opcodes.OP_INFO[opcode][1]:
-            if e == 0x01:
-                data.extend(r.read(1))
-                continue
-            if e == 0x20:
-                _, c, a = wasmi.common.read_leb(r, 32)
+            if e == 'leb_1':
+                _, _, a = wasmi.common.read_leb(r, 1)
                 data.extend(a)
                 continue
-            if e == 0x40:
+            if e == 'leb_7':
+                _, _, a = wasmi.common.read_leb(r, 7)
+                data.extend(a)
+                continue
+            if e == 'leb_32':
+                _, _, a = wasmi.common.read_leb(r, 32)
+                data.extend(a)
+                continue
+            if e == 'leb_64':
+                _, _, a = wasmi.common.read_leb(r, 64)
+                data.extend(a)
+                continue
+            if e == 'bit_32':
+                a = r.read(4)
+                data.extend(a)
+                continue
+            if e == 'bit_64':
+                a = r.read(8)
+                data.extend(a)
+                continue
+            if e == 'leb_32xleb_32':
                 _, c, a = wasmi.common.read_leb(r, 64)
                 data.extend(a)
-                continue
-            if e == 0xFF:
                 for _ in range(c):
                     _, _, a = wasmi.common.read_leb(r, 64)
                     data.extend(a)
@@ -361,7 +375,7 @@ class Import:
 
 
 class Element:
-    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
+    def __init__(self, idx: int, expression: Expression, init: bytearray):
         self.idx = idx
         self.expression = expression
         self.init = init
@@ -379,7 +393,7 @@ class Element:
         _, idx, _ = wasmi.common.read_leb(r, 32)
         expression = Expression.from_reader(r)
         _, n, _ = wasmi.common.read_leb(r, 32)
-        init = [ord(e) for e in r.read(n)]
+        init = bytearray(r.read(n))
         return Element(idx, expression, init)
 
 
