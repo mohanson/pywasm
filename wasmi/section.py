@@ -202,7 +202,6 @@ class Code:
         return f'{name}<{" ".join(seps)}>'
 
     def imap(self) -> typing.Dict[int, Block]:
-        # referenced codes of warpy
         pc = 0
         bmap: typing.Dict[int, Block] = {}
         bstack: typing.List[Block] = []
