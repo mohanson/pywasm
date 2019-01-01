@@ -234,9 +234,13 @@ class Vm:
                 if isinstance(b, wasmi.section.Code):
                     if ctx.ctack:
                         return
-                    break
+                    if ctx.stack.len():
+                        return ctx.stack.pop().into_val()
+                    return None
                 if isinstance(b, wasmi.section.Block) and b.kind == 0x00:
-                    break
+                    if ctx.stack.len():
+                        return ctx.stack.pop().into_val()
+                    return None
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
@@ -1013,9 +1017,6 @@ class Vm:
                 if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
                     ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
                     continue
-        if ctx.stack.len():
-            return ctx.stack.pop().into_val()
-        return None
 
     def exec(self, name: str, args: typing.List):
         export: wasmi.section.Export = None
