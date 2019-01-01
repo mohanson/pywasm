@@ -285,11 +285,10 @@ class Vm:
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                f_sig_idx = self.mod.section_function.entries[f_idx]
-                f_sig = self.mod.section_type.entries[f_sig_idx]
-                f_cnt = self.mod.section_code.entries[f_idx]
+                son_f_sig_idx = self.mod.section_function.entries[f_idx]
+                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
                 pre_locals_data = ctx.locals_data
-                ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
+                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args]
                 self.exec_step(f_idx, ctx)
                 ctx.locals_data = pre_locals_data
                 continue
