@@ -226,7 +226,7 @@ class Vm:
                 pc = b.pos_else
                 continue
             if opcode == wasmi.opcodes.ELSE:
-                b = ctx.ctack.pop()
+                b = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.END:
