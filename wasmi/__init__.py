@@ -178,9 +178,9 @@ class Vm:
                 continue
             if opcode == wasmi.opcodes.END:
                 break
-        if not stack.data:
+        if not stack.len():
             return 0
-        return stack.data.pop().into_val()
+        return stack.pop().into_val()
 
     def exec_step(self, f_idx: int, ctx: Ctx):
         f_sig_idx = self.mod.section_function.entries[f_idx]
