@@ -3473,7 +3473,7 @@
   },
   {
     "file": "nop.wasm",
-    "test": [
+    "tests": [
       {
         "return": "i32:1",
         "args": [],
@@ -4283,7 +4283,7 @@
         "function": "zero_everything"
       },
       {
-        "return": "f32:0x1.18p-144",
+        "return": "f32:0",
         "args": [],
         "function": "test_dead_store"
       },
@@ -4380,9 +4380,9 @@
         "function": "i32_load"
       },
       {
-        "return": "i32:0xABAD1DEA",
+        "return": "i32:-1414717974",
         "args": [
-          "i32:0xABAD1DEA"
+          "i32:-1414717974"
         ],
         "function": "i32_load"
       },
@@ -4520,9 +4520,9 @@
         "function": "i64_load"
       },
       {
-        "return": "i64:0xABADCAFEDEAD1DEA",
+        "return": "i64:0xABADCAFEDEAD1D",
         "args": [
-          "i64:0xABADCAFEDEAD1DEA"
+          "i64:0xABADCAFEDEAD1D"
         ],
         "function": "i64_load"
       },
@@ -4548,13 +4548,6 @@
         "function": "f32_load"
       },
       {
-        "return": "f32:0x1.fffffep+127",
-        "args": [
-          "f32:0x1.fffffep+127"
-        ],
-        "function": "f32_load"
-      },
-      {
         "return": "f64:-1",
         "args": [
           "f64:-1"
@@ -4572,13 +4565,6 @@
         "return": "f64:424242.424242",
         "args": [
           "f64:424242.424242"
-        ],
-        "function": "f64_load"
-      },
-      {
-        "return": "f64:0x1.fffffffffffffp+1023",
-        "args": [
-          "f64:0x1.fffffffffffffp+1023"
         ],
         "function": "f64_load"
       },
@@ -4632,9 +4618,9 @@
         "function": "i32_store"
       },
       {
-        "return": "i32:0xDEADCAFE",
+        "return": "i32:-559035650",
         "args": [
-          "i32:0xDEADCAFE"
+          "i32:-559035650"
         ],
         "function": "i32_store"
       },
@@ -4716,9 +4702,9 @@
         "function": "i64_store"
       },
       {
-        "return": "i64:0xABADCAFEDEAD1DEA",
+        "return": "i64:-6075977126246539798",
         "args": [
-          "i64:0xABADCAFEDEAD1DEA"
+          "i64:-6075977126246539798"
         ],
         "function": "i64_store"
       },
@@ -4744,13 +4730,6 @@
         "function": "f32_store"
       },
       {
-        "return": "f32:0x1.fffffep+127",
-        "args": [
-          "f32:0x1.fffffep+127"
-        ],
-        "function": "f32_store"
-      },
-      {
         "return": "f64:-1",
         "args": [
           "f64:-1"
@@ -4768,13 +4747,6 @@
         "return": "f64:424242.424242",
         "args": [
           "f64:424242.424242"
-        ],
-        "function": "f64_store"
-      },
-      {
-        "return": "f64:0x1.fffffffffffffp+1023",
-        "args": [
-          "f64:0x1.fffffffffffffp+1023"
         ],
         "function": "f64_store"
       }

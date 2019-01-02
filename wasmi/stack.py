@@ -12,7 +12,7 @@ class Entry:
         self.kind = kind
 
     def __repr__(self):
-        return self.data.hex()
+        return f'{self.data.hex()}({self.into_val()})'
 
     @classmethod
     def from_i32(cls, n):
@@ -102,6 +102,9 @@ class Stack:
 
     def len(self) -> int:
         return self.i + 1
+
+    def top(self) -> Entry:
+        return self.data[self.i]
 
     def add_i32(self, n):
         self.add(Entry.from_i32(wasmi.common.into_i32(n)))

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 
 import wasmi
@@ -11,6 +12,8 @@ def parse_vype(s: str):
             return int(v, 16)
         return int(v)
     if t in ['f32', 'f64']:
+        if v.startswith('0x'):
+            return float.fromhex(v)
         return float(v)
     raise NotImplementedError
 
@@ -20,35 +23,6 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        if file not in [
-            'address.wasm',
-            'block.wasm',
-            'fac.wasm',
-            'br.wasm',
-            'br_if.wasm',
-            'br_table.wasm',
-            'break-drop.wasm',
-            # 'call_indirect.wasm',
-            'switch.wasm',
-            'unreachable.wasm',
-            # 'unwind.wasm',
-            # 'traps_mem.wasm',
-            # 'traps_int_div.wasm',
-            # 'traps_int_rem.wasm',
-            # 'if.wasm',
-            # 'globals.wasm',
-            # 'loop.wasm',
-            # 'nop.wasm',
-            # 'tee_local.wasm',
-            # 'forward.wasm',
-            # 'get_local.wasm',
-            # 'resizing.wasm',
-            # 'select.wasm',
-            # "memory_redundancy.wasm",
-            # "endianness.wasm",
-            # "return.wasm",
-        ]:
-            continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
             mod = wasmi.Mod.from_reader(f)
         vm = wasmi.Vm(mod)
@@ -60,8 +34,9 @@ def test_spec():
                 try:
                     vm.exec(function, args)
                 except wasmi.error.WAException as e:
-                    print(f'{file} {function} {args}: {trap} == {e.message}')
+                    print(f'{file} {function} {args}: {trap} == {e.message}', end='')
                     assert e.message == trap.split(':')[1].strip()
+                    print(' (ok)')
                 else:
                     assert False
                 continue
@@ -69,11 +44,12 @@ def test_spec():
             if test.get('return', False):
                 rets = parse_vype(test['return'])
             r = vm.exec(function, args)
-            print(f'{file} {function} {args}: {rets} == {r}')
+            print(f'{file} {function} {args}: {rets} == {r}', end='')
             if isinstance(r, float):
-                assert abs(r - rets) < 0.005
+                assert abs(r - rets) < 0.005 or (math.isnan(r) and math.isnan(rets))
                 continue
             assert r == rets
+            print(' (ok)')
 
 
 test_spec()

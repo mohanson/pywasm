@@ -85,7 +85,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
-                wasmi.log.println(mod.section_global)
+                wasmi.log.println(f'SectionGlobal')
+                for i in mod.section_global.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
@@ -132,13 +134,22 @@ class Vm:
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.Exception('multiple linear memories')
-            self.mem_len = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
-            self.mem = bytearray([0 for _ in range(self.mem_len)])
+            self.mem_len = self.mod.section_memory.entries[0].limit.initial
+            self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
         if self.mod.section_data:
             for e in self.mod.section_data.entries:
                 assert e.idx == 0
                 offset = self.exec_init_expr(e.expression.data)
                 self.mem[offset: offset + len(e.init)] = e.init
+        if self.mod.section_global:
+            for e in self.mod.section_global.entries:
+                v = self.exec_init_expr(e.expression.data)
+                self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+        if self.mod.section_element:
+            for e in self.mod.section_element.entries:
+                offset = self.exec_init_expr(e.expression.data)
+                for i, sube in enumerate(e.init):
+                    self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -149,28 +160,24 @@ class Vm:
             opcode = code[pc]
             pc += 1
             if opcode == wasmi.opcodes.I32_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32, True)
                 pc += n
                 stack.add_i32(i)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
+                n, i, _ = wasmi.common.read_leb(code[pc:], 64, True)
                 pc += n
                 stack.add_i64(i)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-                pc += n
-                r = wasmi.stack.Entry.from_u32(i)
-                r.kind = wasmi.opcodes.VALUE_TYPE_F32
-                stack.add(r)
+                v = wasmi.common.read_f32(code[pc:])
+                pc += 4
+                stack.add_f32(v)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
-                pc += n
-                r = wasmi.stack.Entry.from_u64(i)
-                r.kind = wasmi.opcodes.VALUE_TYPE_F64
-                stack.add(r)
+                v = wasmi.common.read_f64(code[pc:])
+                pc += 8
+                stack.add_f64(v)
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
@@ -188,9 +195,15 @@ class Vm:
         f_sig_idx = self.mod.section_function.entries[f_idx]
         f_sig = self.mod.section_type.entries[f_sig_idx]
         f_sec = self.mod.section_code.entries[f_idx]
+        for eloc in f_sec.locs:
+            for _ in range(eloc.count):
+                e = wasmi.stack.Entry.from_val(0, eloc.kind)
+                ctx.locals_data.append(e)
         ctx.ctack.append([f_sec, ctx.stack.i])
         code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())
+        wasmi.log.println('Locals', ctx.locals_data)
+        wasmi.log.println('Global', self.global_data)
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
@@ -236,6 +249,8 @@ class Vm:
                 if isinstance(b, wasmi.section.Code):
                     if not ctx.ctack:
                         if f_sig.rets:
+                            if f_sig.rets[0] != ctx.stack.top().kind:
+                                raise wasmi.error.WAException('signature mismatch in call_indirect')
                             return ctx.stack.pop().into_val()
                         return None
                     return
@@ -294,7 +309,7 @@ class Vm:
                 son_f_sig_idx = self.mod.section_function.entries[f_idx]
                 son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
                 pre_locals_data = ctx.locals_data
-                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args]
+                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 self.exec_step(f_idx, ctx)
                 ctx.locals_data = pre_locals_data
                 continue
@@ -304,12 +319,22 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 1)
                 pc += n
                 t_idx = ctx.stack.pop_i32()
+                if not (0 <= t_idx < len(self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC])):
+                    raise wasmi.error.WAException('undefined element index')
                 f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
-                f_sig = self.mod.section_type.entries[f_idx]
-                f_cnt = self.mod.section_code.entries[f_idx]
-                f_ctx = ctx
-                f_ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
-                self.exec_step(f_idx, f_ctx)
+                son_f_sig_idx = self.mod.section_function.entries[f_idx]
+                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                a = list(son_f_sig.args)
+                b = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
+                for i in range(len(a)):
+                    ia = a[i]
+                    ib = b[i]
+                    if ib == None or ia != ib.kind:
+                        raise wasmi.error.WAException('signature mismatch in call_indirect')
+                pre_locals_data = ctx.locals_data
+                ctx.locals_data = b
+                self.exec_step(f_idx, ctx)
+                ctx.locals_data = pre_locals_data
                 continue
             if opcode == wasmi.opcodes.DROP:
                 ctx.stack.pop()
@@ -339,13 +364,9 @@ class Vm:
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
-                v = ctx.stack.data[-1]
+                v = ctx.stack.top()
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                if i >= len(ctx.locals_data):
-                    ctx.locals_data.extend(
-                        [wasmi.stack.Entry.from_i32(0) for _ in range(i - len(ctx.locals_data) + 1)]
-                    )
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
@@ -431,6 +452,8 @@ class Vm:
                 n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 a = ctx.stack.pop_i64() + mem_offset
+                if a + wasmi.opcodes.OP_INFO[opcode][2] > len(self.mem):
+                    raise wasmi.error.WAException('out of bounds memory access')
                 if opcode == wasmi.opcodes.I32_STORE:
                     self.mem[a:a + 4] = wasmi.common.encode_i32(v.into_i32())
                     continue
@@ -444,19 +467,19 @@ class Vm:
                     self.mem[a:a + 8] = wasmi.common.encode_f64(v.into_f64())
                     continue
                 if opcode == wasmi.opcodes.I32_STORE8:
-                    self.mem[a:a + 1] = v.data[7, 8]
+                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I32_STORE16:
-                    self.mem[a:a + 2] = v.data[6, 8]
+                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE8:
-                    self.mem[a:a + 1] = v.data[7, 8]
+                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE16:
-                    self.mem[a:a + 2] = v.data[6, 8]
+                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE32:
-                    self.mem[a:a + 4] = v.data[4, 8]
+                    self.mem[a:a + 4] = wasmi.common.encode_i32(wasmi.common.into_i32(v.into_i64()))
                     continue
             if opcode == wasmi.opcodes.CURRENT_MEMORY:
                 pc += 1
@@ -466,6 +489,7 @@ class Vm:
                 pc += 1
                 cur_len = self.mem_len
                 n = ctx.stack.pop_i32()
+                self.mem_len += n
                 self.mem.extend([0 for _ in range(n * 64 * 1024)])
                 ctx.stack.add_i32(cur_len)
                 continue
@@ -488,7 +512,7 @@ class Vm:
                 if opcode == wasmi.opcodes.F64_CONST:
                     r = wasmi.common.read_f64(code[pc:])
                     pc += 8
-                    ctx.stack.add_f32(r)
+                    ctx.stack.add_f64(r)
                     continue
             if opcode == wasmi.opcodes.I32_EQZ:
                 ctx.stack.add_i32(ctx.stack.pop_i32() == 0)
@@ -1004,20 +1028,21 @@ class Vm:
                     ctx.stack.add_f64(v)
                     continue
                 if opcode == wasmi.opcodes.F64_PROMOTE_F32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                    v = v.into_f32()
+                    ctx.stack.add_f64(v)
                     continue
             if opcode >= wasmi.opcodes.I32_REINTERPRET_F32 and opcode <= wasmi.opcodes.F64_REINTERPRET_I64:
                 if opcode == wasmi.opcodes.I32_REINTERPRET_F32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I32
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I32
                     continue
                 if opcode == wasmi.opcodes.I64_REINTERPRET_F64:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I64
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I64
                     continue
                 if opcode == wasmi.opcodes.F32_REINTERPRET_I32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F32
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F32
                     continue
                 if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F64
                     continue
 
     def exec(self, name: str, args: typing.List):
@@ -1031,8 +1056,9 @@ class Vm:
         f_idx = export.idx
         f_sig_idx = self.mod.section_function.entries[f_idx]
         f_sig = self.mod.section_type.entries[f_sig_idx]
+        ergs = []
         for i, kind in enumerate(f_sig.args):
-            args[i] = wasmi.stack.Entry.from_val(args[i], kind)
-        ctx = Ctx(args)
+            ergs.append(wasmi.stack.Entry.from_val(args[i], kind))
+        ctx = Ctx(ergs)
         wasmi.log.println('Exec'.center(80, '-'))
         return self.exec_step(f_idx, ctx)
