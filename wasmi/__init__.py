@@ -145,6 +145,13 @@ class Vm:
             for e in self.mod.section_global.entries:
                 v = self.exec_init_expr(e.expression.data)
                 self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+        if self.mod.section_element:
+            # only 1 default table in MVP
+            assert len(self.mod.section_element.entries) == 1
+            for e in self.mod.section_element.entries:
+                offset = self.exec_init_expr(e.expression.data)
+                for i, sube in enumerate(e.init):
+                    self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()

@@ -377,7 +377,7 @@ class Import:
 
 
 class Element:
-    def __init__(self, idx: int, expression: Expression, init: bytearray):
+    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
         self.idx = idx
         self.expression = expression
         self.init = init
@@ -395,7 +395,9 @@ class Element:
         _, idx, _ = wasmi.common.read_leb(r, 32)
         expression = Expression.from_reader(r)
         _, n, _ = wasmi.common.read_leb(r, 32)
-        init = bytearray(r.read(n))
+        init = []
+        for _ in range(n):
+            init.append(wasmi.common.read_leb(r, 32)[1])
         return Element(idx, expression, init)
 
 
@@ -525,6 +527,7 @@ class SectionTable:
         name = 'SectionTable'
         seps = []
         seps.append(f'entries={self.entries}')
+        seps.append(f'dict={self.dict}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -536,7 +539,7 @@ class SectionTable:
         for _ in range(n_table):
             table = Table.from_reader(r)
             sec.entries.append(table)
-            sec.dict[table.kind] = table.limit.initial
+            sec.dict[table.kind] = [0] * table.limit.initial
         return sec
 
 
