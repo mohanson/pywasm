@@ -197,6 +197,8 @@ class Vm:
         ctx.ctack.append([f_sec, ctx.stack.i])
         code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())
+        wasmi.log.println('Locals', ctx.locals_data)
+        wasmi.log.println('Global', self.global_data)
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
@@ -348,10 +350,6 @@ class Vm:
                 v = ctx.stack.top()
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                if i >= len(ctx.locals_data):
-                    ctx.locals_data.extend(
-                        [wasmi.stack.Entry.from_i32(0) for _ in range(i - len(ctx.locals_data) + 1)]
-                    )
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
@@ -494,7 +492,7 @@ class Vm:
                 if opcode == wasmi.opcodes.F64_CONST:
                     r = wasmi.common.read_f64(code[pc:])
                     pc += 8
-                    ctx.stack.add_f32(r)
+                    ctx.stack.add_f64(r)
                     continue
             if opcode == wasmi.opcodes.I32_EQZ:
                 ctx.stack.add_i32(ctx.stack.pop_i32() == 0)
@@ -1010,7 +1008,8 @@ class Vm:
                     ctx.stack.add_f64(v)
                     continue
                 if opcode == wasmi.opcodes.F64_PROMOTE_F32:
-                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F64
+                    v = v.into_f32()
+                    ctx.stack.add_f64(v)
                     continue
             if opcode >= wasmi.opcodes.I32_REINTERPRET_F32 and opcode <= wasmi.opcodes.F64_REINTERPRET_I64:
                 if opcode == wasmi.opcodes.I32_REINTERPRET_F32:

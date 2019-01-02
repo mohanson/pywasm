@@ -12,7 +12,7 @@ class Entry:
         self.kind = kind
 
     def __repr__(self):
-        return self.data.hex()
+        return f'{self.data.hex()}({self.into_val()})'
 
     @classmethod
     def from_i32(cls, n):
