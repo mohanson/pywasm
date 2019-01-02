@@ -28,7 +28,7 @@ def test_spec():
             'br_if.wasm',
             'br_table.wasm',
             'break-drop.wasm',
-            #'call_indirect.wasm',
+            # 'call_indirect.wasm',
             'switch.wasm',
             'unreachable.wasm',
             # 'unwind.wasm',
@@ -65,7 +65,9 @@ def test_spec():
                 else:
                     assert False
                 continue
-            rets = parse_vype(test['return']) if test['return'] else None
+            rets = None
+            if test.get('return', False):
+                rets = parse_vype(test['return'])
             r = vm.exec(function, args)
             print(f'{file} {function} {args}: {rets} == {r}')
             if isinstance(r, float):

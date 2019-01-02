@@ -131,7 +131,7 @@ class GlobalType:
     def __repr__(self):
         name = 'GlobalType'
         seps = []
-        seps.append(f'kind={self.kind}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
         seps.append(f'mut={self.mut}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -372,7 +372,7 @@ class Import:
         if kind == wasmi.opcodes.EXTERNAL_MEMORY:
             isec.description = Memory.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
-            isec.description = Global.from_reader(r)
+            isec.description = GlobalType.from_reader(r)
         return isec
 
 

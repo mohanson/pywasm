@@ -65,7 +65,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
-                wasmi.log.println(mod.section_import)
+                wasmi.log.println(f'SectionImport')
+                for i in mod.section_import.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
@@ -196,7 +198,7 @@ class Vm:
             name = wasmi.opcodes.OP_INFO[opcode][0]
             wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data[:ctx.stack.i + 1])
             if opcode == wasmi.opcodes.UNREACHABLE:
-                raise wasmi.error.WAException('unreachable')
+                raise wasmi.error.WAException('reached unreachable')
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
