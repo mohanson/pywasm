@@ -186,7 +186,7 @@ class Vm:
         f_sig_idx = self.mod.section_function.entries[f_idx]
         f_sig = self.mod.section_type.entries[f_sig_idx]
         f_sec = self.mod.section_code.entries[f_idx]
-        ctx.ctack.append(f_sec)
+        ctx.ctack.append([f_sec, ctx.stack.i])
         code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())
         pc = 0
@@ -194,7 +194,7 @@ class Vm:
             opcode = code[pc]
             pc += 1
             name = wasmi.opcodes.OP_INFO[opcode][0]
-            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data)
+            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data[:ctx.stack.i + 1])
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.WAException('unreachable')
             if opcode == wasmi.opcodes.NOP:
@@ -203,19 +203,19 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 continue
             if opcode == wasmi.opcodes.LOOP:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 continue
             if opcode == wasmi.opcodes.IF:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
                 b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 cond = ctx.stack.pop_i32()
                 if cond:
                     continue
@@ -226,28 +226,28 @@ class Vm:
                 pc = b.pos_else
                 continue
             if opcode == wasmi.opcodes.ELSE:
-                b = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.END:
-                b = ctx.ctack.pop()
+                b, sp = ctx.ctack.pop()
                 if isinstance(b, wasmi.section.Code):
-                    if ctx.ctack:
-                        return
-                    if ctx.stack.len():
-                        return ctx.stack.pop().into_val()
-                    return None
-                if isinstance(b, wasmi.section.Block) and b.kind == 0x00:
-                    if ctx.stack.len():
-                        return ctx.stack.pop().into_val()
-                    return None
+                    if not ctx.ctack:
+                        if f_sig.rets:
+                            return ctx.stack.pop().into_val()
+                        return None
+                    return
+                if sp < ctx.stack.i:
+                    v = ctx.stack.pop()
+                    ctx.stack.i = sp
+                    ctx.stack.add(v)
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 for _ in range(c):
                     ctx.ctack.pop()
-                b = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_IF:
@@ -255,9 +255,9 @@ class Vm:
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
-                    b = ctx.ctack[-1]
+                    b, _ = ctx.ctack[-1]
                     for _ in range(c):
-                        b = ctx.ctack.pop()
+                        b, _ = ctx.ctack.pop()
                     pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_TABLE:
@@ -275,15 +275,15 @@ class Vm:
                     ddepth = depths[didx]
                 for _ in range(ddepth):
                     ctx.ctack.pop()
-                b = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.RETURN:
                 while ctx.ctack:
-                    if isinstance(ctx.ctack[-1], wasmi.section.Code):
+                    if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
                         break
                     ctx.ctack.pop()
-                b: wasmi.section.Code = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = len(b.expression.data) - 1
                 continue
             if opcode == wasmi.opcodes.CALL:
