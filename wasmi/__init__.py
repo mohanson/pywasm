@@ -435,6 +435,8 @@ class Vm:
                 n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 a = ctx.stack.pop_i64() + mem_offset
+                if a + wasmi.opcodes.OP_INFO[opcode][2] > len(self.mem):
+                    raise wasmi.error.WAException('out of bounds memory access')
                 if opcode == wasmi.opcodes.I32_STORE:
                     self.mem[a:a + 4] = wasmi.common.encode_i32(v.into_i32())
                     continue
@@ -448,19 +450,19 @@ class Vm:
                     self.mem[a:a + 8] = wasmi.common.encode_f64(v.into_f64())
                     continue
                 if opcode == wasmi.opcodes.I32_STORE8:
-                    self.mem[a:a + 1] = v.data[7, 8]
+                    self.mem[a:a + 1] = v.data[7: 8]
                     continue
                 if opcode == wasmi.opcodes.I32_STORE16:
-                    self.mem[a:a + 2] = v.data[6, 8]
+                    self.mem[a:a + 2] = v.data[6: 8]
                     continue
                 if opcode == wasmi.opcodes.I64_STORE8:
-                    self.mem[a:a + 1] = v.data[7, 8]
+                    self.mem[a:a + 1] = v.data[7: 8]
                     continue
                 if opcode == wasmi.opcodes.I64_STORE16:
-                    self.mem[a:a + 2] = v.data[6, 8]
+                    self.mem[a:a + 2] = v.data[6: 8]
                     continue
                 if opcode == wasmi.opcodes.I64_STORE32:
-                    self.mem[a:a + 4] = v.data[4, 8]
+                    self.mem[a:a + 4] = v.data[4: 8]
                     continue
             if opcode == wasmi.opcodes.CURRENT_MEMORY:
                 pc += 1
@@ -470,6 +472,7 @@ class Vm:
                 pc += 1
                 cur_len = self.mem_len
                 n = ctx.stack.pop_i32()
+                self.mem_len += n
                 self.mem.extend([0 for _ in range(n * 64 * 1024)])
                 ctx.stack.add_i32(cur_len)
                 continue

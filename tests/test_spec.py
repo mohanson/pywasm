@@ -1,4 +1,5 @@
 import json
+import math
 import os
 
 import wasmi
@@ -21,31 +22,31 @@ def test_spec():
     for case in data:
         file = case['file']
         if file not in [
-            'address.wasm',
-            'block.wasm',
-            'fac.wasm',
-            'br.wasm',
-            'br_if.wasm',
-            'br_table.wasm',
-            'break-drop.wasm',
+            # 'address.wasm',
+            # 'block.wasm',
+            # 'fac.wasm',
+            # 'br.wasm',
+            # 'br_if.wasm',
+            # 'br_table.wasm',
+            # 'break-drop.wasm',
             # 'call_indirect.wasm',
-            'switch.wasm',
-            'unreachable.wasm',
-            'unwind.wasm',
-            'traps_mem.wasm',
-            'traps_int_div.wasm',
-            'traps_int_rem.wasm',
-            'if.wasm',
-            'globals.wasm',
-            'loop.wasm',
-            'nop.wasm',
-            'tee_local.wasm',
+            # 'switch.wasm',
+            # 'unreachable.wasm',
+            # 'unwind.wasm',
+            # 'traps_mem.wasm',
+            # 'traps_int_div.wasm',
+            # 'traps_int_rem.wasm',
+            # 'if.wasm',
+            # 'globals.wasm',
+            # 'loop.wasm',
+            # 'nop.wasm',
+            # 'tee_local.wasm',
             # 'forward.wasm',
             # 'get_local.wasm',
             # 'resizing.wasm',
             # 'select.wasm',
             # "memory_redundancy.wasm",
-            # "endianness.wasm",
+            "endianness.wasm",
             # "return.wasm",
         ]:
             continue
@@ -71,7 +72,7 @@ def test_spec():
             r = vm.exec(function, args)
             print(f'{file} {function} {args}: {rets} == {r}')
             if isinstance(r, float):
-                assert abs(r - rets) < 0.005
+                assert abs(r - rets) < 0.005 or (math.isnan(r) and math.isnan(rets))
                 continue
             assert r == rets
 

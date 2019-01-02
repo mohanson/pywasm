@@ -3802,7 +3802,7 @@
         "function": "as-grow_memory-last"
       },
       {
-        "return": "i32:1",
+        "return": "i32:3",
         "args": [
           "i32:12"
         ],
@@ -4283,7 +4283,7 @@
         "function": "zero_everything"
       },
       {
-        "return": "f32:0x1.18p-144",
+        "return": "f32:0",
         "args": [],
         "function": "test_dead_store"
       },
