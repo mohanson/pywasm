@@ -221,7 +221,7 @@ class Code:
         self.locs = locs
         self.expression = expression
         self.bmap = self.imap()
-        self.pos_br = len(self.expression.data) - 2
+        self.pos_br = len(self.expression.data) - 1
 
     def __repr__(self):
         name = 'Code'

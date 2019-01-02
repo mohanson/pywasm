@@ -31,7 +31,7 @@ def test_spec():
             # 'call_indirect.wasm',
             'switch.wasm',
             'unreachable.wasm',
-            # 'unwind.wasm',
+            'unwind.wasm',
             # 'traps_mem.wasm',
             # 'traps_int_div.wasm',
             # 'traps_int_rem.wasm',
