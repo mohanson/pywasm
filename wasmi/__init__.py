@@ -345,7 +345,7 @@ class Vm:
                 ctx.locals_data[i] = v
                 continue
             if opcode == wasmi.opcodes.TEE_LOCAL:
-                v = ctx.stack.data[-1]
+                v = ctx.stack.top()
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 if i >= len(ctx.locals_data):
@@ -1010,20 +1010,20 @@ class Vm:
                     ctx.stack.add_f64(v)
                     continue
                 if opcode == wasmi.opcodes.F64_PROMOTE_F32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F64
                     continue
             if opcode >= wasmi.opcodes.I32_REINTERPRET_F32 and opcode <= wasmi.opcodes.F64_REINTERPRET_I64:
                 if opcode == wasmi.opcodes.I32_REINTERPRET_F32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I32
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I32
                     continue
                 if opcode == wasmi.opcodes.I64_REINTERPRET_F64:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_I64
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I64
                     continue
                 if opcode == wasmi.opcodes.F32_REINTERPRET_I32:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F32
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F32
                     continue
                 if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
-                    ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
+                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F64
                     continue
 
     def exec(self, name: str, args: typing.List):
@@ -1037,8 +1037,9 @@ class Vm:
         f_idx = export.idx
         f_sig_idx = self.mod.section_function.entries[f_idx]
         f_sig = self.mod.section_type.entries[f_sig_idx]
+        ergs = []
         for i, kind in enumerate(f_sig.args):
-            args[i] = wasmi.stack.Entry.from_val(args[i], kind)
-        ctx = Ctx(args)
+            ergs.append(wasmi.stack.Entry.from_val(args[i], kind))
+        ctx = Ctx(ergs)
         wasmi.log.println('Exec'.center(80, '-'))
         return self.exec_step(f_idx, ctx)

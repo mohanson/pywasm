@@ -103,6 +103,9 @@ class Stack:
     def len(self) -> int:
         return self.i + 1
 
+    def top(self) -> Entry:
+        return self.data[self.i]
+
     def add_i32(self, n):
         self.add(Entry.from_i32(wasmi.common.into_i32(n)))
 
