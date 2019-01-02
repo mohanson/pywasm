@@ -14,11 +14,11 @@ Get some helps from [warpy](https://github.com/kanaka/warpy) and [wagon](https:/
 # Installition
 
 ```sh
-$ git clone https://github.com/mohanson/py-wasmi
+$ git clone https://github.com/mohanson/py-wasmi && python3 setup.py install
 # or
 $ pip3 install wasmi
 
-# run tests. py-wasmi has 100% passed all cases from official
+# run tests. py-wasmi has 100% passed all cases from official spec
 python tests/test_spec.py
 ```
 

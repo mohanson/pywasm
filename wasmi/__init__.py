@@ -146,8 +146,6 @@ class Vm:
                 v = self.exec_init_expr(e.expression.data)
                 self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
         if self.mod.section_element:
-            # only 1 default table in MVP
-            assert len(self.mod.section_element.entries) == 1
             for e in self.mod.section_element.entries:
                 offset = self.exec_init_expr(e.expression.data)
                 for i, sube in enumerate(e.init):
@@ -326,8 +324,15 @@ class Vm:
                 f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
                 son_f_sig_idx = self.mod.section_function.entries[f_idx]
                 son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                a = list(son_f_sig.args)
+                b = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
+                for i in range(len(a)):
+                    ia = a[i]
+                    ib = b[i]
+                    if ib == None or ia != ib.kind:
+                        raise wasmi.error.WAException('signature mismatch in call_indirect')
                 pre_locals_data = ctx.locals_data
-                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
+                ctx.locals_data = b
                 self.exec_step(f_idx, ctx)
                 ctx.locals_data = pre_locals_data
                 continue
