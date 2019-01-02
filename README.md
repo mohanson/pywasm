@@ -19,17 +19,17 @@ $ git clone https://github.com/mohanson/py-wasmi && python3 setup.py install
 $ pip3 install wasmi
 
 # run tests. py-wasmi has 100% passed all cases from official spec
-python tests/test_spec.py
+python3 tests/test_spec.py
 ```
 
 # Example
 
-A few small examples have been provided in the `example` directory, you can try these examples quickly just:
+A few small examples have been provided in the `examples` directory, you can try these examples quickly just:
 
 ```sh
 $ cd py-wasmi
-$ python examples add 40 2      => (i32.add) 42
-$ python examples fib 10        => (10th of fibonacci) 55
+$ python3 examples add 40 2      => (i32.add) 42
+$ python3 examples fib 10        => (10th of fibonacci) 55
 ```
 
 With detailed, we use `./examples/fib.wasm` as an example, write some c code belows:
