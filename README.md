@@ -58,7 +58,7 @@ print(r) # 55
 # FAQ
 
 Q: How is the py-wasmi performance? <br>
-A: Very bad. Concise implementation for the wasm core specification.
+A: Fine. But if you have strict requirements on speed, please use others such as `wasm-interp`.
 
 # License
 
