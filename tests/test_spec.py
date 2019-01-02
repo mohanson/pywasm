@@ -12,6 +12,8 @@ def parse_vype(s: str):
             return int(v, 16)
         return int(v)
     if t in ['f32', 'f64']:
+        if v.startswith('0x'):
+            return float.fromhex(v)
         return float(v)
     raise NotImplementedError
 

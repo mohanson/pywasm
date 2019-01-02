@@ -251,6 +251,8 @@ class Vm:
                 if isinstance(b, wasmi.section.Code):
                     if not ctx.ctack:
                         if f_sig.rets:
+                            if f_sig.rets[0] != ctx.stack.top().kind:
+                                raise wasmi.error.WAException('signature mismatch in call_indirect')
                             return ctx.stack.pop().into_val()
                         return None
                     return
@@ -319,12 +321,15 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 1)
                 pc += n
                 t_idx = ctx.stack.pop_i32()
+                if not (0 <= t_idx < len(self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC])):
+                    raise wasmi.error.WAException('undefined element index')
                 f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
-                f_sig = self.mod.section_type.entries[f_idx]
-                f_cnt = self.mod.section_code.entries[f_idx]
-                f_ctx = ctx
-                f_ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
-                self.exec_step(f_idx, f_ctx)
+                son_f_sig_idx = self.mod.section_function.entries[f_idx]
+                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                pre_locals_data = ctx.locals_data
+                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
+                self.exec_step(f_idx, ctx)
+                ctx.locals_data = pre_locals_data
                 continue
             if opcode == wasmi.opcodes.DROP:
                 ctx.stack.pop()
