@@ -38,7 +38,7 @@ def test_spec():
             'if.wasm',
             'globals.wasm',
             'loop.wasm',
-            # 'nop.wasm',
+            'nop.wasm',
             # 'tee_local.wasm',
             # 'forward.wasm',
             # 'get_local.wasm',

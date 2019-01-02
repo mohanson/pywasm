@@ -3473,7 +3473,7 @@
   },
   {
     "file": "nop.wasm",
-    "test": [
+    "tests": [
       {
         "return": "i32:1",
         "args": [],
@@ -3802,7 +3802,7 @@
         "function": "as-grow_memory-last"
       },
       {
-        "return": "i32:3",
+        "return": "i32:1",
         "args": [
           "i32:12"
         ],

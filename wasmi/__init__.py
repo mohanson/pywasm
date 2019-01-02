@@ -134,8 +134,8 @@ class Vm:
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.Exception('multiple linear memories')
-            self.mem_len = self.mod.section_memory.entries[0].limit.initial * 64 * 1024
-            self.mem = bytearray([0 for _ in range(self.mem_len)])
+            self.mem_len = self.mod.section_memory.entries[0].limit.initial
+            self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
         if self.mod.section_data:
             for e in self.mod.section_data.entries:
                 assert e.idx == 0
@@ -300,7 +300,7 @@ class Vm:
                 son_f_sig_idx = self.mod.section_function.entries[f_idx]
                 son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
                 pre_locals_data = ctx.locals_data
-                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args]
+                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 self.exec_step(f_idx, ctx)
                 ctx.locals_data = pre_locals_data
                 continue
