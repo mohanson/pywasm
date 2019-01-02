@@ -29,7 +29,7 @@ class Limit:
         flag = ord(r.read(1))
         _, initial, _ = wasmi.common.read_leb(r, 32)
         if flag == 1:
-            maximum, _, _ = wasmi.common.read_leb(r, 32)
+            _, maximum, _ = wasmi.common.read_leb(r, 32)
         else:
             maximum = 0
         return Limit(flag, initial, maximum)
@@ -313,7 +313,7 @@ class Table:
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'kind={wasmi.opcodes.OP_INFO[self.kind][0]}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
         seps.append(f'limit={self.limit}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -353,6 +353,7 @@ class Import:
         seps.append(f'kind={self.kind}')
         seps.append(f'module={self.module}')
         seps.append(f'name={self.name}')
+        seps.append(f'description={self.description}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
