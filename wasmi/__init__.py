@@ -145,7 +145,6 @@ class Vm:
             for e in self.mod.section_global.entries:
                 v = self.exec_init_expr(e.expression.data)
                 self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
-            print([i.into_val() for i in self.global_data])
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -191,6 +190,10 @@ class Vm:
         f_sig_idx = self.mod.section_function.entries[f_idx]
         f_sig = self.mod.section_type.entries[f_sig_idx]
         f_sec = self.mod.section_code.entries[f_idx]
+        for eloc in f_sec.locs:
+            for _ in range(eloc.count):
+                e = wasmi.stack.Entry.from_val(0, eloc.kind)
+                ctx.locals_data.append(e)
         ctx.ctack.append([f_sec, ctx.stack.i])
         code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())

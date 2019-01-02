@@ -37,7 +37,7 @@ def test_spec():
             'traps_int_rem.wasm',
             'if.wasm',
             'globals.wasm',
-            # 'loop.wasm',
+            'loop.wasm',
             # 'nop.wasm',
             # 'tee_local.wasm',
             # 'forward.wasm',
