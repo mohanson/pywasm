@@ -23,6 +23,30 @@ def test_spec():
         if file not in [
             'address.wasm',
             'block.wasm',
+            'fac.wasm',
+            'br.wasm',
+            'br_if.wasm',
+            'br_table.wasm',
+            'break-drop.wasm',
+            # 'call_indirect.wasm',
+            'switch.wasm',
+            'unreachable.wasm',
+            # 'unwind.wasm',
+            # 'traps_mem.wasm',
+            # 'traps_int_div.wasm',
+            # 'traps_int_rem.wasm',
+            # 'if.wasm',
+            # 'globals.wasm',
+            # 'loop.wasm',
+            # 'nop.wasm',
+            # 'tee_local.wasm',
+            # 'forward.wasm',
+            # 'get_local.wasm',
+            # 'resizing.wasm',
+            # 'select.wasm',
+            # "memory_redundancy.wasm",
+            # "endianness.wasm",
+            # "return.wasm",
         ]:
             continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
@@ -41,9 +65,14 @@ def test_spec():
                 else:
                     assert False
                 continue
-            rets = parse_vype(test['return']) if test['return'] else None
+            rets = None
+            if test.get('return', False):
+                rets = parse_vype(test['return'])
             r = vm.exec(function, args)
             print(f'{file} {function} {args}: {rets} == {r}')
+            if isinstance(r, float):
+                assert abs(r - rets) < 0.005
+                continue
             assert r == rets
 
 

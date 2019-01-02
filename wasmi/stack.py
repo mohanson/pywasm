@@ -47,9 +47,9 @@ class Entry:
     @classmethod
     def from_val(cls, n, kind: int):
         if kind == wasmi.opcodes.VALUE_TYPE_I32:
-            return cls.from_i32(n)
+            return cls.from_i32(wasmi.common.into_i32(n))
         if kind == wasmi.opcodes.VALUE_TYPE_I64:
-            return cls.from_i64(n)
+            return cls.from_i64(wasmi.common.into_i64(n))
         if kind == wasmi.opcodes.VALUE_TYPE_F32:
             return cls.from_f32(n)
         if kind == wasmi.opcodes.VALUE_TYPE_F64:
@@ -88,16 +88,20 @@ class Entry:
 
 class Stack:
     def __init__(self):
-        self.data: typing.List[Entry] = []
+        self.data: typing.List[Entry] = [None for _ in range(1024)]
+        self.i: int = -1
 
     def add(self, n: Entry):
-        self.data.append(n)
+        self.i += 1
+        self.data[self.i] = n
 
     def pop(self) -> Entry:
-        return self.data.pop()
+        r = self.data[self.i]
+        self.i -= 1
+        return r
 
     def len(self) -> int:
-        return len(self.data)
+        return self.i + 1
 
     def add_i32(self, n):
         self.add(Entry.from_i32(wasmi.common.into_i32(n)))

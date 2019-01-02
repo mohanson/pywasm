@@ -29,7 +29,7 @@ class Limit:
         flag = ord(r.read(1))
         _, initial, _ = wasmi.common.read_leb(r, 32)
         if flag == 1:
-            maximum, _, _ = wasmi.common.read_leb(r, 32)
+            _, maximum, _ = wasmi.common.read_leb(r, 32)
         else:
             maximum = 0
         return Limit(flag, initial, maximum)
@@ -48,20 +48,34 @@ class Expression:
     @classmethod
     def skip(cls, opcode: int, r: typing.BinaryIO):
         data = bytearray()
-        c = 0
         for e in wasmi.opcodes.OP_INFO[opcode][1]:
-            if e == 0x01:
-                data.extend(r.read(1))
-                continue
-            if e == 0x20:
-                _, c, a = wasmi.common.read_leb(r, 32)
+            if e == 'leb_1':
+                _, _, a = wasmi.common.read_leb(r, 1)
                 data.extend(a)
                 continue
-            if e == 0x40:
+            if e == 'leb_7':
+                _, _, a = wasmi.common.read_leb(r, 7)
+                data.extend(a)
+                continue
+            if e == 'leb_32':
+                _, _, a = wasmi.common.read_leb(r, 32)
+                data.extend(a)
+                continue
+            if e == 'leb_64':
+                _, _, a = wasmi.common.read_leb(r, 64)
+                data.extend(a)
+                continue
+            if e == 'bit_32':
+                a = r.read(4)
+                data.extend(a)
+                continue
+            if e == 'bit_64':
+                a = r.read(8)
+                data.extend(a)
+                continue
+            if e == 'leb_32xleb_32':
                 _, c, a = wasmi.common.read_leb(r, 64)
                 data.extend(a)
-                continue
-            if e == 0xFF:
                 for _ in range(c):
                     _, _, a = wasmi.common.read_leb(r, 64)
                     data.extend(a)
@@ -117,7 +131,7 @@ class GlobalType:
     def __repr__(self):
         name = 'GlobalType'
         seps = []
-        seps.append(f'kind={self.kind}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
         seps.append(f'mut={self.mut}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -190,12 +204,24 @@ class Block:
         self.pos_else = 0
         self.pos_br = 0
 
+    def __repr__(self):
+        name = 'Block'
+        seps = []
+        seps.append(f'opcode={wasmi.opcodes.OP_INFO[self.opcode][0]}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
+        seps.append(f'pos_head={self.pos_head}')
+        seps.append(f'pos_stop={self.pos_stop}')
+        seps.append(f'pos_else={self.pos_else}')
+        seps.append(f'pos_br={self.pos_br}')
+        return f'{name}<{" ".join(seps)}>'
+
 
 class Code:
     def __init__(self, locs: typing.List[Local], expression: Expression):
         self.locs = locs
         self.expression = expression
         self.bmap = self.imap()
+        self.pos_br = len(self.expression.data) - 2
 
     def __repr__(self):
         name = 'Code'
@@ -217,21 +243,26 @@ class Code:
                 b = Block(op, code[pc], pc - 1)
                 bstack.append(b)
                 bmap[pc - 1] = b
-            elif op == wasmi.opcodes.ELSE:
-                if bstack[-1].kind != wasmi.opcodes.IF:
-                    raise wasmi.error.WAException('else not matched with if')
-                bstack[-1].else_addr = pc
+                data = Expression.skip(op, io.BytesIO(code[pc:]))
+                pc += len(data)
                 continue
-            elif op == wasmi.opcodes.END:
+            if op == wasmi.opcodes.ELSE:
+                if bstack[-1].opcode != wasmi.opcodes.IF:
+                    raise wasmi.error.WAException('else not matched with if')
+                bstack[-1].pos_else = pc
+                bmap[bstack[-1].pos_head].pos_else = pc
+                continue
+            if op == wasmi.opcodes.END:
                 if pc == len(code):
                     break
                 b = bstack.pop()
-                if b.kind == wasmi.opcodes.LOOP:
+                if b.opcode == wasmi.opcodes.LOOP:
                     b.pos_stop = pc - 1
                     b.pos_br = b.pos_head + 2
-                else:
-                    b.pos_stop = pc - 1
-                    b.pos_br = pc - 1
+                    continue
+                b.pos_stop = pc - 1
+                b.pos_br = pc - 1
+                continue
             data = Expression.skip(op, io.BytesIO(code[pc:]))
             pc += len(data)
         if op != wasmi.opcodes.END:
@@ -282,7 +313,7 @@ class Table:
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'kind={wasmi.opcodes.OP_INFO[self.kind][0]}')
+        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
         seps.append(f'limit={self.limit}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -322,6 +353,7 @@ class Import:
         seps.append(f'kind={self.kind}')
         seps.append(f'module={self.module}')
         seps.append(f'name={self.name}')
+        seps.append(f'description={self.description}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -331,21 +363,21 @@ class Import:
         _, n, _ = wasmi.common.read_leb(r, 32)
         name = r.read(n).decode()
         kind = ord(r.read(1))
-        r = Import(kind, module, name)
+        isec = Import(kind, module, name)
         if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
             _, idx, _ = wasmi.common.read_leb(r, 32)
-            r.description = idx
+            isec.description = idx
         if kind == wasmi.opcodes.EXTERNAL_TABLE:
-            r.description = Table.from_reader(r)
+            isec.description = Table.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_MEMORY:
-            r.description = Memory.from_reader(r)
+            isec.description = Memory.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
-            r.description = Global.from_reader(r)
-        return r
+            isec.description = GlobalType.from_reader(r)
+        return isec
 
 
 class Element:
-    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
+    def __init__(self, idx: int, expression: Expression, init: bytearray):
         self.idx = idx
         self.expression = expression
         self.init = init
@@ -363,7 +395,7 @@ class Element:
         _, idx, _ = wasmi.common.read_leb(r, 32)
         expression = Expression.from_reader(r)
         _, n, _ = wasmi.common.read_leb(r, 32)
-        init = [ord(e) for e in r.read(n)]
+        init = bytearray(r.read(n))
         return Element(idx, expression, init)
 
 
@@ -457,7 +489,7 @@ class SectionImport:
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            sec.entries.append(Import.from_read(r))
+            sec.entries.append(Import.from_reader(r))
         return sec
 
 

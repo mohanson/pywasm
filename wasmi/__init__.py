@@ -65,7 +65,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
-                wasmi.log.println(mod.section_import)
+                wasmi.log.println(f'SectionImport')
+                for i in mod.section_import.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
@@ -178,80 +180,86 @@ class Vm:
                 continue
             if opcode == wasmi.opcodes.END:
                 break
-        if not stack.data:
+        if not stack.len():
             return 0
-        return stack.data.pop().into_val()
+        return stack.pop().into_val()
 
-    def exec_step(self, function_idx: int, ctx: Ctx):
-        function_signature = self.mod.section_type.entries[self.mod.section_function.entries[function_idx]]
-        function_body = self.mod.section_code.entries[function_idx]
-        ctx.ctack.append(function_body)
-        code = function_body.expression.data
+    def exec_step(self, f_idx: int, ctx: Ctx):
+        f_sig_idx = self.mod.section_function.entries[f_idx]
+        f_sig = self.mod.section_type.entries[f_sig_idx]
+        f_sec = self.mod.section_code.entries[f_idx]
+        ctx.ctack.append([f_sec, ctx.stack.i])
+        code = f_sec.expression.data
         wasmi.log.println('Code', code.hex())
         pc = 0
         for _ in range(1 << 32):
             opcode = code[pc]
             pc += 1
             name = wasmi.opcodes.OP_INFO[opcode][0]
-            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data)
+            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data[:ctx.stack.i + 1])
             if opcode == wasmi.opcodes.UNREACHABLE:
-                raise wasmi.error.WAException('unreachable')
+                raise wasmi.error.WAException('reached unreachable')
             if opcode == wasmi.opcodes.NOP:
                 continue
             if opcode == wasmi.opcodes.BLOCK:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 continue
             if opcode == wasmi.opcodes.LOOP:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 continue
             if opcode == wasmi.opcodes.IF:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-                b = function_body.bmap[pc - 1]
+                b = f_sec.bmap[pc - 1]
                 pc += n
-                ctx.ctack.append(b)
+                ctx.ctack.append([b, ctx.stack.i])
                 cond = ctx.stack.pop_i32()
-                if not cond:
-                    if b.pos_else == 0:
-                        ctx.ctack.pop()
-                        pc = b.pos_br + 1
-                        continue
-                    pc = b.pos_else
+                if cond:
+                    continue
+                if b.pos_else == 0:
+                    ctx.ctack.pop()
+                    pc = b.pos_br + 1
+                    continue
+                pc = b.pos_else
                 continue
             if opcode == wasmi.opcodes.ELSE:
-                b = ctx.ctack.pop()
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.END:
-                b = ctx.ctack.pop()
+                b, sp = ctx.ctack.pop()
                 if isinstance(b, wasmi.section.Code):
-                    if ctx.ctack:
-                        return
-                    break
-                if isinstance(b, wasmi.section.Block) and b.kind == 0x00:
-                    break
+                    if not ctx.ctack:
+                        if f_sig.rets:
+                            return ctx.stack.pop().into_val()
+                        return None
+                    return
+                if sp < ctx.stack.i:
+                    v = ctx.stack.pop()
+                    ctx.stack.i = sp
+                    ctx.stack.add(v)
                 continue
             if opcode == wasmi.opcodes.BR:
                 n, c, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 for _ in range(c):
                     ctx.ctack.pop()
-                b = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_IF:
-                n, c, _ = wasmi.common.read_leb(code[pc:], 32)
+                n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
-                    b = ctx.ctack[-1]
-                    for _ in range(c):
-                        b = ctx.ctack.pop()
+                    for _ in range(br_depth):
+                        ctx.ctack.pop()
+                    b, _ = ctx.ctack[-1]
                     pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_TABLE:
@@ -269,24 +277,24 @@ class Vm:
                     ddepth = depths[didx]
                 for _ in range(ddepth):
                     ctx.ctack.pop()
-                b = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.RETURN:
                 while ctx.ctack:
-                    if isinstance(ctx.ctack[-1], wasmi.section.Code):
+                    if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
                         break
                     ctx.ctack.pop()
-                b: wasmi.section.Code = ctx.ctack[-1]
+                b, _ = ctx.ctack[-1]
                 pc = len(b.expression.data) - 1
                 continue
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                f_sig = self.mod.section_type.entries[f_idx]
-                f_cnt = self.mod.section_code.entries[f_idx]
+                son_f_sig_idx = self.mod.section_function.entries[f_idx]
+                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
                 pre_locals_data = ctx.locals_data
-                ctx.locals_data = [ctx.stack.pop() for _ in f_sig.args]
+                ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args]
                 self.exec_step(f_idx, ctx)
                 ctx.locals_data = pre_locals_data
                 continue
@@ -1011,9 +1019,6 @@ class Vm:
                 if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
                     ctx.stack.data[-1].kind = wasmi.opcodes.VALUE_TYPE_F64
                     continue
-        if ctx.stack.len():
-            return ctx.stack.pop().into_val()
-        return None
 
     def exec(self, name: str, args: typing.List):
         export: wasmi.section.Export = None
@@ -1023,10 +1028,11 @@ class Vm:
                 break
         if not export:
             raise wasmi.error.WAException(f'function not found')
-        function_idx = self.mod.section_function.entries[export.idx]
-        function_signature = self.mod.section_type.entries[function_idx]
-        for i, kind in enumerate(function_signature.args):
+        f_idx = export.idx
+        f_sig_idx = self.mod.section_function.entries[f_idx]
+        f_sig = self.mod.section_type.entries[f_sig_idx]
+        for i, kind in enumerate(f_sig.args):
             args[i] = wasmi.stack.Entry.from_val(args[i], kind)
         ctx = Ctx(args)
         wasmi.log.println('Exec'.center(80, '-'))
-        return self.exec_step(export.idx, ctx)
+        return self.exec_step(f_idx, ctx)
