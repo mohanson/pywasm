@@ -85,7 +85,9 @@ class Mod:
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
-                wasmi.log.println(mod.section_global)
+                wasmi.log.println(f'SectionGlobal')
+                for i in mod.section_global.entries:
+                    wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
@@ -139,6 +141,11 @@ class Vm:
                 assert e.idx == 0
                 offset = self.exec_init_expr(e.expression.data)
                 self.mem[offset: offset + len(e.init)] = e.init
+        if self.mod.section_global:
+            for e in self.mod.section_global.entries:
+                v = self.exec_init_expr(e.expression.data)
+                self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+            print([i.into_val() for i in self.global_data])
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -149,28 +156,24 @@ class Vm:
             opcode = code[pc]
             pc += 1
             if opcode == wasmi.opcodes.I32_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
+                n, i, _ = wasmi.common.read_leb(code[pc:], 32, True)
                 pc += n
                 stack.add_i32(i)
                 continue
             if opcode == wasmi.opcodes.I64_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
+                n, i, _ = wasmi.common.read_leb(code[pc:], 64, True)
                 pc += n
                 stack.add_i64(i)
                 continue
             if opcode == wasmi.opcodes.F32_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-                pc += n
-                r = wasmi.stack.Entry.from_u32(i)
-                r.kind = wasmi.opcodes.VALUE_TYPE_F32
-                stack.add(r)
+                v = wasmi.common.read_f32(code[pc:])
+                pc += 4
+                stack.add_f32(v)
                 continue
             if opcode == wasmi.opcodes.F64_CONST:
-                n, i, _ = wasmi.common.read_leb(code[pc:], 64)
-                pc += n
-                r = wasmi.stack.Entry.from_u64(i)
-                r.kind = wasmi.opcodes.VALUE_TYPE_F64
-                stack.add(r)
+                v = wasmi.common.read_f64(code[pc:])
+                pc += 8
+                stack.add_f64(v)
                 continue
             if opcode == wasmi.opcodes.GET_GLOBAL:
                 n, i, _ = wasmi.common.read_leb(code[pc:], 32)
