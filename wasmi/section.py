@@ -362,17 +362,17 @@ class Import:
         _, n, _ = wasmi.common.read_leb(r, 32)
         name = r.read(n).decode()
         kind = ord(r.read(1))
-        r = Import(kind, module, name)
+        isec = Import(kind, module, name)
         if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
             _, idx, _ = wasmi.common.read_leb(r, 32)
-            r.description = idx
+            isec.description = idx
         if kind == wasmi.opcodes.EXTERNAL_TABLE:
-            r.description = Table.from_reader(r)
+            isec.description = Table.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_MEMORY:
-            r.description = Memory.from_reader(r)
+            isec.description = Memory.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
-            r.description = Global.from_reader(r)
-        return r
+            isec.description = Global.from_reader(r)
+        return isec
 
 
 class Element:
@@ -488,7 +488,7 @@ class SectionImport:
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            sec.entries.append(Import.from_read(r))
+            sec.entries.append(Import.from_reader(r))
         return sec
 
 

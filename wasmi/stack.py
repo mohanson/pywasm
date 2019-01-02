@@ -47,9 +47,9 @@ class Entry:
     @classmethod
     def from_val(cls, n, kind: int):
         if kind == wasmi.opcodes.VALUE_TYPE_I32:
-            return cls.from_i32(n)
+            return cls.from_i32(wasmi.common.into_i32(n))
         if kind == wasmi.opcodes.VALUE_TYPE_I64:
-            return cls.from_i64(n)
+            return cls.from_i64(wasmi.common.into_i64(n))
         if kind == wasmi.opcodes.VALUE_TYPE_F32:
             return cls.from_f32(n)
         if kind == wasmi.opcodes.VALUE_TYPE_F64:
