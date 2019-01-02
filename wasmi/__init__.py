@@ -251,13 +251,13 @@ class Vm:
                 pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_IF:
-                n, c, _ = wasmi.common.read_leb(code[pc:], 32)
+                n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
                 cond = ctx.stack.pop_i32()
                 if cond:
+                    for _ in range(br_depth):
+                        ctx.ctack.pop()
                     b, _ = ctx.ctack[-1]
-                    for _ in range(c):
-                        b, _ = ctx.ctack.pop()
                     pc = b.pos_br
                 continue
             if opcode == wasmi.opcodes.BR_TABLE:
