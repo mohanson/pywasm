@@ -25,6 +25,7 @@ def test_spec():
             'block.wasm',
             'fac.wasm',
             'br.wasm',
+            'br_if.wasm',
         ]:
             continue
         with open(os.path.join('./tests/spec/', file), 'rb') as f:
