@@ -29,7 +29,7 @@ def test_spec():
             # 'br_if.wasm',
             # 'br_table.wasm',
             # 'break-drop.wasm',
-            # 'call_indirect.wasm',
+            'call_indirect.wasm',
             # 'switch.wasm',
             # 'unreachable.wasm',
             # 'unwind.wasm',
@@ -46,7 +46,7 @@ def test_spec():
             # 'resizing.wasm',
             # 'select.wasm',
             # "memory_redundancy.wasm",
-            "endianness.wasm",
+            # "endianness.wasm",
             # "return.wasm",
         ]:
             continue

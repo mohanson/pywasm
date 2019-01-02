@@ -450,19 +450,19 @@ class Vm:
                     self.mem[a:a + 8] = wasmi.common.encode_f64(v.into_f64())
                     continue
                 if opcode == wasmi.opcodes.I32_STORE8:
-                    self.mem[a:a + 1] = v.data[7: 8]
+                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I32_STORE16:
-                    self.mem[a:a + 2] = v.data[6: 8]
+                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE8:
-                    self.mem[a:a + 1] = v.data[7: 8]
+                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE16:
-                    self.mem[a:a + 2] = v.data[6: 8]
+                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE32:
-                    self.mem[a:a + 4] = v.data[4: 8]
+                    self.mem[a:a + 4] = wasmi.common.encode_i32(wasmi.common.into_i32(v.into_i64()))
                     continue
             if opcode == wasmi.opcodes.CURRENT_MEMORY:
                 pc += 1
