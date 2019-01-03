@@ -133,6 +133,16 @@ class Function:
         self.module: str
         self.name: str
 
+    def __repr__(self):
+        name = 'Function'
+        seps = []
+        seps.append(f'envb={self.envb}')
+        seps.append(f'signature={self.signature}')
+        if self.envb:
+            seps.append(f'module={self.module}')
+            seps.append(f'name={self.name}')
+        return f'{name}<{" ".join(seps)}>'
+
     @classmethod
     def from_sec(cls, signature: wasmi.section.Type, code: wasmi.section.Code):
         func = Function(signature)
@@ -155,16 +165,35 @@ class Vm:
         self.mem = bytearray()
         self.mem_len = 0
         self.table = {}
-        self.function: typing.List[Function] = []
+        self.functions: typing.List[Function] = []
 
         if self.mod.section_unknown:
             pass
         if self.mod.section_type:
             pass
         if self.mod.section_import:
-            pass
+            for e in self.mod.section_import.entries:
+                if e.kind == wasmi.opcodes.EXTERNAL_FUNCTION:
+                    func = Function.from_env(
+                        self.mod.section_type.entries[e.description],
+                        e.module,
+                        e.name
+                    )
+                    self.functions.append(func)
+                if e.kind == wasmi.opcodes.EXTERNAL_TABLE:
+                    continue
+                if e.kind == wasmi.opcodes.EXTERNAL_MEMORY:
+                    continue
+                if e.kind == wasmi.opcodes.EXTERNAL_GLOBAL:
+                    continue
+
         if self.mod.section_function:
-            pass
+            for fun_idx, sig_idx in enumerate(self.mod.section_function.entries):
+                func = Function.from_sec(
+                    self.mod.section_type.entries[sig_idx],
+                    self.mod.section_code.entries[fun_idx]
+                )
+                self.functions.append(func)
         if self.mod.section_table:
             self.table = self.mod.section_table.dict
         if self.mod.section_memory:
@@ -193,6 +222,8 @@ class Vm:
                 assert e.idx == 0
                 offset = self.exec_init_expr(e.expression.data)
                 self.mem[offset: offset + len(e.init)] = e.init
+
+        print(self.functions)
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -235,9 +266,9 @@ class Vm:
         return stack.pop().into_val()
 
     def exec_step(self, f_idx: int, ctx: Ctx):
-        f_sig_idx = self.mod.section_function.entries[f_idx]
-        f_sig = self.mod.section_type.entries[f_sig_idx]
-        f_sec = self.mod.section_code.entries[f_idx]
+        f_fun = self.functions[f_idx]
+        f_sig = f_fun.signature
+        f_sec = f_fun.code
         for eloc in f_sec.locs:
             for _ in range(eloc.count):
                 e = wasmi.stack.Entry.from_val(0, eloc.kind)
@@ -1091,14 +1122,13 @@ class Vm:
     def exec(self, name: str, args: typing.List):
         export: wasmi.section.Export = None
         for e in self.mod.section_export.entries:
-            if e.name == name:
+            if e.kind == wasmi.opcodes.EXTERNAL_FUNCTION and e.name == name:
                 export = e
                 break
         if not export:
             raise wasmi.error.WAException(f'function not found')
         f_idx = export.idx
-        f_sig_idx = self.mod.section_function.entries[f_idx]
-        f_sig = self.mod.section_type.entries[f_sig_idx]
+        f_sig = self.functions[f_idx].signature
         ergs = []
         for i, kind in enumerate(f_sig.args):
             ergs.append(wasmi.stack.Entry.from_val(args[i], kind))
