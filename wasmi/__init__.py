@@ -380,8 +380,8 @@ class Vm:
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                son_f_sig_idx = self.mod.section_function.entries[f_idx]
-                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                son_f_fun = self.functions[f_idx]
+                son_f_sig = son_f_fun.signature
                 pre_locals_data = ctx.locals_data
                 ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 self.exec_step(f_idx, ctx)
@@ -396,8 +396,8 @@ class Vm:
                 if not 0 <= t_idx < len(self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC]):
                     raise wasmi.error.WAException('undefined element index')
                 f_idx = self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
-                son_f_sig_idx = self.mod.section_function.entries[f_idx]
-                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                son_f_fun = self.functions[f_idx]
+                son_f_sig = son_f_fun.signature
                 a = list(son_f_sig.args)
                 b = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 for i in range(len(a)):
