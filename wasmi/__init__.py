@@ -125,6 +125,29 @@ class Ctx:
         self.locals_data = data
 
 
+class Function:
+    def __init__(self, signature: wasmi.section.Type):
+        self.signature = signature
+        self.code: wasmi.section.Code = None
+        self.envb = False
+        self.module: str
+        self.name: str
+
+    @classmethod
+    def from_sec(cls, signature: wasmi.section.Type, code: wasmi.section.Code):
+        func = Function(signature)
+        func.code = code
+        return func
+
+    @classmethod
+    def from_env(cls, signature: wasmi.section.Type, module: str, name: str):
+        func = Function(signature)
+        func.envb = True
+        func.module = module
+        func.name = name
+        return func
+
+
 class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
@@ -132,27 +155,44 @@ class Vm:
         self.mem = bytearray()
         self.mem_len = 0
         self.table = {}
+        self.function: typing.List[Function] = []
+
+        if self.mod.section_unknown:
+            pass
+        if self.mod.section_type:
+            pass
+        if self.mod.section_import:
+            pass
+        if self.mod.section_function:
+            pass
         if self.mod.section_table:
             self.table = self.mod.section_table.dict
-        if self.mod.section_memory and self.mod.section_memory.entries:
-            if len(self.mod.section_memory.entries) > 1:
-                raise wasmi.error.Exception('multiple linear memories')
-            self.mem_len = self.mod.section_memory.entries[0].limit.initial
-            self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
-        if self.mod.section_data:
-            for e in self.mod.section_data.entries:
-                assert e.idx == 0
-                offset = self.exec_init_expr(e.expression.data)
-                self.mem[offset: offset + len(e.init)] = e.init
+        if self.mod.section_memory:
+            if self.mod.section_memory.entries:
+                if len(self.mod.section_memory.entries) > 1:
+                    raise wasmi.error.Exception('multiple linear memories')
+                self.mem_len = self.mod.section_memory.entries[0].limit.initial
+                self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
         if self.mod.section_global:
             for e in self.mod.section_global.entries:
                 v = self.exec_init_expr(e.expression.data)
                 self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+        if self.mod.section_export:
+            pass
+        if self.mod.section_start:
+            pass
         if self.mod.section_element:
             for e in self.mod.section_element.entries:
                 offset = self.exec_init_expr(e.expression.data)
                 for i, sube in enumerate(e.init):
                     self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
+        if self.mod.section_code:
+            pass
+        if self.mod.section_data:
+            for e in self.mod.section_data.entries:
+                assert e.idx == 0
+                offset = self.exec_init_expr(e.expression.data)
+                self.mem[offset: offset + len(e.init)] = e.init
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
