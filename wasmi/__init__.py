@@ -131,6 +131,9 @@ class Vm:
         self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
         self.mem_len = 0
+        self.table = {}
+        if self.mod.section_table:
+            self.table = self.mod.section_table.dict
         if self.mod.section_memory and self.mod.section_memory.entries:
             if len(self.mod.section_memory.entries) > 1:
                 raise wasmi.error.Exception('multiple linear memories')
@@ -149,7 +152,7 @@ class Vm:
             for e in self.mod.section_element.entries:
                 offset = self.exec_init_expr(e.expression.data)
                 for i, sube in enumerate(e.init):
-                    self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
+                    self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -319,9 +322,9 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 1)
                 pc += n
                 t_idx = ctx.stack.pop_i32()
-                if not (0 <= t_idx < len(self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC])):
+                if not 0 <= t_idx < len(self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC]):
                     raise wasmi.error.WAException('undefined element index')
-                f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
+                f_idx = self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
                 son_f_sig_idx = self.mod.section_function.entries[f_idx]
                 son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
                 a = list(son_f_sig.args)
