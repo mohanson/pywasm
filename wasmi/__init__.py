@@ -125,31 +125,104 @@ class Ctx:
         self.locals_data = data
 
 
+class Function:
+    def __init__(self, signature: wasmi.section.Type):
+        self.signature = signature
+        self.code: wasmi.section.Code = None
+        self.envb = False
+        self.module: str
+        self.name: str
+
+    def __repr__(self):
+        name = 'Function'
+        seps = []
+        seps.append(f'envb={self.envb}')
+        seps.append(f'signature={self.signature}')
+        if self.envb:
+            seps.append(f'module={self.module}')
+            seps.append(f'name={self.name}')
+        return f'{name}<{" ".join(seps)}>'
+
+    @classmethod
+    def from_sec(cls, signature: wasmi.section.Type, code: wasmi.section.Code):
+        func = Function(signature)
+        func.code = code
+        return func
+
+    @classmethod
+    def from_env(cls, signature: wasmi.section.Type, module: str, name: str):
+        func = Function(signature)
+        func.envb = True
+        func.module = module
+        func.name = name
+        return func
+
+
 class Vm:
     def __init__(self, mod: Mod):
         self.mod = mod
         self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
         self.mem_len = 0
-        if self.mod.section_memory and self.mod.section_memory.entries:
-            if len(self.mod.section_memory.entries) > 1:
-                raise wasmi.error.Exception('multiple linear memories')
-            self.mem_len = self.mod.section_memory.entries[0].limit.initial
-            self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
+        self.table = {}
+        self.functions: typing.List[Function] = []
+        self.envbfuncs: typing.Dict[str, typing.Callable] = {}
+
+        if self.mod.section_unknown:
+            pass
+        if self.mod.section_type:
+            pass
+        if self.mod.section_import:
+            for e in self.mod.section_import.entries:
+                if e.kind == wasmi.opcodes.EXTERNAL_FUNCTION:
+                    func = Function.from_env(
+                        self.mod.section_type.entries[e.description],
+                        e.module,
+                        e.name
+                    )
+                    self.functions.append(func)
+                if e.kind == wasmi.opcodes.EXTERNAL_TABLE:
+                    continue
+                if e.kind == wasmi.opcodes.EXTERNAL_MEMORY:
+                    continue
+                if e.kind == wasmi.opcodes.EXTERNAL_GLOBAL:
+                    continue
+
+        if self.mod.section_function:
+            for fun_idx, sig_idx in enumerate(self.mod.section_function.entries):
+                func = Function.from_sec(
+                    self.mod.section_type.entries[sig_idx],
+                    self.mod.section_code.entries[fun_idx]
+                )
+                self.functions.append(func)
+        if self.mod.section_table:
+            self.table = self.mod.section_table.dict
+        if self.mod.section_memory:
+            if self.mod.section_memory.entries:
+                if len(self.mod.section_memory.entries) > 1:
+                    raise wasmi.error.Exception('multiple linear memories')
+                self.mem_len = self.mod.section_memory.entries[0].limit.initial
+                self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
+        if self.mod.section_global:
+            for e in self.mod.section_global.entries:
+                v = self.exec_init_expr(e.expression.data)
+                self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+        if self.mod.section_export:
+            pass
+        if self.mod.section_start:
+            pass
+        if self.mod.section_element:
+            for e in self.mod.section_element.entries:
+                offset = self.exec_init_expr(e.expression.data)
+                for i, sube in enumerate(e.init):
+                    self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
+        if self.mod.section_code:
+            pass
         if self.mod.section_data:
             for e in self.mod.section_data.entries:
                 assert e.idx == 0
                 offset = self.exec_init_expr(e.expression.data)
                 self.mem[offset: offset + len(e.init)] = e.init
-        if self.mod.section_global:
-            for e in self.mod.section_global.entries:
-                v = self.exec_init_expr(e.expression.data)
-                self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
-        if self.mod.section_element:
-            for e in self.mod.section_element.entries:
-                offset = self.exec_init_expr(e.expression.data)
-                for i, sube in enumerate(e.init):
-                    self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
 
     def exec_init_expr(self, code: bytearray):
         stack = wasmi.stack.Stack()
@@ -192,9 +265,9 @@ class Vm:
         return stack.pop().into_val()
 
     def exec_step(self, f_idx: int, ctx: Ctx):
-        f_sig_idx = self.mod.section_function.entries[f_idx]
-        f_sig = self.mod.section_type.entries[f_sig_idx]
-        f_sec = self.mod.section_code.entries[f_idx]
+        f_fun = self.functions[f_idx]
+        f_sig = f_fun.signature
+        f_sec = f_fun.code
         for eloc in f_sec.locs:
             for _ in range(eloc.count):
                 e = wasmi.stack.Entry.from_val(0, eloc.kind)
@@ -306,8 +379,15 @@ class Vm:
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
                 pc += n
-                son_f_sig_idx = self.mod.section_function.entries[f_idx]
-                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                son_f_fun = self.functions[f_idx]
+                son_f_sig = son_f_fun.signature
+                if son_f_fun.envb:
+                    name = son_f_fun.module + '.' + son_f_fun.name
+                    func = self.envbfuncs[name]
+                    r = func(self.mem, [ctx.stack.pop() for _ in son_f_sig.args][::-1])
+                    e = wasmi.stack.Entry.from_val(r, ord(son_f_sig.rets))
+                    ctx.stack.add(e)
+                    continue
                 pre_locals_data = ctx.locals_data
                 ctx.locals_data = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 self.exec_step(f_idx, ctx)
@@ -319,11 +399,11 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 1)
                 pc += n
                 t_idx = ctx.stack.pop_i32()
-                if not (0 <= t_idx < len(self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC])):
+                if not 0 <= t_idx < len(self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC]):
                     raise wasmi.error.WAException('undefined element index')
-                f_idx = self.mod.section_table.dict[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
-                son_f_sig_idx = self.mod.section_function.entries[f_idx]
-                son_f_sig = self.mod.section_type.entries[son_f_sig_idx]
+                f_idx = self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
+                son_f_fun = self.functions[f_idx]
+                son_f_sig = son_f_fun.signature
                 a = list(son_f_sig.args)
                 b = [ctx.stack.pop() for _ in son_f_sig.args][::-1]
                 for i in range(len(a)):
@@ -1048,14 +1128,13 @@ class Vm:
     def exec(self, name: str, args: typing.List):
         export: wasmi.section.Export = None
         for e in self.mod.section_export.entries:
-            if e.name == name:
+            if e.kind == wasmi.opcodes.EXTERNAL_FUNCTION and e.name == name:
                 export = e
                 break
         if not export:
             raise wasmi.error.WAException(f'function not found')
         f_idx = export.idx
-        f_sig_idx = self.mod.section_function.entries[f_idx]
-        f_sig = self.mod.section_type.entries[f_sig_idx]
+        f_sig = self.functions[f_idx].signature
         ergs = []
         for i, kind in enumerate(f_sig.args):
             ergs.append(wasmi.stack.Entry.from_val(args[i], kind))
