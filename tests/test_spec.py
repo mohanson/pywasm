@@ -47,6 +47,7 @@ def test_spec():
             print(f'{file} {function} {args}: {rets} == {r}', end='')
             if isinstance(r, float):
                 assert abs(r - rets) < 0.005 or (math.isnan(r) and math.isnan(rets))
+                print(' (ok)')
                 continue
             assert r == rets
             print(' (ok)')
