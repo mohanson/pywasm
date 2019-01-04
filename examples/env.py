@@ -9,12 +9,14 @@ def env_fib(_, args):
     return fib(args[0].into_i32())
 
 
+env = wasmi.Env()
+env.import_func['env.fib'] = env_fib
+
 path = './examples/env.wasm'
 
 with open(path, 'rb') as f:
     mod = wasmi.Mod.from_reader(f)
-vm = wasmi.Vm(mod)
-vm.envbfuncs['env.fib'] = env_fib
+vm = wasmi.Vm(mod, env)
 
 r = vm.exec('get', [10])
 print(r)

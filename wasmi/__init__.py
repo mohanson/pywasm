@@ -118,6 +118,11 @@ class Mod:
         return mod
 
 
+class Env:
+    def __init__(self):
+        self.import_func = {}
+
+
 class Ctx:
     def __init__(self, data: typing.List[wasmi.stack.Entry]):
         self.stack = wasmi.stack.Stack()
@@ -159,14 +164,14 @@ class Function:
 
 
 class Vm:
-    def __init__(self, mod: Mod):
+    def __init__(self, mod: Mod, env: Env = None):
         self.mod = mod
         self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
         self.mem_len = 0
         self.table = {}
         self.functions: typing.List[Function] = []
-        self.envbfuncs: typing.Dict[str, typing.Callable] = {}
+        self.env = env if env else Env()
 
         if self.mod.section_unknown:
             pass
@@ -383,7 +388,7 @@ class Vm:
                 son_f_sig = son_f_fun.signature
                 if son_f_fun.envb:
                     name = son_f_fun.module + '.' + son_f_fun.name
-                    func = self.envbfuncs[name]
+                    func = self.env.import_func[name]
                     r = func(self.mem, [ctx.stack.pop() for _ in son_f_sig.args][::-1])
                     e = wasmi.stack.Entry.from_val(r, ord(son_f_sig.rets))
                     ctx.stack.add(e)
