@@ -1,5 +1,7 @@
 # py-wasmi: A WebAssembly interpreter written in pure Python.
 
+[![Build Status](https://travis-ci.org/YOUR/PROJECT.svg?branch=master)](https://travis-ci.org/YOUR/PROJECT)
+
 A WebAssembly interpreter written in pure Python.
 
 WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
