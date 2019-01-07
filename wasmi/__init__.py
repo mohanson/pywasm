@@ -220,7 +220,7 @@ class Vm:
             for e in self.mod.section_element.entries:
                 offset = self.exec_init_expr(e.expression.data)
                 for i, sube in enumerate(e.init):
-                    self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][offset + i] = sube
+                    self.table[wasmi.opcodes.VALUE_TYPE_FUNCREF][offset + i] = sube
         if self.mod.section_code:
             pass
         if self.mod.section_data:
@@ -404,9 +404,9 @@ class Vm:
                 n, _, _ = wasmi.common.read_leb(code[pc:], 1)
                 pc += n
                 t_idx = ctx.stack.pop_i32()
-                if not 0 <= t_idx < len(self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC]):
+                if not 0 <= t_idx < len(self.table[wasmi.opcodes.VALUE_TYPE_FUNCREF]):
                     raise wasmi.error.WAException('undefined element index')
-                f_idx = self.table[wasmi.opcodes.VALUE_TYPE_ANYFUNC][t_idx]
+                f_idx = self.table[wasmi.opcodes.VALUE_TYPE_FUNCREF][t_idx]
                 son_f_fun = self.functions[f_idx]
                 son_f_sig = son_f_fun.signature
                 a = list(son_f_sig.args)
