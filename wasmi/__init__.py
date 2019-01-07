@@ -287,7 +287,7 @@ class Vm:
             opcode = code[pc]
             pc += 1
             name = wasmi.opcodes.OP_INFO[opcode][0]
-            wasmi.log.println('0x' + wasmi.common.fmth(opcode, 2), name, ctx.stack.data[:ctx.stack.i + 1])
+            wasmi.log.println(f'0x{wasmi.common.fmth(opcode, 2)}({name}) {ctx.stack.data[:ctx.stack.i + 1]}')
             if opcode == wasmi.opcodes.UNREACHABLE:
                 raise wasmi.error.WAException('reached unreachable')
             if opcode == wasmi.opcodes.NOP:
@@ -465,7 +465,7 @@ class Vm:
                 pc += n
                 self.global_data[i] = v
                 continue
-            if opcode >= wasmi.opcodes.I32_LOAD and opcode <= wasmi.opcodes.I64_LOAD_32u:
+            if opcode >= wasmi.opcodes.I32_LOAD and opcode <= wasmi.opcodes.I64_LOAD32_U:
                 # memory_immediate has two fields, the alignment and the offset.
                 # The former is simply an optimization hint and can be safely
                 # discarded.
@@ -491,43 +491,43 @@ class Vm:
                     r = wasmi.common.decode_f64(self.mem[a:a + 8])
                     ctx.stack.add_f64(r)
                     continue
-                if opcode == wasmi.opcodes.I32_LOAD_8s:
+                if opcode == wasmi.opcodes.I32_LOAD8_S:
                     r = wasmi.common.decode_i8(self.mem[a:a + 1])
                     ctx.stack.add_i32(r)
                     continue
-                if opcode == wasmi.opcodes.I32_LOAD_8u:
+                if opcode == wasmi.opcodes.I32_LOAD8_U:
                     r = wasmi.common.decode_u8(self.mem[a:a + 1])
                     ctx.stack.add_i32(r)
                     continue
-                if opcode == wasmi.opcodes.I32_LOAD_16s:
+                if opcode == wasmi.opcodes.I32_LOAD16_S:
                     r = wasmi.common.decode_i16(self.mem[a:a + 2])
                     ctx.stack.add_i32(r)
                     continue
-                if opcode == wasmi.opcodes.I32_LOAD_16u:
+                if opcode == wasmi.opcodes.I32_LOAD16_U:
                     r = wasmi.common.decode_u16(self.mem[a:a + 2])
                     ctx.stack.add_i32(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_8s:
+                if opcode == wasmi.opcodes.I64_LOAD8_S:
                     r = wasmi.common.decode_i8(self.mem[a:a + 1])
                     ctx.stack.add_i64(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_8u:
+                if opcode == wasmi.opcodes.I64_LOAD8_U:
                     r = wasmi.common.decode_u8(self.mem[a:a + 1])
                     ctx.stack.add_i64(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_16s:
+                if opcode == wasmi.opcodes.I64_LOAD16_S:
                     r = wasmi.common.decode_i16(self.mem[a:a + 2])
                     ctx.stack.add_i64(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_16u:
+                if opcode == wasmi.opcodes.I64_LOAD16_U:
                     r = wasmi.common.decode_u16(self.mem[a:a + 2])
                     ctx.stack.add_i64(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_32s:
+                if opcode == wasmi.opcodes.I64_LOAD32_S:
                     r = wasmi.common.decode_i32(self.mem[a:a + 4])
                     ctx.stack.add_i64(r)
                     continue
-                if opcode == wasmi.opcodes.I64_LOAD_32u:
+                if opcode == wasmi.opcodes.I64_LOAD32_U:
                     r = wasmi.common.decode_u32(self.mem[a:a + 4])
                     ctx.stack.add_i64(r)
                     continue
