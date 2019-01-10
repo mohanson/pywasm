@@ -106,7 +106,7 @@ class Expression:
         return Expression(data)
 
 
-class Function:
+class FuncType:
     """Function types are encoded by the byte 0x60 followed by the respective
     vectors of parameter and result types.
 
@@ -118,10 +118,10 @@ class Function:
         self.rets = rets
 
     def __repr__(self):
-        name = 'Function'
+        name = 'FuncType'
         seps = []
-        seps.append(f'args={opcodes.VALUE_TYPE_NAME[i] for i in self.args}')
-        seps.append(f'rets={opcodes.VALUE_TYPE_NAME[i] for i in self.rets}')
+        seps.append(f'args={[opcodes.VALUE_TYPE_NAME[i] for i in self.args]}')
+        seps.append(f'rets={[opcodes.VALUE_TYPE_NAME[i] for i in self.rets]}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -131,45 +131,57 @@ class Function:
         args = r.read(n)
         _, n, _ = wasmi.common.read_leb(r, 32)
         rets = r.read(n)
-        return Function(list(args), list(rets))
+        return FuncType(list(args), list(rets))
 
 
 class GlobalType:
-    def __init__(self, kind: int, mut: int):
-        self.kind = kind
+    """Global types are encoded by their value type and a flag for their
+    mutability.
+
+    globaltype ::= t:valtype m:mut ⇒ m t
+    mut ::= 0x00 ⇒ const
+          | 0x01 ⇒ var
+    """
+
+    def __init__(self, valtype: int, mut: int):
+        self.valtype = valtype
         self.mut = mut
 
     def __repr__(self):
         name = 'GlobalType'
         seps = []
-        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
+        seps.append(f'valtype={wasmi.opcodes.VALUE_TYPE_NAME[self.valtype]}')
         seps.append(f'mut={self.mut}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        kind = ord(r.read(1))
+        valtype = ord(r.read(1))
         mut = ord(r.read(1))
-        return GlobalType(kind, mut)
+        return GlobalType(valtype, mut)
 
 
 class Global:
-    def __init__(self, kind: GlobalType, expression: Expression):
-        self.kind = kind
-        self.expression = expression
+    """
+    global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+    """
+
+    def __init__(self, globaltype: GlobalType, expr: Expression):
+        self.globaltype = globaltype
+        self.expr = expr
 
     def __repr__(self):
         name = 'Global'
         seps = []
-        seps.append(f'kind={self.kind}')
-        seps.append(f'expression={self.expression}')
+        seps.append(f'globaltype={self.globaltype}')
+        seps.append(f'expr={self.expr}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        kind = GlobalType.from_reader(r)
-        expression = Expression.from_reader(r)
-        return Global(kind, expression)
+        globaltype = GlobalType.from_reader(r)
+        expr = Expression.from_reader(r)
+        return Global(globaltype, expr)
 
 
 class Export:
@@ -228,6 +240,12 @@ class Block:
 
 
 class Code:
+    """The funcs component of a module defines a vector of functions with the
+    following structure:
+
+    func ::= {type typeidx, locals vec(valtype), body expr}
+    """
+
     def __init__(self, locs: typing.List[Local], expression: Expression):
         self.locs = locs
         self.expression = expression
@@ -488,7 +506,7 @@ class SectionType:
     """
 
     def __init__(self):
-        self.entries: typing.List[Function] = []
+        self.entries: typing.List[FuncType] = []
 
     def __repr__(self):
         name = 'SectionType'
@@ -502,7 +520,7 @@ class SectionType:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            e = Function.from_reader(r)
+            e = FuncType.from_reader(r)
             sec.entries.append(e)
         return sec
 
@@ -603,6 +621,13 @@ class SectionMemory:
 
 
 class SectionGlobal:
+    """The global section has the id 6. It decodes into a vector of globals
+    that represent the globals component of a module.
+
+    globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
+    global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+    """
+
     def __init__(self):
         self.entries: typing.List[Global] = []
 

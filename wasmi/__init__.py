@@ -132,7 +132,7 @@ class Ctx:
 
 
 class Function:
-    def __init__(self, signature: wasmi.section.Function):
+    def __init__(self, signature: wasmi.section.FuncType):
         self.signature = signature
         self.code: wasmi.section.Code = None
         self.envb = False
@@ -150,13 +150,13 @@ class Function:
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
-    def from_sec(cls, signature: wasmi.section.Function, code: wasmi.section.Code):
+    def from_sec(cls, signature: wasmi.section.FuncType, code: wasmi.section.Code):
         func = Function(signature)
         func.code = code
         return func
 
     @classmethod
-    def from_env(cls, signature: wasmi.section.Function, module: str, name: str):
+    def from_env(cls, signature: wasmi.section.FuncType, module: str, name: str):
         func = Function(signature)
         func.envb = True
         func.module = module
@@ -211,8 +211,8 @@ class Vm:
                 self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
         if self.mod.section_global:
             for e in self.mod.section_global.entries:
-                v = self.exec_init_expr(e.expression.data)
-                self.global_data.append(wasmi.stack.Entry.from_val(v, e.kind.kind))
+                v = self.exec_init_expr(e.expr.data)
+                self.global_data.append(wasmi.stack.Entry.from_val(v, e.globaltype.valtype))
         if self.mod.section_export:
             pass
         if self.mod.section_start:
