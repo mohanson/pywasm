@@ -430,28 +430,41 @@ class Import:
 
 
 class Element:
-    def __init__(self, idx: int, expression: Expression, init: typing.List[int]):
-        self.idx = idx
-        self.expression = expression
+    """The initial contents of a table is uninitialized. The elem component
+    of a module defines a vector of element segments that initialize a subrange
+    of a table, at a given offset, from a static vector of elements.
+
+    elem ::= {table tableidx, offset expr, init vec(funcidx)}
+
+    The offset is given by a constant expression.
+
+    Note: In the current version of WebAssembly, at most one table is allowed in a module.
+    Consequently, the only valid tableidx is 0.
+    """
+
+    def __init__(self, tableidx: int, expr: Expression, init: typing.List[int]):
+        self.tableidx = tableidx
+        self.expr = expr
         self.init = init
 
     def __repr__(self):
         name = 'Element'
         seps = []
-        seps.append(f'idx={self.idx}')
-        seps.append(f'expression={self.expression}')
+        seps.append(f'tableidx={self.tableidx}')
+        seps.append(f'expr={self.expr}')
         seps.append(f'init={self.init}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, idx, _ = wasmi.common.read_leb(r, 32)
-        expression = Expression.from_reader(r)
+        _, tableidx, _ = wasmi.common.read_leb(r, 32)
+        expr = Expression.from_reader(r)
         _, n, _ = wasmi.common.read_leb(r, 32)
         init = []
         for _ in range(n):
-            init.append(wasmi.common.read_leb(r, 32)[1])
-        return Element(idx, expression, init)
+            _, e, _ = wasmi.common.read_leb(r, 32)
+            init.append(e)
+        return Element(tableidx, expr, init)
 
 
 class Section:
@@ -729,6 +742,13 @@ class SectionStart:
 
 
 class SectionElement:
+    """The element section has the id 9. It decodes into a vector of element
+    segments that represent the elem component of a module.
+
+    elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
+    elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
+    """
+
     def __init__(self):
         self.entries: typing.List[Element] = []
 

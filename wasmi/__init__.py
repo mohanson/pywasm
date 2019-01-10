@@ -219,7 +219,7 @@ class Vm:
             pass
         if self.mod.section_element:
             for e in self.mod.section_element.entries:
-                offset = self.exec_init_expr(e.expression.data)
+                offset = self.exec_init_expr(e.expr.data)
                 for i, sube in enumerate(e.init):
                     self.table[wasmi.opcodes.VALUE_TYPE_FUNCREF][offset + i] = sube
         if self.mod.section_code:
