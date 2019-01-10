@@ -407,37 +407,31 @@ class Element:
         return Element(idx, expression, init)
 
 
-# -----------------------------------------------------------------------------
-# Binary Format Section
-# -----------------------------------------------------------------------------
-
-
 class Section:
     def __init__(self):
-        self.sid: int
-        self.raw: bytearray
+        self.section_id: int
+        self.contents: bytearray
 
     def __repr__(self):
         name = 'Section'
         seps = []
-        seps.append(f'sid={wasmi.opcodes.SECTION_NAME[self.sid]}')
-        seps.append(f'raw=0x{self.raw.hex()}')
+        seps.append(f'section_id={wasmi.opcodes.SECTION_NAME[self.section_id]}')
+        seps.append(f'contents={self.raw.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, section_sid, _ = wasmi.common.read_leb(r, 32)
+        _, section_id, _ = wasmi.common.read_leb(r, 32)
         _, n_remain, _ = wasmi.common.read_leb(r, 32)
         section_raw = r.read(n_remain)
         sec = Section()
-        sec.sid = section_sid
-        sec.raw = bytearray(section_raw)
+        sec.section_id = section_id
+        sec.contents = bytearray(section_raw)
         return sec
 
 
 class SectionCustom:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.name: str = None
         self.data: bytearray = None
 
@@ -450,7 +444,7 @@ class SectionCustom:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionCustom(f)
+        sec = SectionCustom()
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         sec.name = r.read(n).decode()
@@ -459,8 +453,7 @@ class SectionCustom:
 
 
 class SectionType:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Type] = []
 
     def __repr__(self):
@@ -471,7 +464,7 @@ class SectionType:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionType(f)
+        sec = SectionType()
         r = io.BytesIO(f.raw)
         _, n_func, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_func):
@@ -481,8 +474,7 @@ class SectionType:
 
 
 class SectionImport:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Import] = []
 
     def __repr__(self):
@@ -493,7 +485,7 @@ class SectionImport:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionImport(f)
+        sec = SectionImport()
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
@@ -502,8 +494,7 @@ class SectionImport:
 
 
 class SectionFunction:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[int] = []
 
     def __repr__(self):
@@ -514,7 +505,7 @@ class SectionFunction:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionFunction(f)
+        sec = SectionFunction()
         r = io.BytesIO(f.raw)
         _, n_func, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_func):
@@ -524,8 +515,7 @@ class SectionFunction:
 
 
 class SectionTable:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Table] = []
         self.dict = {}
 
@@ -538,7 +528,7 @@ class SectionTable:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionTable(f)
+        sec = SectionTable()
         r = io.BytesIO(f.raw)
         _, n_table, _ = wasmi.common.read_leb(r, 32)
         assert n_table == 1
@@ -550,8 +540,7 @@ class SectionTable:
 
 
 class SectionMemory:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Memory] = []
 
     def __repr__(self):
@@ -562,7 +551,7 @@ class SectionMemory:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionMemory(f)
+        sec = SectionMemory()
         r = io.BytesIO(f.raw)
         _, n_memory, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_memory):
@@ -572,8 +561,7 @@ class SectionMemory:
 
 
 class SectionGlobal:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Global] = []
 
     def __repr__(self):
@@ -584,7 +572,7 @@ class SectionGlobal:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionGlobal(f)
+        sec = SectionGlobal()
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
@@ -593,8 +581,7 @@ class SectionGlobal:
 
 
 class SectionExport:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Export] = []
 
     def __repr__(self):
@@ -605,7 +592,7 @@ class SectionExport:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionExport(f)
+        sec = SectionExport()
         r = io.BytesIO(f.raw)
         _, n_entry, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n_entry):
@@ -618,8 +605,7 @@ class SectionExport:
 
 
 class SectionStart:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.idx: int
 
     def __repr__(self):
@@ -630,7 +616,7 @@ class SectionStart:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionStart(f)
+        sec = SectionStart()
         r = io.BytesIO(f.raw)
         _, idx, _ = wasmi.common.read_leb(r, 32)
         sec.idx = idx
@@ -638,8 +624,7 @@ class SectionStart:
 
 
 class SectionElement:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Element] = []
 
     def __repr__(self):
@@ -650,7 +635,7 @@ class SectionElement:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionElement(f)
+        sec = SectionElement()
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
@@ -660,8 +645,7 @@ class SectionElement:
 
 
 class SectionCode:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Code] = []
 
     def __repr__(self):
@@ -672,7 +656,7 @@ class SectionCode:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionCode(f)
+        sec = SectionCode()
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
@@ -682,8 +666,7 @@ class SectionCode:
 
 
 class SectionData:
-    def __init__(self, father: Section):
-        self.father = father
+    def __init__(self):
         self.entries: typing.List[Data] = []
 
     def __repr__(self):
@@ -694,7 +677,7 @@ class SectionData:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionData(f)
+        sec = SectionData()
         r = io.BytesIO(f.raw)
         a, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
