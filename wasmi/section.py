@@ -703,21 +703,28 @@ class SectionExport:
 
 
 class SectionStart:
+    """The start section has the id 8. It decodes into an optional start
+    function that represents the start component of a module.
+
+    startsec ::= st?:section8(start) ⇒ st?
+    start ::= x:funcidx ⇒ {func x}
+    """
+
     def __init__(self):
-        self.idx: int
+        self.funcidx: int
 
     def __repr__(self):
         name = 'SectionStart'
         seps = []
-        seps.append(f'idx={self.idx}')
+        seps.append(f'funcidx={self.funcidx}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionStart()
         r = io.BytesIO(f.contents)
-        _, idx, _ = wasmi.common.read_leb(r, 32)
-        sec.idx = idx
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        sec.funcidx = n
         return sec
 
 
