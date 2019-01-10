@@ -347,22 +347,29 @@ class Data:
 
 
 class Table:
-    def __init__(self, kind: int, limits: Limits):
-        self.kind = kind
+    """Table types are encoded with their limits and a constant byte indicating
+    their element type.
+
+    tabletype ::= et:elemtype lim:limits ⇒ lim et
+    elemtype ::= 0x70 ⇒ funcref
+    """
+
+    def __init__(self, elemtype: int, limits: Limits):
+        self.elemtype = elemtype
         self.limits = limits
 
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
+        seps.append(f'elemtype={wasmi.opcodes.VALUE_TYPE_NAME[self.elemtype]}')
         seps.append(f'limits={self.limits}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        kind = ord(r.read(1))
+        elemtype = ord(r.read(1))
         limits = Limits.from_reader(r)
-        return Table(kind, limits)
+        return Table(elemtype, limits)
 
 
 class Memory:
@@ -585,6 +592,13 @@ class SectionFunction:
 
 
 class SectionTable:
+    """The table section has the id 4. It decodes into a vector of tables that
+    represent the tables component of a module.
+
+    tablesec ::= tab∗:section4(vec(table)) ⇒ tab∗
+    table ::= tt:tabletype ⇒ {type tt}
+    """
+
     def __init__(self):
         self.entries: typing.List[Table] = []
         self.dict = {}
@@ -600,12 +614,11 @@ class SectionTable:
     def from_section(cls, f: Section):
         sec = SectionTable()
         r = io.BytesIO(f.contents)
-        _, n_table, _ = wasmi.common.read_leb(r, 32)
-        assert n_table == 1
-        for _ in range(n_table):
-            table = Table.from_reader(r)
-            sec.entries.append(table)
-            sec.dict[table.kind] = [0] * table.limits.minimum
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        for _ in range(n):
+            e = Table.from_reader(r)
+            sec.entries.append(e)
+            sec.dict[e.elemtype] = [0] * e.limits.minimum
         return sec
 
 
