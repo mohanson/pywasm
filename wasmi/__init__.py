@@ -226,8 +226,8 @@ class Vm:
             pass
         if self.mod.section_data:
             for e in self.mod.section_data.entries:
-                assert e.idx == 0
-                offset = self.exec_init_expr(e.expression.data)
+                assert e.memidx == 0
+                offset = self.exec_init_expr(e.expr.data)
                 self.mem[offset: offset + len(e.init)] = e.init
 
     def exec_init_expr(self, code: bytearray):

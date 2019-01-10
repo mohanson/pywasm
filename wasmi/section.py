@@ -289,12 +289,18 @@ class Code:
 
 
 class Data:
-    """The data section has the id 11. It decodes into a vector of data
-    segments that represent the data component of a module.
+    """The initial contents of a memory are zero-valued bytes. The data
+    component of a module defines a vector of data segments that initialize
+    a range of memory, at a given offset, with a static vector of bytes.
 
-    datasec ::= seg∗:section11(vec(data)) ⇒ seg
-    data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+    data ::= {data memidx, offset expr, init vec(byte)}
+
+    The offset is given by a constant expression.
+
+    Note: In the current version of WebAssembly, at most one memory is allowed
+    in a module. Consequently, the only valid memidx is 0.
     """
+
     def __init__(self, memidx: int, expr: Expression, init: bytearray):
         self.memidx = memidx
         self.expr = expr
@@ -310,11 +316,11 @@ class Data:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, idx, _ = wasmi.common.read_leb(r, 32)
-        expression = Expression.from_reader(r)
+        _, memidx, _ = wasmi.common.read_leb(r, 32)
+        expr = Expression.from_reader(r)
         _, n, _ = wasmi.common.read_leb(r, 32)
         init = r.read(n)
-        return Data(idx, expression, bytearray(init))
+        return Data(memidx, expr, bytearray(init))
 
 
 class Table:
@@ -690,6 +696,13 @@ class SectionCode:
 
 
 class SectionData:
+    """The data section has the id 11. It decodes into a vector of data
+    segments that represent the data component of a module.
+
+    datasec ::= seg∗:section11(vec(data)) ⇒ seg
+    data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+    """
+
     def __init__(self):
         self.entries: typing.List[Data] = []
 
@@ -703,7 +716,7 @@ class SectionData:
     def from_section(cls, f: Section):
         sec = SectionData()
         r = io.BytesIO(f.contents)
-        a, n, _ = wasmi.common.read_leb(r, 32)
+        _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
             data = Data.from_reader(r)
             sec.entries.append(data)
