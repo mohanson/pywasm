@@ -182,7 +182,7 @@ class Vm:
             for e in self.mod.section_import.entries:
                 if e.kind == wasmi.opcodes.EXTERNAL_FUNCTION:
                     func = Function.from_env(
-                        self.mod.section_type.entries[e.description],
+                        self.mod.section_type.entries[e.desc],
                         e.module,
                         e.name
                     )

@@ -185,16 +185,30 @@ class Global:
 
 
 class Export:
-    def __init__(self, name: str, kind: int, idx: int):
-        self.name = name
+    """The exports component of a module defines a set of exports that become
+    accessible to the host environment once the module has been instantiated.
+
+    export ::= {name name, desc exportdesc}
+    exportdesc ::= func funcidx
+                 | table tableidx
+                 | mem memidx
+                 | global globalidx
+
+    Each export is labeled by a unique name. Exportable definitions are
+    functions, tables, memories, and globals, which are referenced through
+    a respective descriptor.
+    """
+
+    def __init__(self, kind: int, name: str, idx: int):
         self.kind = kind
+        self.name = name
         self.idx = idx
 
     def __repr__(self):
         name = 'Export'
         seps = []
-        seps.append(f'name={self.name}')
         seps.append(f'kind={wasmi.opcodes.EXTERNAL_NAME[self.kind]}')
+        seps.append(f'name={self.name}')
         seps.append(f'idx={self.idx}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -394,11 +408,29 @@ class Memory:
 
 
 class Import:
+    """The imports component of a module defines a set of imports that are
+    required for instantiation.
+
+    import ::= {module name, name name, desc importdesc}
+    importdesc ::= func typeidx
+                 | table tabletype
+                 | mem memtype
+                 | global globaltype
+
+    Each import is labeled by a two-level name space, consisting of a module
+    name and a name for an entity within that module. Importable definitions
+    are functions, tables, memories, and globals. Each import is specified by
+    a descriptor with a respective type that a definition provided during
+    instantiation is required to match. Every import defines an index in the
+    respective index space. In each index space, the indices of imports go
+    before the first index of any definition contained in the module itself.
+    """
+
     def __init__(self, kind: int, module: str, name: str):
         self.kind = kind
         self.module = module
         self.name = name
-        self.description = None
+        self.desc = None
 
     def __repr__(self):
         name = 'Import'
@@ -406,7 +438,7 @@ class Import:
         seps.append(f'kind={self.kind}')
         seps.append(f'module={self.module}')
         seps.append(f'name={self.name}')
-        seps.append(f'description={self.description}')
+        seps.append(f'desc={self.desc}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -416,17 +448,17 @@ class Import:
         _, n, _ = wasmi.common.read_leb(r, 32)
         name = r.read(n).decode()
         kind = ord(r.read(1))
-        isec = Import(kind, module, name)
+        sec = Import(kind, module, name)
         if kind == wasmi.opcodes.EXTERNAL_FUNCTION:
-            _, idx, _ = wasmi.common.read_leb(r, 32)
-            isec.description = idx
+            _, n, _ = wasmi.common.read_leb(r, 32)
+            sec.desc = n
         if kind == wasmi.opcodes.EXTERNAL_TABLE:
-            isec.description = Table.from_reader(r)
+            sec.desc = Table.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_MEMORY:
-            isec.description = Memory.from_reader(r)
+            sec.desc = Memory.from_reader(r)
         if kind == wasmi.opcodes.EXTERNAL_GLOBAL:
-            isec.description = GlobalType.from_reader(r)
-        return isec
+            sec.desc = GlobalType.from_reader(r)
+        return sec
 
 
 class Element:
@@ -555,6 +587,17 @@ class SectionType:
 
 
 class SectionImport:
+    """The import section has the id 2. It decodes into a vector of imports
+    that represent the imports component of a module.
+
+    importsec ::= im∗:section2(vec(import)) ⇒ im∗
+    import ::= mod:name nm:name d:importdesc ⇒ {module mod, name nm, desc d}
+    importdesc ::= 0x00 x:typeidx ⇒ func x
+                 | 0x01 tt:tabletype ⇒ table tt
+                 | 0x02 mt:memtype ⇒ mem mt
+                 | 0x03 gt:globaltype ⇒ global gt
+    """
+
     def __init__(self):
         self.entries: typing.List[Import] = []
 
@@ -692,6 +735,17 @@ class SectionGlobal:
 
 
 class SectionExport:
+    """The export section has the id 7. It decodes into a vector of exports
+    that represent the exports component of a module.
+
+    exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
+    export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
+    exportdesc ::= 0x00 x:funcidx ⇒ func x
+                 | 0x01 x:tableidx ⇒ table x
+                 | 0x02 x:memidx ⇒ mem x
+                 | 0x03 x:globalidx⇒global x
+    """
+
     def __init__(self):
         self.entries: typing.List[Export] = []
 
@@ -705,13 +759,13 @@ class SectionExport:
     def from_section(cls, f: Section):
         sec = SectionExport()
         r = io.BytesIO(f.contents)
-        _, n_entry, _ = wasmi.common.read_leb(r, 32)
-        for _ in range(n_entry):
-            _, n_name, _ = wasmi.common.read_leb(r, 32)
-            name = r.read(n_name).decode()
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        for _ in range(n):
+            _, n, _ = wasmi.common.read_leb(r, 32)
+            name = r.read(n).decode()
             kind = ord(r.read(1))
-            _, idx, _ = wasmi.common.read_leb(r, 32)
-            sec.entries.append(Export(name, kind, idx))
+            _, n, _ = wasmi.common.read_leb(r, 32)
+            sec.entries.append(Export(kind, name, n))
         return sec
 
 
