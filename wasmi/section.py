@@ -5,7 +5,8 @@ import wasmi.common
 
 
 class Limits:
-    """Limits are encoded with a preceding flag indicating whether a maximum is present.
+    """Limits are encoded with a preceding flag indicating whether a maximum
+    is present.
 
     limits ::= 0x00  n:u32         ⇒ {min n,max ϵ}
              | 0x01  n:u32  m:u32  ⇒ {min n,max m}
@@ -35,13 +36,19 @@ class Limits:
 
 
 class Expression:
+    """Expressions are encoded by their instruction sequence terminated with
+    an explicit 0x0B opcode for end.
+
+    expr ::= (in:instr)∗ 0x0B ⇒ in∗ end
+    """
+
     def __init__(self, data: bytearray):
         self.data = data
 
     def __repr__(self):
         name = 'Expression'
         seps = []
-        seps.append(f'data=0x{self.data.hex()}')
+        seps.append(f'data={self.data.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -428,14 +435,14 @@ class Section:
         return sec
 
 
-class SectionUnknown:
+class SectionCustom:
     def __init__(self, father: Section):
         self.father = father
         self.name: str = None
         self.data: bytearray = None
 
     def __repr__(self):
-        name = 'SectionUnknown'
+        name = 'SectionCustom'
         seps = []
         seps.append(f'name={self.name}')
         seps.append(f'data={self.data}')
@@ -443,7 +450,7 @@ class SectionUnknown:
 
     @classmethod
     def from_section(cls, f: Section):
-        sec = SectionUnknown(f)
+        sec = SectionCustom(f)
         r = io.BytesIO(f.raw)
         _, n, _ = wasmi.common.read_leb(r, 32)
         sec.name = r.read(n).decode()

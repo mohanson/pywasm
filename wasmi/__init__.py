@@ -54,7 +54,7 @@ class Mod:
                 mod.sections.append(sec)
         wasmi.log.println('Section parse'.center(80, '-'))
         for e in mod.sections:
-            if e.sid == wasmi.opcodes.SECTION_ID_UNKNOWN:
+            if e.sid == wasmi.opcodes.SECTION_ID_CUSTOM:
                 mod.section_unknown = wasmi.section.SectionUnknown.from_section(e)
                 wasmi.log.println(mod.section_unknown)
                 continue
