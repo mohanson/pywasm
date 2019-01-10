@@ -8,6 +8,7 @@ import wasmi.opcodes
 import wasmi.stack
 import wasmi.section
 import wasmi.error
+import wasmi.num as num
 
 # -----------------------------------------------------------------------------
 # About opcode description, see:
@@ -37,10 +38,10 @@ class Mod:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         mod = Mod()
-        mag = wasmi.common.decode_u32(r.read(4))
+        mag = num.LittleEndian.u32(r.read(4))
         if mag != 0x6d736100:
             raise wasmi.error.WAException(f'magicv')
-        ver = wasmi.common.decode_u32(r.read(4))
+        ver = num.LittleEndian.u32(r.read(4))
         mod.version = ver
         wasmi.log.println('Section slice'.center(80, '-'))
         for _ in range(1 << 32):
@@ -476,59 +477,59 @@ class Vm:
                 if a + wasmi.opcodes.OP_INFO[opcode][2] > len(self.mem):
                     raise wasmi.error.WAException('out of bounds memory access')
                 if opcode == wasmi.opcodes.I32_LOAD:
-                    r = wasmi.common.decode_i32(self.mem[a:a + 4])
+                    r = num.LittleEndian.i32(self.mem[a:a + 4])
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD:
-                    r = wasmi.common.decode_i64(self.mem[a:a + 8])
+                    r = num.LittleEndian.i64(self.mem[a:a + 8])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.F32_LOAD:
-                    r = wasmi.common.decode_f32(self.mem[a:a + 4])
+                    r = num.LittleEndian.f32(self.mem[a:a + 4])
                     ctx.stack.add_f32(r)
                     continue
                 if opcode == wasmi.opcodes.F64_LOAD:
-                    r = wasmi.common.decode_f64(self.mem[a:a + 8])
+                    r = num.LittleEndian.f64(self.mem[a:a + 8])
                     ctx.stack.add_f64(r)
                     continue
                 if opcode == wasmi.opcodes.I32_LOAD8_S:
-                    r = wasmi.common.decode_i8(self.mem[a:a + 1])
+                    r = num.LittleEndian.i8(self.mem[a:a + 1])
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_LOAD8_U:
-                    r = wasmi.common.decode_u8(self.mem[a:a + 1])
+                    r = num.LittleEndian.u8(self.mem[a:a + 1])
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_LOAD16_S:
-                    r = wasmi.common.decode_i16(self.mem[a:a + 2])
+                    r = num.LittleEndian.i16(self.mem[a:a + 2])
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_LOAD16_U:
-                    r = wasmi.common.decode_u16(self.mem[a:a + 2])
+                    r = num.LittleEndian.u16(self.mem[a:a + 2])
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD8_S:
-                    r = wasmi.common.decode_i8(self.mem[a:a + 1])
+                    r = num.LittleEndian.i8(self.mem[a:a + 1])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD8_U:
-                    r = wasmi.common.decode_u8(self.mem[a:a + 1])
+                    r = num.LittleEndian.u8(self.mem[a:a + 1])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD16_S:
-                    r = wasmi.common.decode_i16(self.mem[a:a + 2])
+                    r = num.LittleEndian.i16(self.mem[a:a + 2])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD16_U:
-                    r = wasmi.common.decode_u16(self.mem[a:a + 2])
+                    r = num.LittleEndian.u16(self.mem[a:a + 2])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD32_S:
-                    r = wasmi.common.decode_i32(self.mem[a:a + 4])
+                    r = num.LittleEndian.i32(self.mem[a:a + 4])
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_LOAD32_U:
-                    r = wasmi.common.decode_u32(self.mem[a:a + 4])
+                    r = num.LittleEndian.u32(self.mem[a:a + 4])
                     ctx.stack.add_i64(r)
                     continue
             if opcode >= wasmi.opcodes.I32_STORE and opcode <= wasmi.opcodes.I64_STORE32:
@@ -540,31 +541,31 @@ class Vm:
                 if a + wasmi.opcodes.OP_INFO[opcode][2] > len(self.mem):
                     raise wasmi.error.WAException('out of bounds memory access')
                 if opcode == wasmi.opcodes.I32_STORE:
-                    self.mem[a:a + 4] = wasmi.common.encode_i32(v.into_i32())
+                    self.mem[a:a + 4] = num.LittleEndian.pack_i32(v.into_i32())
                     continue
                 if opcode == wasmi.opcodes.I64_STORE:
-                    self.mem[a:a + 8] = wasmi.common.encode_i64(v.into_i64())
+                    self.mem[a:a + 8] = num.LittleEndian.pack_i64(v.into_i64())
                     continue
                 if opcode == wasmi.opcodes.F32_STORE:
-                    self.mem[a:a + 4] = wasmi.common.encode_f32(v.into_f32())
+                    self.mem[a:a + 4] = num.LittleEndian.pack_f32(v.into_f32())
                     continue
                 if opcode == wasmi.opcodes.F64_STORE:
-                    self.mem[a:a + 8] = wasmi.common.encode_f64(v.into_f64())
+                    self.mem[a:a + 8] = num.LittleEndian.pack_f64(v.into_f64())
                     continue
                 if opcode == wasmi.opcodes.I32_STORE8:
-                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i32()))
+                    self.mem[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I32_STORE16:
-                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i32()))
+                    self.mem[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v.into_i32()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE8:
-                    self.mem[a:a + 1] = wasmi.common.encode_i8(wasmi.common.into_i8(v.into_i64()))
+                    self.mem[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE16:
-                    self.mem[a:a + 2] = wasmi.common.encode_i16(wasmi.common.into_i16(v.into_i64()))
+                    self.mem[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v.into_i64()))
                     continue
                 if opcode == wasmi.opcodes.I64_STORE32:
-                    self.mem[a:a + 4] = wasmi.common.encode_i32(wasmi.common.into_i32(v.into_i64()))
+                    self.mem[a:a + 4] = num.LittleEndian.pack_i32(num.int2i32(v.into_i64()))
                     continue
             if opcode == wasmi.opcodes.CURRENT_MEMORY:
                 pc += 1
@@ -738,15 +739,15 @@ class Vm:
                 b = ctx.stack.pop_i32()
                 a = ctx.stack.pop_i32()
                 if opcode == wasmi.opcodes.I32_ADD:
-                    r = wasmi.common.into_i32(a + b)
+                    r = num.int2i32(a + b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_SUB:
-                    r = wasmi.common.into_i32(a - b)
+                    r = num.int2i32(a - b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_MUL:
-                    r = wasmi.common.into_i32(a * b)
+                    r = num.int2i32(a * b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_DIVS:
@@ -760,7 +761,7 @@ class Vm:
                 if opcode == wasmi.opcodes.I32_DIVU:
                     if b == 0:
                         raise wasmi.error.WAException('integer divide by zero')
-                    r = wasmi.common.into_u32(a) // wasmi.common.into_u32(b)
+                    r = num.int2u32(a) // num.int2u32(b)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_REMS:
@@ -772,7 +773,7 @@ class Vm:
                 if opcode == wasmi.opcodes.I32_REMU:
                     if b == 0:
                         raise wasmi.error.WAException('integer divide by zero')
-                    r = wasmi.common.into_u32(a) % wasmi.common.into_u32(b)
+                    r = num.int2u32(a) % num.int2u32(b)
                     continue
                 if opcode == wasmi.opcodes.I32_AND:
                     ctx.stack.add_i32(a & b)
@@ -790,16 +791,16 @@ class Vm:
                     ctx.stack.add_i32(a >> (b % 0x20))
                     continue
                 if opcode == wasmi.opcodes.I32_SHRU:
-                    ctx.stack.add_i32(wasmi.common.into_u32(a) >> (b % 0x20))
+                    ctx.stack.add_i32(num.int2u32(a) >> (b % 0x20))
                     continue
                 if opcode == wasmi.opcodes.I32_ROTL:
                     r = wasmi.common.rotl_u32(a, b)
-                    r = wasmi.common.into_i32(r)
+                    r = num.int2i32(r)
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_ROTR:
                     r = wasmi.common.rotr_u32(a, b)
-                    r = wasmi.common.into_i32(r)
+                    r = num.int2i32(r)
                     ctx.stack.add_i32(r)
                     continue
             if opcode >= wasmi.opcodes.I64_CLZ and opcode <= wasmi.opcodes.I64_POPCNT:
@@ -833,15 +834,15 @@ class Vm:
                 b = ctx.stack.pop_i64()
                 a = ctx.stack.pop_i64()
                 if opcode == wasmi.opcodes.I64_ADD:
-                    r = wasmi.common.into_i64(a + b)
+                    r = num.int2i64(a + b)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_SUB:
-                    r = wasmi.common.into_i64(a - b)
+                    r = num.int2i64(a - b)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_MUL:
-                    r = wasmi.common.into_i64(a * b)
+                    r = num.int2i64(a * b)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_DIVS:
@@ -853,8 +854,8 @@ class Vm:
                 if opcode == wasmi.opcodes.I64_DIVU:
                     if b == 0:
                         raise wasmi.error.WAException('integer divide by zero')
-                    r = wasmi.common.into_u64(a) // wasmi.common.into_u64(b)
-                    r = wasmi.common.into_i64(r)
+                    r = num.int2u64(a) // num.int2u64(b)
+                    r = num.int2i64(r)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_REMS:
@@ -865,7 +866,7 @@ class Vm:
                 if opcode == wasmi.opcodes.I64_REMU:
                     if b == 0:
                         raise wasmi.error.WAException('integer divide by zero')
-                    r = wasmi.common.into_u64(a) % wasmi.common.into_u64(b)
+                    r = num.int2u64(a) % num.int2u64(b)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_AND:
@@ -884,16 +885,16 @@ class Vm:
                     ctx.stack.add_i64(a >> (b % 0x40))
                     continue
                 if opcode == wasmi.opcodes.I64_SHRU:
-                    ctx.stack.add_i64(wasmi.common.into_u64(a) >> (b % 0x40))
+                    ctx.stack.add_i64(num.int2u64(a) >> (b % 0x40))
                     continue
                 if opcode == wasmi.opcodes.I64_ROTL:
                     r = wasmi.common.rotl_u64(a, b)
-                    r = wasmi.common.into_i64(r)
+                    r = num.int2i64(r)
                     ctx.stack.add_i64(r)
                     continue
                 if opcode == wasmi.opcodes.I64_ROTR:
                     r = wasmi.common.rotr_u64(a, b)
-                    r = wasmi.common.into_i64(r)
+                    r = num.int2i64(r)
                     ctx.stack.add_i64(r)
                     continue
             if opcode >= wasmi.opcodes.F32_ABS and opcode <= wasmi.opcodes.F32_SQRT:
@@ -1003,7 +1004,7 @@ class Vm:
             if opcode >= wasmi.opcodes.I32_WRAP_I64 and opcode <= wasmi.opcodes.F64_PROMOTE_F32:
                 v = ctx.stack.pop()
                 if opcode == wasmi.opcodes.I32_WRAP_I64:
-                    r = wasmi.common.into_i32(v.into_i64())
+                    r = num.int2i32(v.into_i64())
                     ctx.stack.add_i32(r)
                     continue
                 if opcode == wasmi.opcodes.I32_TRUNC_SF32:

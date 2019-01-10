@@ -3,6 +3,7 @@ import typing
 
 import wasmi.common
 import wasmi.opcodes
+import wasmi.num as num
 
 
 class Entry:
@@ -27,11 +28,11 @@ class Entry:
 
     @classmethod
     def from_u32(cls, n):
-        return cls.from_i32(wasmi.common.into_i32(n))
+        return cls.from_i32(num.int2i32(n))
 
     @classmethod
     def from_u64(cls, n):
-        return cls.from_i64(wasmi.common.into_i64(n))
+        return cls.from_i64(num.int2i64(n))
 
     @classmethod
     def from_f32(cls, n):
@@ -47,9 +48,9 @@ class Entry:
     @classmethod
     def from_val(cls, n, kind: int):
         if kind == wasmi.opcodes.VALUE_TYPE_I32:
-            return cls.from_i32(wasmi.common.into_i32(n))
+            return cls.from_i32(num.int2i32(n))
         if kind == wasmi.opcodes.VALUE_TYPE_I64:
-            return cls.from_i64(wasmi.common.into_i64(n))
+            return cls.from_i64(num.int2i64(n))
         if kind == wasmi.opcodes.VALUE_TYPE_F32:
             return cls.from_f32(n)
         if kind == wasmi.opcodes.VALUE_TYPE_F64:
@@ -63,10 +64,10 @@ class Entry:
         return struct.unpack('>q', self.data)[0]
 
     def into_u32(self):
-        return wasmi.common.into_u32(self.into_i32())
+        return num.int2u32(self.into_i32())
 
     def into_u64(self):
-        return wasmi.common.into_u64(self.into_i64())
+        return num.int2u64(self.into_i64())
 
     def into_f32(self):
         return struct.unpack('>f', self.data[4:])[0]
@@ -107,22 +108,22 @@ class Stack:
         return self.data[self.i]
 
     def add_i32(self, n):
-        self.add(Entry.from_i32(wasmi.common.into_i32(n)))
+        self.add(Entry.from_i32(num.int2i32(n)))
 
     def add_i64(self, n):
-        self.add(Entry.from_i64(wasmi.common.into_i64(n)))
+        self.add(Entry.from_i64(num.int2i64(n)))
 
     def add_u32(self, n):
-        self.add(Entry.from_u32(wasmi.common.into_u32(n)))
+        self.add(Entry.from_u32(num.int2u32(n)))
 
     def add_u64(self, n):
-        self.add(Entry.from_u64(wasmi.common.into_u64(n)))
+        self.add(Entry.from_u64(num.int2u64(n)))
 
     def add_f32(self, n):
-        self.add(Entry.from_f32(wasmi.common.into_f32(n)))
+        self.add(Entry.from_f32(n))
 
     def add_f64(self, n):
-        self.add(Entry.from_f64(wasmi.common.into_f64(n)))
+        self.add(Entry.from_f64(n))
 
     def pop_i32(self):
         return self.pop().into_i32()
