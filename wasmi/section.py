@@ -8,8 +8,8 @@ class Limits:
     """Limits are encoded with a preceding flag indicating whether a maximum
     is present.
 
-    limits ::= 0x00  n:u32         ⇒ {min n,max ϵ}
-             | 0x01  n:u32  m:u32  ⇒ {min n,max m}
+    limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
+             | 0x01  n:u32  m:u32 ⇒ {min n,max m}
     """
 
     def __init__(self, flag: int, minimum: int, maximum: int):
@@ -331,6 +331,11 @@ class Table:
 
 
 class Memory:
+    """Memory types are encoded with their limits.
+
+    memtype ::= lim:limits ⇒ lim
+    """
+
     def __init__(self, limits: Limits):
         self.limits = limits
 
@@ -408,6 +413,12 @@ class Element:
 
 
 class Section:
+    """Each section consists of
+    1. a one-byte section id
+    2. the u32 size of the contents, in bytes
+    3. the actual contents, whose structure is depended on the section id
+    """
+
     def __init__(self):
         self.section_id: int
         self.contents: bytearray
@@ -422,11 +433,11 @@ class Section:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         _, section_id, _ = wasmi.common.read_leb(r, 32)
-        _, n_remain, _ = wasmi.common.read_leb(r, 32)
-        section_raw = r.read(n_remain)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        contents = r.read(n)
         sec = Section()
         sec.section_id = section_id
-        sec.contents = bytearray(section_raw)
+        sec.contents = bytearray(contents)
         return sec
 
 
@@ -540,6 +551,13 @@ class SectionTable:
 
 
 class SectionMemory:
+    """The memory section has the id 5. It decodes into a vector of memories
+    that represent the mems component of a module.
+
+    memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
+    mem ::= mt:memtype ⇒ {type mt}
+    """
+
     def __init__(self):
         self.entries: typing.List[Memory] = []
 
@@ -553,10 +571,10 @@ class SectionMemory:
     def from_section(cls, f: Section):
         sec = SectionMemory()
         r = io.BytesIO(f.contents)
-        _, n_memory, _ = wasmi.common.read_leb(r, 32)
-        for _ in range(n_memory):
-            memory = Memory.from_reader(r)
-            sec.entries.append(memory)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        for _ in range(n):
+            mem = Memory.from_reader(r)
+            sec.entries.append(mem)
         return sec
 
 
