@@ -207,7 +207,7 @@ class Vm:
             if self.mod.section_memory.entries:
                 if len(self.mod.section_memory.entries) > 1:
                     raise wasmi.error.Exception('multiple linear memories')
-                self.mem_len = self.mod.section_memory.entries[0].limit.initial
+                self.mem_len = self.mod.section_memory.entries[0].limits.minimum
                 self.mem = bytearray([0 for _ in range(self.mem_len * 64 * 1024)])
         if self.mod.section_global:
             for e in self.mod.section_global.entries:

@@ -3,36 +3,35 @@ import typing
 
 import wasmi.common
 
-# -----------------------------------------------------------------------------
-# Binary Format Types
-#
-# See https://www.w3.org/TR/wasm-core-1/#binary-format①
-# -----------------------------------------------------------------------------
 
+class Limits:
+    """Limits are encoded with a preceding flag indicating whether a maximum is present.
 
-class Limit:
-    def __init__(self, flag: int, initial: int, maximum: int):
+    limits ::= 0x00  n:u32         ⇒ {min n,max ϵ}
+             | 0x01  n:u32  m:u32  ⇒ {min n,max m}
+    """
+
+    def __init__(self, flag: int, minimum: int, maximum: int):
         self.flag = flag
-        self.initial = initial
+        self.minimum = minimum
         self.maximum = maximum
 
     def __repr__(self):
-        name = 'Limit'
+        name = 'Limits'
         seps = []
         seps.append(f'flag={self.flag}')
-        seps.append(f'initial={self.initial}')
+        seps.append(f'minimum={self.minimum}')
         seps.append(f'maximum={self.maximum}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         flag = ord(r.read(1))
-        _, initial, _ = wasmi.common.read_leb(r, 32)
+        _, minimum, _ = wasmi.common.read_leb(r, 32)
         if flag == 1:
             _, maximum, _ = wasmi.common.read_leb(r, 32)
-        else:
-            maximum = 0
-        return Limit(flag, initial, maximum)
+            return Limits(flag, minimum, maximum)
+        return Limits(flag, minimum, 0)
 
 
 class Expression:
@@ -306,38 +305,38 @@ class Data:
 
 
 class Table:
-    def __init__(self, kind: int, limit: Limit):
+    def __init__(self, kind: int, limits: Limits):
         self.kind = kind
-        self.limit = limit
+        self.limits = limits
 
     def __repr__(self):
         name = 'Table'
         seps = []
         seps.append(f'kind={wasmi.opcodes.VALUE_TYPE_NAME[self.kind]}')
-        seps.append(f'limit={self.limit}')
+        seps.append(f'limits={self.limits}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         kind = ord(r.read(1))
-        limit = Limit.from_reader(r)
-        return Table(kind, limit)
+        limits = Limits.from_reader(r)
+        return Table(kind, limits)
 
 
 class Memory:
-    def __init__(self, limit: Limit):
-        self.limit = limit
+    def __init__(self, limits: Limits):
+        self.limits = limits
 
     def __repr__(self):
         name = 'Memory'
         seps = []
-        seps.append(f'limit={self.limit}')
+        seps.append(f'limits={self.limits}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        limit = Limit.from_reader(r)
-        return Memory(limit)
+        limits = Limits.from_reader(r)
+        return Memory(limits)
 
 
 class Import:
@@ -539,7 +538,7 @@ class SectionTable:
         for _ in range(n_table):
             table = Table.from_reader(r)
             sec.entries.append(table)
-            sec.dict[table.kind] = [0] * table.limit.initial
+            sec.dict[table.kind] = [0] * table.limits.minimum
         return sec
 
 
