@@ -289,17 +289,23 @@ class Code:
 
 
 class Data:
-    def __init__(self, idx: int, expression: Expression, init: bytearray):
-        self.idx = idx
-        self.expression = expression
+    """The data section has the id 11. It decodes into a vector of data
+    segments that represent the data component of a module.
+
+    datasec ::= seg∗:section11(vec(data)) ⇒ seg
+    data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+    """
+    def __init__(self, memidx: int, expr: Expression, init: bytearray):
+        self.memidx = memidx
+        self.expr = expr
         self.init = init
 
     def __repr__(self):
         name = 'Data'
         seps = []
-        seps.append(f'idx={self.idx}')
-        seps.append(f'expression={self.expression}')
-        seps.append(f'init=0x{self.init.hex()}')
+        seps.append(f'memidx={self.memidx}')
+        seps.append(f'expr={self.expr}')
+        seps.append(f'init={self.init.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
