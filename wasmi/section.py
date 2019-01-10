@@ -556,6 +556,14 @@ class SectionImport:
 
 
 class SectionFunction:
+    """The function section has the id 3. It decodes into a vector of type
+    indices that represent the type fields of the functions in the funcs
+    component of a module. The locals and body fields of the respective
+    functions are encoded separately in the code section.
+
+    funcsec ::= x∗:section3(vec(typeidx)) ⇒ x∗
+    """
+
     def __init__(self):
         self.entries: typing.List[int] = []
 
@@ -569,10 +577,10 @@ class SectionFunction:
     def from_section(cls, f: Section):
         sec = SectionFunction()
         r = io.BytesIO(f.contents)
-        _, n_func, _ = wasmi.common.read_leb(r, 32)
-        for _ in range(n_func):
-            _, i, _ = wasmi.common.read_leb(r, 32)
-            sec.entries.append(i)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        for _ in range(n):
+            _, e, _ = wasmi.common.read_leb(r, 32)
+            sec.entries.append(e)
         return sec
 
 
