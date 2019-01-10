@@ -477,6 +477,15 @@ class Section:
 
 
 class SectionCustom:
+    """Custom sections have the id 0. They are intended to be used for debugging
+    information or third-party extensions, and are ignored by the WebAssembly
+    semantics. Their contents consist of a name further identifying the custom
+    section, followed by an uninterpreted sequence of bytes for custom use.
+
+    customsec ::= section0(custom)
+    custom ::= name byte∗
+    """
+
     def __init__(self):
         self.name: str = None
         self.data: bytearray = None
