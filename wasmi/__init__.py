@@ -380,7 +380,7 @@ class Vm:
                         break
                     ctx.ctack.pop()
                 b, _ = ctx.ctack[-1]
-                pc = len(b.expression.data) - 1
+                pc = len(b.expr.data) - 1
                 continue
             if opcode == wasmi.opcodes.CALL:
                 n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
