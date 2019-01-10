@@ -22,7 +22,7 @@ class Mod:
         self.version: int
         self.sections: typing.List[wasmi.section.Section] = []
 
-        self.section_unknown: wasmi.section.SectionUnknown = None
+        self.section_custom: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
         self.section_import: wasmi.section.SectionImport = None
         self.section_function: wasmi.section.SectionFunction = None
@@ -54,63 +54,63 @@ class Mod:
                 mod.sections.append(sec)
         wasmi.log.println('Section parse'.center(80, '-'))
         for e in mod.sections:
-            if e.sid == wasmi.opcodes.SECTION_ID_CUSTOM:
-                mod.section_unknown = wasmi.section.SectionUnknown.from_section(e)
-                wasmi.log.println(mod.section_unknown)
+            if e.section_id == wasmi.opcodes.SECTION_ID_CUSTOM:
+                mod.section_custom = wasmi.section.SectionCustom.from_section(e)
+                wasmi.log.println(mod.section_custom)
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_TYPE:
+            if e.section_id == wasmi.opcodes.SECTION_ID_TYPE:
                 mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(f'SectionType')
                 for i in mod.section_type.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_IMPORT:
+            if e.section_id == wasmi.opcodes.SECTION_ID_IMPORT:
                 mod.section_import = wasmi.section.SectionImport.from_section(e)
                 wasmi.log.println(f'SectionImport')
                 for i in mod.section_import.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_FUNCTION:
+            if e.section_id == wasmi.opcodes.SECTION_ID_FUNCTION:
                 mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_TABLE:
+            if e.section_id == wasmi.opcodes.SECTION_ID_TABLE:
                 mod.section_table = wasmi.section.SectionTable.from_section(e)
                 wasmi.log.println(mod.section_table)
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_MEMORY:
+            if e.section_id == wasmi.opcodes.SECTION_ID_MEMORY:
                 mod.section_memory = wasmi.section.SectionMemory.from_section(e)
                 wasmi.log.println(f'SectionMemory')
                 for i in mod.section_memory.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_GLOBAL:
+            if e.section_id == wasmi.opcodes.SECTION_ID_GLOBAL:
                 mod.section_global = wasmi.section.SectionGlobal.from_section(e)
                 wasmi.log.println(f'SectionGlobal')
                 for i in mod.section_global.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_EXPORT:
+            if e.section_id == wasmi.opcodes.SECTION_ID_EXPORT:
                 mod.section_export = wasmi.section.SectionExport.from_section(e)
                 wasmi.log.println(f'SectionExport')
                 for i in mod.section_export.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_START:
+            if e.section_id == wasmi.opcodes.SECTION_ID_START:
                 mod.section_start = wasmi.section.SectionStart.from_section(e)
                 wasmi.log.println(mod.section_start)
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_ELEMENT:
+            if e.section_id == wasmi.opcodes.SECTION_ID_ELEMENT:
                 mod.section_element = wasmi.section.SectionElement.from_section(e)
                 wasmi.log.println(mod.section_element)
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_CODE:
+            if e.section_id == wasmi.opcodes.SECTION_ID_CODE:
                 mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(f'SectionCode')
                 for i in mod.section_code.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
-            if e.sid == wasmi.opcodes.SECTION_ID_DATA:
+            if e.section_id == wasmi.opcodes.SECTION_ID_DATA:
                 mod.section_data = wasmi.section.SectionData.from_section(e)
                 wasmi.log.println(f'SectionData')
                 for i in mod.section_data.entries:
@@ -174,7 +174,7 @@ class Vm:
         self.functions: typing.List[Function] = []
         self.env = env if env else Env()
 
-        if self.mod.section_unknown:
+        if self.mod.section_custom:
             pass
         if self.mod.section_type:
             pass
