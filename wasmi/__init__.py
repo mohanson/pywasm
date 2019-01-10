@@ -274,12 +274,12 @@ class Vm:
         f_fun = self.functions[f_idx]
         f_sig = f_fun.signature
         f_sec = f_fun.code
-        for eloc in f_sec.locs:
-            for _ in range(eloc.count):
-                e = wasmi.stack.Entry.from_val(0, eloc.kind)
+        for eloc in f_sec.locals:
+            for _ in range(eloc.n):
+                e = wasmi.stack.Entry.from_val(0, eloc.valtype)
                 ctx.locals_data.append(e)
         ctx.ctack.append([f_sec, ctx.stack.i])
-        code = f_sec.expression.data
+        code = f_sec.expr.data
         wasmi.log.println('Code', code.hex())
         wasmi.log.println('Locals', ctx.locals_data)
         wasmi.log.println('Global', self.global_data)

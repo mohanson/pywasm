@@ -213,23 +213,27 @@ class Export:
         return f'{name}<{" ".join(seps)}>'
 
 
-class Local:
-    def __init__(self, count: int, kind: int):
-        self.count = count
-        self.kind = kind
+class Locals:
+    """
+    locals ::= n:u32 t:valtype ⇒ tn
+    """
+
+    def __init__(self, n: int, valtype: int):
+        self.n = n
+        self.valtype = valtype
 
     def __repr__(self):
-        name = 'Local'
+        name = 'Locals'
         seps = []
-        seps.append(f'count={self.count}')
-        seps.append(f'kind={self.kind}')
+        seps.append(f'n={self.n}')
+        seps.append(f'valtype={self.valtype}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        _, count, _ = wasmi.common.read_leb(r, 32)
-        kind = ord(r.read(1))
-        return Local(count, kind)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        valtype = ord(r.read(1))
+        return Locals(n, valtype)
 
 
 class Block:
@@ -260,17 +264,18 @@ class Code:
     func ::= {type typeidx, locals vec(valtype), body expr}
     """
 
-    def __init__(self, locs: typing.List[Local], expression: Expression):
-        self.locs = locs
-        self.expression = expression
+    def __init__(self, locs: typing.List[int], expr: Expression):
+        self.locals = locs
+        self.expr = expr
+
         self.bmap = self.imap()
-        self.pos_br = len(self.expression.data) - 1
+        self.pos_br = len(self.expr.data) - 1
 
     def __repr__(self):
         name = 'Code'
         seps = []
-        seps.append(f'locs={self.locs}')
-        seps.append(f'expression={self.expression}')
+        seps.append(f'locals={self.locals}')
+        seps.append(f'expr={self.expr}')
         seps.append(f'bmap={self.bmap}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -278,7 +283,7 @@ class Code:
         pc = 0
         bmap: typing.Dict[int, Block] = {}
         bstack: typing.List[Block] = []
-        code = self.expression.data
+        code = self.expr.data
         for _ in range(1 << 32):
             op = code[pc]
             pc += 1
@@ -317,12 +322,10 @@ class Code:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         _, n, _ = wasmi.common.read_leb(r, 32)
-        full = r.read(n)
-        r = io.BytesIO(full)
         _, n, _ = wasmi.common.read_leb(r, 32)
-        locs = [Local.from_reader(r) for _ in range(n)]
-        expression = Expression.from_reader(r)
-        return Code(locs, expression)
+        locs = [Locals.from_reader(r) for _ in range(n)]
+        expr = Expression.from_reader(r)
+        return Code(locs, expr)
 
 
 class Data:
@@ -824,6 +827,30 @@ class SectionElement:
 
 
 class SectionCode:
+    """The code section has the id 10. It decodes into a vector of code
+    entries that are pairs of value type vectors and expressions. They
+    represent the locals and body field of the functions in the funcs
+    component of a module. The type fields of the respective functions are
+    encoded separately in the function section.
+
+    The encoding of each code entry consists of
+        1. the u32 size of the function code in bytes,
+        2. the actual function code, which in turn consists of
+            1. the declaration of locals,
+            2. the function body as an expression.
+
+    Local declarations are compressed into a vector whose entries consist of
+        1. a u32 count,
+        2. a value type,
+
+    denoting count locals of the same value type.
+
+    codesec ::= code∗:section10(vec(code)) ⇒ code∗
+    code ::= size:u32 code:func ⇒ code(ifsize=||func||)
+    func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
+    locals ::= n:u32 t:valtype⇒tn
+    """
+
     def __init__(self):
         self.entries: typing.List[Code] = []
 
