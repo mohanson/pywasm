@@ -2,6 +2,7 @@ import io
 import typing
 
 import wasmi.common
+import wasmi.opcodes as opcodes
 
 
 class Limits:
@@ -105,28 +106,32 @@ class Expression:
         return Expression(data)
 
 
-class Type:
-    def __init__(self, form: int, args: bytearray, rets: bytearray):
-        self.form = form
+class Function:
+    """Function types are encoded by the byte 0x60 followed by the respective
+    vectors of parameter and result types.
+
+    functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
+    """
+
+    def __init__(self, args: typing.List[int], rets: typing.List[int]):
         self.args = args
         self.rets = rets
 
     def __repr__(self):
-        name = 'Type'
+        name = 'Function'
         seps = []
-        seps.append(f'form={hex(self.form)}')
-        seps.append(f'args=0x{self.args.hex()}')
-        seps.append(f'rets=0x{self.rets.hex()}')
+        seps.append(f'args={opcodes.VALUE_TYPE_NAME[i] for i in self.args}')
+        seps.append(f'rets={opcodes.VALUE_TYPE_NAME[i] for i in self.rets}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        form = ord(r.read(1))
-        _, n_args, _ = wasmi.common.read_leb(r, 32)
-        args = r.read(n_args)
-        _, n_rets, _ = wasmi.common.read_leb(r, 32)
-        rets = r.read(n_rets)
-        return Type(form, bytearray(args), bytearray(rets))
+        assert ord(r.read(1)) == 0x60
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        args = r.read(n)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        rets = r.read(n)
+        return Function(list(args), list(rets))
 
 
 class GlobalType:
@@ -439,7 +444,7 @@ class Section:
         name = 'Section'
         seps = []
         seps.append(f'section_id={wasmi.opcodes.SECTION_NAME[self.section_id]}')
-        seps.append(f'contents={self.raw.hex()}')
+        seps.append(f'contents={self.contents.hex()}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -476,22 +481,28 @@ class SectionCustom:
 
 
 class SectionType:
+    """The type section has the id 1. It decodes into a vector of function
+    types that represent the types component of a module.
+
+    typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
+    """
+
     def __init__(self):
-        self.entries: typing.List[Type] = []
+        self.entries: typing.List[Function] = []
 
     def __repr__(self):
         name = 'SectionType'
         seps = []
-        seps.append(f'entries={",".join([str(e) for e in self.entries])}')
+        seps.append(f'entries={self.entries}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionType()
         r = io.BytesIO(f.contents)
-        _, n_func, _ = wasmi.common.read_leb(r, 32)
-        for _ in range(n_func):
-            e = Type.from_reader(r)
+        _, n, _ = wasmi.common.read_leb(r, 32)
+        for _ in range(n):
+            e = Function.from_reader(r)
             sec.entries.append(e)
         return sec
 
@@ -512,7 +523,8 @@ class SectionImport:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            sec.entries.append(Import.from_reader(r))
+            e = Import.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 
@@ -585,8 +597,8 @@ class SectionMemory:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            mem = Memory.from_reader(r)
-            sec.entries.append(mem)
+            e = Memory.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 
@@ -606,7 +618,8 @@ class SectionGlobal:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            sec.entries.append(Global.from_reader(r))
+            e = Global.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 
@@ -669,8 +682,8 @@ class SectionElement:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            element = Element.from_reader(r)
-            sec.entries.append(element)
+            e = Element.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 
@@ -690,8 +703,8 @@ class SectionCode:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            code = Code.from_reader(r)
-            sec.entries.append(code)
+            e = Code.from_reader(r)
+            sec.entries.append(e)
         return sec
 
 
@@ -718,6 +731,6 @@ class SectionData:
         r = io.BytesIO(f.contents)
         _, n, _ = wasmi.common.read_leb(r, 32)
         for _ in range(n):
-            data = Data.from_reader(r)
-            sec.entries.append(data)
+            e = Data.from_reader(r)
+            sec.entries.append(e)
         return sec
