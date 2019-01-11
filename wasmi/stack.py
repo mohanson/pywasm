@@ -5,12 +5,12 @@ import wasmi.num as num
 
 
 class Entry:
-    def __init__(self, kind: int, data):
-        self.data = data
+    def __init__(self, kind: int, n):
         self.kind = kind
+        self.n = n
 
     def __repr__(self):
-        return f'{opcodes.VALUE_TYPE_NAME[self.kind]}({self.data})'
+        return f'{opcodes.VALUE_TYPE_NAME[self.kind]}({self.n})'
 
     @classmethod
     def from_i32(cls, n):
@@ -37,7 +37,7 @@ class Entry:
         return Entry(opcodes.VALUE_TYPE_F64, n)
 
     @classmethod
-    def from_val(cls, n, kind: int):
+    def from_val(cls, kind: int, n):
         if kind == opcodes.VALUE_TYPE_I32:
             return cls.from_i32(n)
         if kind == opcodes.VALUE_TYPE_I64:
@@ -49,22 +49,22 @@ class Entry:
         raise NotImplementedError()
 
     def into_i32(self):
-        return self.data
+        return self.n
 
     def into_i64(self):
-        return self.data
+        return self.n
 
     def into_u32(self):
-        return num.int2u32(self.data)
+        return num.int2u32(self.n)
 
     def into_u64(self):
-        return num.int2u64(self.data)
+        return num.int2u64(self.n)
 
     def into_f32(self):
-        return self.data
+        return self.n
 
     def into_f64(self):
-        return self.data
+        return self.n
 
     def into_val(self):
         if self.kind == opcodes.VALUE_TYPE_I32:
