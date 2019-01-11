@@ -6,7 +6,7 @@ import wasmi.num as num
 
 
 class Entry:
-    def __init__(self, data: bytearray, kind: int):
+    def __init__(self, kind: int, data: bytearray):
         assert len(data) == 8
         self.data = data
         self.kind = kind
@@ -18,12 +18,12 @@ class Entry:
     def from_i32(cls, n):
         data = struct.pack('>i', n)
         data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(data, opcodes.VALUE_TYPE_I32)
+        return Entry(opcodes.VALUE_TYPE_I32, data)
 
     @classmethod
     def from_i64(cls, n):
         data = struct.pack('>q', n)
-        return Entry(data, opcodes.VALUE_TYPE_I64)
+        return Entry(opcodes.VALUE_TYPE_I64, data)
 
     @classmethod
     def from_u32(cls, n):
@@ -37,12 +37,12 @@ class Entry:
     def from_f32(cls, n):
         data = struct.pack('>f', n)
         data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(data, opcodes.VALUE_TYPE_F32)
+        return Entry(opcodes.VALUE_TYPE_F32, data)
 
     @classmethod
     def from_f64(cls, n):
         data = struct.pack('>d', n)
-        return Entry(data, opcodes.VALUE_TYPE_F64)
+        return Entry(opcodes.VALUE_TYPE_F64, data)
 
     @classmethod
     def from_val(cls, n, kind: int):
