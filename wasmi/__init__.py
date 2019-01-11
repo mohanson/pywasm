@@ -328,7 +328,7 @@ class Vm:
                 if isinstance(b, wasmi.section.Code):
                     if not ctx.ctack:
                         if f_sig.rets:
-                            if f_sig.rets[0] != ctx.stack.top().kind:
+                            if f_sig.rets[0] != ctx.stack.top().valtype:
                                 raise wasmi.error.WAException('signature mismatch in call_indirect')
                             return ctx.stack.pop().into_val()
                         return None
@@ -415,7 +415,7 @@ class Vm:
                 for i in range(len(a)):
                     ia = a[i]
                     ib = b[i]
-                    if ib == None or ia != ib.kind:
+                    if not ib or ia != ib.valtype:
                         raise wasmi.error.WAException('signature mismatch in call_indirect')
                 pre_locals_data = ctx.locals_data
                 ctx.locals_data = b
@@ -1142,8 +1142,8 @@ class Vm:
         f_idx = export.idx
         f_sig = self.functions[f_idx].signature
         ergs = []
-        for i, kind in enumerate(f_sig.args):
-            ergs.append(wasmi.stack.Entry.from_val(kind, args[i]))
+        for i, valtype in enumerate(f_sig.args):
+            ergs.append(wasmi.stack.Entry.from_val(valtype, args[i]))
         ctx = Ctx(ergs)
         wasmi.log.println('Exec'.center(80, '-'))
         return self.exec_step(f_idx, ctx)

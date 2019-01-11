@@ -5,12 +5,12 @@ import wasmi.num as num
 
 
 class Entry:
-    def __init__(self, kind: int, n):
-        self.kind = kind
+    def __init__(self, valtype: int, n):
+        self.valtype = valtype
         self.n = n
 
     def __repr__(self):
-        return f'{opcodes.VALTYPE_INFO[self.kind]}({self.n})'
+        return f'{opcodes.VALTYPE_INFO[self.valtype]}({self.n})'
 
     @classmethod
     def from_i32(cls, n):
@@ -37,14 +37,14 @@ class Entry:
         return Entry(opcodes.VALTYPE_F64, n)
 
     @classmethod
-    def from_val(cls, kind: int, n):
-        if kind == opcodes.VALTYPE_I32:
+    def from_val(cls, valtype: int, n):
+        if valtype == opcodes.VALTYPE_I32:
             return cls.from_i32(n)
-        if kind == opcodes.VALTYPE_I64:
+        if valtype == opcodes.VALTYPE_I64:
             return cls.from_i64(n)
-        if kind == opcodes.VALTYPE_F32:
+        if valtype == opcodes.VALTYPE_F32:
             return cls.from_f32(n)
-        if kind == opcodes.VALTYPE_F64:
+        if valtype == opcodes.VALTYPE_F64:
             return cls.from_f64(n)
         raise NotImplementedError()
 
@@ -67,13 +67,13 @@ class Entry:
         return self.n
 
     def into_val(self):
-        if self.kind == opcodes.VALTYPE_I32:
+        if self.valtype == opcodes.VALTYPE_I32:
             return self.into_i32()
-        if self.kind == opcodes.VALTYPE_I64:
+        if self.valtype == opcodes.VALTYPE_I64:
             return self.into_i64()
-        if self.kind == opcodes.VALTYPE_F32:
+        if self.valtype == opcodes.VALTYPE_F32:
             return self.into_f32()
-        if self.kind == opcodes.VALTYPE_F64:
+        if self.valtype == opcodes.VALTYPE_F64:
             return self.into_f64()
         raise NotImplementedError()
 
