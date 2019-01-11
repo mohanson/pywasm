@@ -10,15 +10,15 @@ class Entry:
         self.n = n
 
     def __repr__(self):
-        return f'{opcodes.VALUE_TYPE_NAME[self.kind]}({self.n})'
+        return f'{opcodes.VALTYPE_INFO[self.kind]}({self.n})'
 
     @classmethod
     def from_i32(cls, n):
-        return Entry(opcodes.VALUE_TYPE_I32, num.int2i32(n))
+        return Entry(opcodes.VALTYPE_I32, num.int2i32(n))
 
     @classmethod
     def from_i64(cls, n):
-        return Entry(opcodes.VALUE_TYPE_I64, num.int2i64(n))
+        return Entry(opcodes.VALTYPE_I64, num.int2i64(n))
 
     @classmethod
     def from_u32(cls, n):
@@ -30,21 +30,21 @@ class Entry:
 
     @classmethod
     def from_f32(cls, n):
-        return Entry(opcodes.VALUE_TYPE_F32, n)
+        return Entry(opcodes.VALTYPE_F32, n)
 
     @classmethod
     def from_f64(cls, n):
-        return Entry(opcodes.VALUE_TYPE_F64, n)
+        return Entry(opcodes.VALTYPE_F64, n)
 
     @classmethod
     def from_val(cls, kind: int, n):
-        if kind == opcodes.VALUE_TYPE_I32:
+        if kind == opcodes.VALTYPE_I32:
             return cls.from_i32(n)
-        if kind == opcodes.VALUE_TYPE_I64:
+        if kind == opcodes.VALTYPE_I64:
             return cls.from_i64(n)
-        if kind == opcodes.VALUE_TYPE_F32:
+        if kind == opcodes.VALTYPE_F32:
             return cls.from_f32(n)
-        if kind == opcodes.VALUE_TYPE_F64:
+        if kind == opcodes.VALTYPE_F64:
             return cls.from_f64(n)
         raise NotImplementedError()
 
@@ -67,13 +67,13 @@ class Entry:
         return self.n
 
     def into_val(self):
-        if self.kind == opcodes.VALUE_TYPE_I32:
+        if self.kind == opcodes.VALTYPE_I32:
             return self.into_i32()
-        if self.kind == opcodes.VALUE_TYPE_I64:
+        if self.kind == opcodes.VALTYPE_I64:
             return self.into_i64()
-        if self.kind == opcodes.VALUE_TYPE_F32:
+        if self.kind == opcodes.VALTYPE_F32:
             return self.into_f32()
-        if self.kind == opcodes.VALUE_TYPE_F64:
+        if self.kind == opcodes.VALTYPE_F64:
             return self.into_f64()
         raise NotImplementedError()
 
