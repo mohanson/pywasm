@@ -1,8 +1,7 @@
 import struct
 import typing
 
-import wasmi.common
-import wasmi.opcodes
+import wasmi.opcodes as opcodes
 import wasmi.num as num
 
 
@@ -19,12 +18,12 @@ class Entry:
     def from_i32(cls, n):
         data = struct.pack('>i', n)
         data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_I32)
+        return Entry(data, opcodes.VALUE_TYPE_I32)
 
     @classmethod
     def from_i64(cls, n):
         data = struct.pack('>q', n)
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_I64)
+        return Entry(data, opcodes.VALUE_TYPE_I64)
 
     @classmethod
     def from_u32(cls, n):
@@ -38,22 +37,22 @@ class Entry:
     def from_f32(cls, n):
         data = struct.pack('>f', n)
         data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_F32)
+        return Entry(data, opcodes.VALUE_TYPE_F32)
 
     @classmethod
     def from_f64(cls, n):
         data = struct.pack('>d', n)
-        return Entry(data, wasmi.opcodes.VALUE_TYPE_F64)
+        return Entry(data, opcodes.VALUE_TYPE_F64)
 
     @classmethod
     def from_val(cls, n, kind: int):
-        if kind == wasmi.opcodes.VALUE_TYPE_I32:
+        if kind == opcodes.VALUE_TYPE_I32:
             return cls.from_i32(num.int2i32(n))
-        if kind == wasmi.opcodes.VALUE_TYPE_I64:
+        if kind == opcodes.VALUE_TYPE_I64:
             return cls.from_i64(num.int2i64(n))
-        if kind == wasmi.opcodes.VALUE_TYPE_F32:
+        if kind == opcodes.VALUE_TYPE_F32:
             return cls.from_f32(n)
-        if kind == wasmi.opcodes.VALUE_TYPE_F64:
+        if kind == opcodes.VALUE_TYPE_F64:
             return cls.from_f64(n)
         raise NotImplementedError()
 
@@ -76,13 +75,13 @@ class Entry:
         return struct.unpack('>d', self.data)[0]
 
     def into_val(self):
-        if self.kind == wasmi.opcodes.VALUE_TYPE_I32:
+        if self.kind == opcodes.VALUE_TYPE_I32:
             return self.into_i32()
-        if self.kind == wasmi.opcodes.VALUE_TYPE_I64:
+        if self.kind == opcodes.VALUE_TYPE_I64:
             return self.into_i64()
-        if self.kind == wasmi.opcodes.VALUE_TYPE_F32:
+        if self.kind == opcodes.VALUE_TYPE_F32:
             return self.into_f32()
-        if self.kind == wasmi.opcodes.VALUE_TYPE_F64:
+        if self.kind == opcodes.VALUE_TYPE_F64:
             return self.into_f64()
         raise NotImplementedError()
 
