@@ -212,7 +212,7 @@ class Vm:
         if self.mod.section_global:
             for e in self.mod.section_global.entries:
                 v = self.exec_init_expr(e.expr.data)
-                self.global_data.append(wasmi.stack.Entry.from_val(e.globaltype.valtype, v))
+                self.global_data.append(wasmi.stack.Entry(e.globaltype.valtype, v))
         if self.mod.section_export:
             pass
         if self.mod.section_start:
@@ -276,7 +276,7 @@ class Vm:
         f_sec = f_fun.code
         for eloc in f_sec.locals:
             for _ in range(eloc.n):
-                e = wasmi.stack.Entry.from_val(eloc.valtype, 0)
+                e = wasmi.stack.Entry(eloc.valtype, 0)
                 ctx.locals_data.append(e)
         ctx.ctack.append([f_sec, ctx.stack.i])
         code = f_sec.expr.data
@@ -391,7 +391,7 @@ class Vm:
                     name = son_f_fun.module + '.' + son_f_fun.name
                     func = self.env.import_func[name]
                     r = func(self.mem, [ctx.stack.pop() for _ in son_f_sig.args][::-1])
-                    e = wasmi.stack.Entry.from_val(ord(son_f_sig.rets), r)
+                    e = wasmi.stack.Entry(ord(son_f_sig.rets), r)
                     ctx.stack.add(e)
                     continue
                 pre_locals_data = ctx.locals_data
@@ -1143,7 +1143,7 @@ class Vm:
         f_sig = self.functions[f_idx].signature
         ergs = []
         for i, valtype in enumerate(f_sig.args):
-            ergs.append(wasmi.stack.Entry.from_val(valtype, args[i]))
+            ergs.append(wasmi.stack.Entry(valtype, args[i]))
         ctx = Ctx(ergs)
         wasmi.log.println('Exec'.center(80, '-'))
         return self.exec_step(f_idx, ctx)

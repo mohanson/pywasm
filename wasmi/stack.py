@@ -28,18 +28,6 @@ class Entry:
     def from_f64(cls, n):
         return Entry(opcodes.VALTYPE_F64, n)
 
-    @classmethod
-    def from_val(cls, valtype: int, n):
-        if valtype == opcodes.VALTYPE_I32:
-            return cls.from_i32(n)
-        if valtype == opcodes.VALTYPE_I64:
-            return cls.from_i64(n)
-        if valtype == opcodes.VALTYPE_F32:
-            return cls.from_f32(n)
-        if valtype == opcodes.VALTYPE_F64:
-            return cls.from_f64(n)
-        raise NotImplementedError()
-
     def into_i32(self):
         return self.n
 
