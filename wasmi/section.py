@@ -121,8 +121,8 @@ class FuncType:
     def __repr__(self):
         name = 'FuncType'
         seps = []
-        seps.append(f'args={[opcodes.VALUE_TYPE_NAME[i] for i in self.args]}')
-        seps.append(f'rets={[opcodes.VALUE_TYPE_NAME[i] for i in self.rets]}')
+        seps.append(f'args={[opcodes.VALTYPE_INFO[i] for i in self.args]}')
+        seps.append(f'rets={[opcodes.VALTYPE_INFO[i] for i in self.rets]}')
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
@@ -151,7 +151,7 @@ class GlobalType:
     def __repr__(self):
         name = 'GlobalType'
         seps = []
-        seps.append(f'valtype={opcodes.VALUE_TYPE_NAME[self.valtype]}')
+        seps.append(f'valtype={opcodes.VALTYPE_INFO[self.valtype]}')
         seps.append(f'mut={self.mut}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -208,7 +208,7 @@ class Export:
     def __repr__(self):
         name = 'Export'
         seps = []
-        seps.append(f'kind={opcodes.EXTERNAL_NAME[self.kind]}')
+        seps.append(f'kind={opcodes.EXTERNAL_INFO[self.kind]}')
         seps.append(f'name={self.name}')
         seps.append(f'idx={self.idx}')
         return f'{name}<{" ".join(seps)}>'
@@ -240,7 +240,7 @@ class Locals:
 class Block:
     def __init__(self, opcode, kind, pos_head):
         self.opcode = opcode  # block opcode (0x00 for init_expr)
-        self.kind = kind  # value_type
+        self.kind = kind  # valtype
         self.pos_head = pos_head
         self.pos_stop = 0
         self.pos_else = 0
@@ -250,7 +250,7 @@ class Block:
         name = 'Block'
         seps = []
         seps.append(f'opcode={opcodes.OP_INFO[self.opcode][0]}')
-        seps.append(f'kind={opcodes.VALUE_TYPE_NAME[self.kind]}')
+        seps.append(f'kind={opcodes.VALTYPE_INFO[self.kind]}')
         seps.append(f'pos_head={self.pos_head}')
         seps.append(f'pos_stop={self.pos_stop}')
         seps.append(f'pos_else={self.pos_else}')
@@ -379,7 +379,7 @@ class Table:
     def __repr__(self):
         name = 'Table'
         seps = []
-        seps.append(f'elemtype={opcodes.VALUE_TYPE_NAME[self.elemtype]}')
+        seps.append(f'elemtype={opcodes.VALTYPE_INFO[self.elemtype]}')
         seps.append(f'limits={self.limits}')
         return f'{name}<{" ".join(seps)}>'
 
@@ -517,7 +517,7 @@ class Section:
     def __repr__(self):
         name = 'Section'
         seps = []
-        seps.append(f'section_id={opcodes.SECTION_NAME[self.section_id]}')
+        seps.append(f'section_id={opcodes.SECTION_INFO[self.section_id]}')
         seps.append(f'contents={self.contents.hex()}')
         return f'{name}<{" ".join(seps)}>'
 

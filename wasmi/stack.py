@@ -5,48 +5,28 @@ import wasmi.num as num
 
 
 class Entry:
-    def __init__(self, kind: int, n):
-        self.kind = kind
+    def __init__(self, valtype: int, n):
+        self.valtype = valtype
         self.n = n
 
     def __repr__(self):
-        return f'{opcodes.VALUE_TYPE_NAME[self.kind]}({self.n})'
+        return f'{opcodes.VALTYPE_INFO[self.valtype]}({self.n})'
 
     @classmethod
     def from_i32(cls, n):
-        return Entry(opcodes.VALUE_TYPE_I32, num.int2i32(n))
+        return Entry(opcodes.VALTYPE_I32, num.int2i32(n))
 
     @classmethod
     def from_i64(cls, n):
-        return Entry(opcodes.VALUE_TYPE_I64, num.int2i64(n))
-
-    @classmethod
-    def from_u32(cls, n):
-        return cls.from_i32(n)
-
-    @classmethod
-    def from_u64(cls, n):
-        return cls.from_i64(n)
+        return Entry(opcodes.VALTYPE_I64, num.int2i64(n))
 
     @classmethod
     def from_f32(cls, n):
-        return Entry(opcodes.VALUE_TYPE_F32, n)
+        return Entry(opcodes.VALTYPE_F32, n)
 
     @classmethod
     def from_f64(cls, n):
-        return Entry(opcodes.VALUE_TYPE_F64, n)
-
-    @classmethod
-    def from_val(cls, kind: int, n):
-        if kind == opcodes.VALUE_TYPE_I32:
-            return cls.from_i32(n)
-        if kind == opcodes.VALUE_TYPE_I64:
-            return cls.from_i64(n)
-        if kind == opcodes.VALUE_TYPE_F32:
-            return cls.from_f32(n)
-        if kind == opcodes.VALUE_TYPE_F64:
-            return cls.from_f64(n)
-        raise NotImplementedError()
+        return Entry(opcodes.VALTYPE_F64, n)
 
     def into_i32(self):
         return self.n
@@ -65,17 +45,6 @@ class Entry:
 
     def into_f64(self):
         return self.n
-
-    def into_val(self):
-        if self.kind == opcodes.VALUE_TYPE_I32:
-            return self.into_i32()
-        if self.kind == opcodes.VALUE_TYPE_I64:
-            return self.into_i64()
-        if self.kind == opcodes.VALUE_TYPE_F32:
-            return self.into_f32()
-        if self.kind == opcodes.VALUE_TYPE_F64:
-            return self.into_f64()
-        raise NotImplementedError()
 
 
 class Stack:
@@ -99,16 +68,10 @@ class Stack:
         return self.data[self.i]
 
     def add_i32(self, n):
-        self.add(Entry.from_i32(num.int2i32(n)))
+        self.add(Entry.from_i32(n))
 
     def add_i64(self, n):
-        self.add(Entry.from_i64(num.int2i64(n)))
-
-    def add_u32(self, n):
-        self.add(Entry.from_u32(num.int2u32(n)))
-
-    def add_u64(self, n):
-        self.add(Entry.from_u64(num.int2u64(n)))
+        self.add(Entry.from_i64(n))
 
     def add_f32(self, n):
         self.add(Entry.from_f32(n))
