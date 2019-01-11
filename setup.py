@@ -7,6 +7,6 @@ setuptools.setup(
     license='WTFPL',
     author='mohanson',
     author_email='mohanson@outlook.com',
-    description='WebAssembly Interpreter by pure Python ',
+    description='WebAssembly Interpreter by pure Python',
     packages=['wasmi'],
 )
