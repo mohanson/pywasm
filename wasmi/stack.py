@@ -21,14 +21,6 @@ class Entry:
         return Entry(opcodes.VALTYPE_I64, num.int2i64(n))
 
     @classmethod
-    def from_u32(cls, n):
-        return cls.from_i32(n)
-
-    @classmethod
-    def from_u64(cls, n):
-        return cls.from_i64(n)
-
-    @classmethod
     def from_f32(cls, n):
         return Entry(opcodes.VALTYPE_F32, n)
 
@@ -103,12 +95,6 @@ class Stack:
 
     def add_i64(self, n):
         self.add(Entry.from_i64(num.int2i64(n)))
-
-    def add_u32(self, n):
-        self.add(Entry.from_u32(num.int2u32(n)))
-
-    def add_u64(self, n):
-        self.add(Entry.from_u64(num.int2u64(n)))
 
     def add_f32(self, n):
         self.add(Entry.from_f32(n))
