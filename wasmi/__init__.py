@@ -268,7 +268,7 @@ class Vm:
                 break
         if not stack.len():
             return 0
-        return stack.pop().into_val()
+        return stack.pop().n
 
     def exec_step(self, f_idx: int, ctx: Ctx):
         f_fun = self.functions[f_idx]
@@ -330,7 +330,7 @@ class Vm:
                         if f_sig.rets:
                             if f_sig.rets[0] != ctx.stack.top().valtype:
                                 raise wasmi.error.WAException('signature mismatch in call_indirect')
-                            return ctx.stack.pop().into_val()
+                            return ctx.stack.pop().n
                         return None
                     return
                 if sp < ctx.stack.i:

@@ -46,17 +46,6 @@ class Entry:
     def into_f64(self):
         return self.n
 
-    def into_val(self):
-        if self.valtype == opcodes.VALTYPE_I32:
-            return self.into_i32()
-        if self.valtype == opcodes.VALTYPE_I64:
-            return self.into_i64()
-        if self.valtype == opcodes.VALTYPE_F32:
-            return self.into_f32()
-        if self.valtype == opcodes.VALTYPE_F64:
-            return self.into_f64()
-        raise NotImplementedError()
-
 
 class Stack:
     def __init__(self):
@@ -79,10 +68,10 @@ class Stack:
         return self.data[self.i]
 
     def add_i32(self, n):
-        self.add(Entry.from_i32(num.int2i32(n)))
+        self.add(Entry.from_i32(n))
 
     def add_i64(self, n):
-        self.add(Entry.from_i64(num.int2i64(n)))
+        self.add(Entry.from_i64(n))
 
     def add_f32(self, n):
         self.add(Entry.from_f32(n))
