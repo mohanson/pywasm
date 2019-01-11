@@ -1119,16 +1119,16 @@ class Vm:
                     continue
             if opcode >= wasmi.opcodes.I32_REINTERPRET_F32 and opcode <= wasmi.opcodes.F64_REINTERPRET_I64:
                 if opcode == wasmi.opcodes.I32_REINTERPRET_F32:
-                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I32
+                    ctx.stack.add_i32(num.f322i32(ctx.stack.pop().into_f32()))
                     continue
                 if opcode == wasmi.opcodes.I64_REINTERPRET_F64:
-                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_I64
+                    ctx.stack.add_i64(num.f642i64(ctx.stack.pop().into_f64()))
                     continue
                 if opcode == wasmi.opcodes.F32_REINTERPRET_I32:
-                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F32
+                    ctx.stack.add_f32(num.i322f32(ctx.stack.pop().into_i32()))
                     continue
                 if opcode == wasmi.opcodes.F64_REINTERPRET_I64:
-                    ctx.stack.top().kind = wasmi.opcodes.VALUE_TYPE_F64
+                    ctx.stack.add_f64(num.i642f64(ctx.stack.pop().into_i64()))
                     continue
 
     def exec(self, name: str, args: typing.List):

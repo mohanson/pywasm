@@ -1,4 +1,3 @@
-import struct
 import typing
 
 import wasmi.opcodes as opcodes
@@ -6,50 +5,43 @@ import wasmi.num as num
 
 
 class Entry:
-    def __init__(self, kind: int, data: bytearray):
-        assert len(data) == 8
+    def __init__(self, kind: int, data):
         self.data = data
         self.kind = kind
 
     def __repr__(self):
-        return f'{self.data.hex()}({self.into_val()})'
+        return f'{opcodes.VALUE_TYPE_NAME[self.kind]}({self.data})'
 
     @classmethod
     def from_i32(cls, n):
-        data = struct.pack('>i', n)
-        data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(opcodes.VALUE_TYPE_I32, data)
+        return Entry(opcodes.VALUE_TYPE_I32, num.int2i32(n))
 
     @classmethod
     def from_i64(cls, n):
-        data = struct.pack('>q', n)
-        return Entry(opcodes.VALUE_TYPE_I64, data)
+        return Entry(opcodes.VALUE_TYPE_I64, num.int2i64(n))
 
     @classmethod
     def from_u32(cls, n):
-        return cls.from_i32(num.int2i32(n))
+        return cls.from_i32(n)
 
     @classmethod
     def from_u64(cls, n):
-        return cls.from_i64(num.int2i64(n))
+        return cls.from_i64(n)
 
     @classmethod
     def from_f32(cls, n):
-        data = struct.pack('>f', n)
-        data = bytearray([0x00, 0x00, 0x00, 0x00]) + data
-        return Entry(opcodes.VALUE_TYPE_F32, data)
+        return Entry(opcodes.VALUE_TYPE_F32, n)
 
     @classmethod
     def from_f64(cls, n):
-        data = struct.pack('>d', n)
-        return Entry(opcodes.VALUE_TYPE_F64, data)
+        return Entry(opcodes.VALUE_TYPE_F64, n)
 
     @classmethod
     def from_val(cls, n, kind: int):
         if kind == opcodes.VALUE_TYPE_I32:
-            return cls.from_i32(num.int2i32(n))
+            return cls.from_i32(n)
         if kind == opcodes.VALUE_TYPE_I64:
-            return cls.from_i64(num.int2i64(n))
+            return cls.from_i64(n)
         if kind == opcodes.VALUE_TYPE_F32:
             return cls.from_f32(n)
         if kind == opcodes.VALUE_TYPE_F64:
@@ -57,22 +49,22 @@ class Entry:
         raise NotImplementedError()
 
     def into_i32(self):
-        return struct.unpack('>i', self.data[4:])[0]
+        return self.data
 
     def into_i64(self):
-        return struct.unpack('>q', self.data)[0]
+        return self.data
 
     def into_u32(self):
-        return num.int2u32(self.into_i32())
+        return num.int2u32(self.data)
 
     def into_u64(self):
-        return num.int2u64(self.into_i64())
+        return num.int2u64(self.data)
 
     def into_f32(self):
-        return struct.unpack('>f', self.data[4:])[0]
+        return self.data
 
     def into_f64(self):
-        return struct.unpack('>d', self.data)[0]
+        return self.data
 
     def into_val(self):
         if self.kind == opcodes.VALUE_TYPE_I32:
