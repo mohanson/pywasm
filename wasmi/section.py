@@ -240,7 +240,7 @@ class Locals:
 class Block:
     def __init__(self, opcode, kind, pos_head):
         self.opcode = opcode  # block opcode (0x00 for init_expr)
-        self.kind = kind  # VALTYPE
+        self.kind = kind  # valtype
         self.pos_head = pos_head
         self.pos_stop = 0
         self.pos_else = 0
