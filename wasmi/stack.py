@@ -1,7 +1,7 @@
 import typing
 
-import wasmi.opcodes as opcodes
-import wasmi.num as num
+import wasmi.num
+import wasmi.spec.valtype
 
 
 class Entry:
@@ -10,23 +10,23 @@ class Entry:
         self.n = n
 
     def __repr__(self):
-        return f'{opcodes.VALTYPE_INFO[self.valtype]}({self.n})'
+        return f'{wasmi.spec.valtype.info[self.valtype]}({self.n})'
 
     @classmethod
     def from_i32(cls, n):
-        return Entry(opcodes.VALTYPE_I32, num.int2i32(n))
+        return Entry(wasmi.spec.valtype.I32, wasmi.num.int2i32(n))
 
     @classmethod
     def from_i64(cls, n):
-        return Entry(opcodes.VALTYPE_I64, num.int2i64(n))
+        return Entry(wasmi.spec.valtype.I64, wasmi.num.int2i64(n))
 
     @classmethod
     def from_f32(cls, n):
-        return Entry(opcodes.VALTYPE_F32, n)
+        return Entry(wasmi.spec.valtype.F32, n)
 
     @classmethod
     def from_f64(cls, n):
-        return Entry(opcodes.VALTYPE_F64, n)
+        return Entry(wasmi.spec.valtype.F64, n)
 
     def into_i32(self):
         return self.n
@@ -35,10 +35,10 @@ class Entry:
         return self.n
 
     def into_u32(self):
-        return num.int2u32(self.n)
+        return wasmi.num.int2u32(self.n)
 
     def into_u64(self):
-        return num.int2u64(self.n)
+        return wasmi.num.int2u64(self.n)
 
     def into_f32(self):
         return self.n
