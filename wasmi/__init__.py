@@ -1,55 +1,48 @@
-import itertools
 import math
 import typing
 
 import wasmi.common
-import wasmi.log
-import wasmi.stack
-import wasmi.section as section
 import wasmi.error
+import wasmi.log
 import wasmi.num
+import wasmi.section
 import wasmi.spec.section
 import wasmi.spec.op
 import wasmi.spec.external
 import wasmi.spec.valtype
-
-# -----------------------------------------------------------------------------
-# About opcode description, see:
-# https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
-# https://github.com/WebAssembly/design/blob/master/Semantics.md
-# -----------------------------------------------------------------------------
+import wasmi.stack
 
 
 class Mod:
     def __init__(self):
-        self.version: int
-        self.sections: typing.List[section.Section] = []
+        self.sections: typing.List[wasmi.section.Section] = []
 
-        self.section_custom: section.SectionUnknown = None
-        self.section_type: section.SectionType = None
-        self.section_import: section.SectionImport = None
-        self.section_function: section.SectionFunction = None
-        self.section_table: section.SectionTable = None
-        self.section_memory: section.SectionMemory = None
-        self.section_global: section.SectionGlobal = None
-        self.section_export: section.SectionExport = None
-        self.section_start: section.SectionStart = None
-        self.section_element: section.SectionElement = None
-        self.section_code: section.SectionCode = None
-        self.section_data: section.SectionData = None
+        self.section_custom: wasmi.section.SectionUnknown = None
+        self.section_type: wasmi.section.SectionType = None
+        self.section_import: wasmi.section.SectionImport = None
+        self.section_function: wasmi.section.SectionFunction = None
+        self.section_table: wasmi.section.SectionTable = None
+        self.section_memory: wasmi.section.SectionMemory = None
+        self.section_global: wasmi.section.SectionGlobal = None
+        self.section_export: wasmi.section.SectionExport = None
+        self.section_start: wasmi.section.SectionStart = None
+        self.section_element: wasmi.section.SectionElement = None
+        self.section_code: wasmi.section.SectionCode = None
+        self.section_data: wasmi.section.SectionData = None
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         mod = Mod()
         mag = wasmi.num.LittleEndian.u32(r.read(4))
         if mag != 0x6d736100:
-            raise wasmi.error.WAException(f'magicv')
+            raise wasmi.error.WAException('invalid magic number')
         ver = wasmi.num.LittleEndian.u32(r.read(4))
-        mod.version = ver
+        if ver != 0x01:
+            raise wasmi.error.WAException('invalid version')
         wasmi.log.println('Section slice'.center(80, '-'))
         for _ in range(1 << 32):
             try:
-                sec = section.Section.from_reader(r)
+                sec = wasmi.section.Section.from_reader(r)
             except Exception as e:
                 break
             else:
@@ -58,63 +51,63 @@ class Mod:
         wasmi.log.println('Section parse'.center(80, '-'))
         for e in mod.sections:
             if e.section_id == wasmi.spec.section.CUSTOM:
-                mod.section_custom = section.SectionCustom.from_section(e)
+                mod.section_custom = wasmi.section.SectionCustom.from_section(e)
                 wasmi.log.println(mod.section_custom)
                 continue
             if e.section_id == wasmi.spec.section.TYPE:
-                mod.section_type = section.SectionType.from_section(e)
+                mod.section_type = wasmi.section.SectionType.from_section(e)
                 wasmi.log.println(f'SectionType')
                 for i in mod.section_type.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.IMPORT:
-                mod.section_import = section.SectionImport.from_section(e)
+                mod.section_import = wasmi.section.SectionImport.from_section(e)
                 wasmi.log.println(f'SectionImport')
                 for i in mod.section_import.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.FUNCTION:
-                mod.section_function = section.SectionFunction.from_section(e)
+                mod.section_function = wasmi.section.SectionFunction.from_section(e)
                 wasmi.log.println(mod.section_function)
                 continue
             if e.section_id == wasmi.spec.section.TABLE:
-                mod.section_table = section.SectionTable.from_section(e)
+                mod.section_table = wasmi.section.SectionTable.from_section(e)
                 wasmi.log.println(mod.section_table)
                 continue
             if e.section_id == wasmi.spec.section.MEMORY:
-                mod.section_memory = section.SectionMemory.from_section(e)
+                mod.section_memory = wasmi.section.SectionMemory.from_section(e)
                 wasmi.log.println(f'SectionMemory')
                 for i in mod.section_memory.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.GLOBAL:
-                mod.section_global = section.SectionGlobal.from_section(e)
+                mod.section_global = wasmi.section.SectionGlobal.from_section(e)
                 wasmi.log.println(f'SectionGlobal')
                 for i in mod.section_global.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.EXPORT:
-                mod.section_export = section.SectionExport.from_section(e)
+                mod.section_export = wasmi.section.SectionExport.from_section(e)
                 wasmi.log.println(f'SectionExport')
                 for i in mod.section_export.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.START:
-                mod.section_start = section.SectionStart.from_section(e)
+                mod.section_start = wasmi.section.SectionStart.from_section(e)
                 wasmi.log.println(mod.section_start)
                 continue
             if e.section_id == wasmi.spec.section.ELEMENT:
-                mod.section_element = section.SectionElement.from_section(e)
+                mod.section_element = wasmi.section.SectionElement.from_section(e)
                 wasmi.log.println(mod.section_element)
                 continue
             if e.section_id == wasmi.spec.section.CODE:
-                mod.section_code = section.SectionCode.from_section(e)
+                mod.section_code = wasmi.section.SectionCode.from_section(e)
                 wasmi.log.println(f'SectionCode')
                 for i in mod.section_code.entries:
                     wasmi.log.println(' ' * 4 + str(i))
                 continue
             if e.section_id == wasmi.spec.section.DATA:
-                mod.section_data = section.SectionData.from_section(e)
+                mod.section_data = wasmi.section.SectionData.from_section(e)
                 wasmi.log.println(f'SectionData')
                 for i in mod.section_data.entries:
                     wasmi.log.println(' ' * 4 + str(i))
