@@ -23,12 +23,9 @@ class Limits:
         self.maximum = maximum
 
     def __repr__(self):
-        name = 'Limits'
-        seps = []
-        seps.append(f'flag={self.flag}')
-        seps.append(f'minimum={self.minimum}')
-        seps.append(f'maximum={self.maximum}')
-        return f'{name}<{" ".join(seps)}>'
+        if self.flag:
+            return f'Limits<minimum={self.minimum} maximum={self.maximum}>'
+        return f'Limits<minimum={self.minimum} maximum=inf>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -51,10 +48,7 @@ class Expression:
         self.data = data
 
     def __repr__(self):
-        name = 'Expression'
-        seps = []
-        seps.append(f'data={self.data.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Expression<data={self.data.hex()}>'
 
     @classmethod
     def skip(cls, opcode: int, r: typing.BinaryIO):
@@ -122,11 +116,9 @@ class FuncType:
         self.rets = rets
 
     def __repr__(self):
-        name = 'FuncType'
-        seps = []
-        seps.append(f'args={[wasmi.spec.valtype.info[i] for i in self.args]}')
-        seps.append(f'rets={[wasmi.spec.valtype.info[i] for i in self.rets]}')
-        return f'{name}<{" ".join(seps)}>'
+        args = [wasmi.spec.valtype.info[i] for i in self.args]
+        rets = [wasmi.spec.valtype.info[i] for i in self.rets]
+        return f'FuncType<args={args} rets={rets}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -152,11 +144,7 @@ class GlobalType:
         self.mut = mut
 
     def __repr__(self):
-        name = 'GlobalType'
-        seps = []
-        seps.append(f'valtype={wasmi.spec.valtype.info[self.valtype]}')
-        seps.append(f'mut={self.mut}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'GlobalType<valtype={wasmi.spec.valtype.info[self.valtype]} mut={self.mut}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -175,11 +163,7 @@ class Global:
         self.expr = expr
 
     def __repr__(self):
-        name = 'Global'
-        seps = []
-        seps.append(f'globaltype={self.globaltype}')
-        seps.append(f'expr={self.expr}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Global<globaltype={self.globaltype} expr={self.expr}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -209,12 +193,7 @@ class Export:
         self.idx = idx
 
     def __repr__(self):
-        name = 'Export'
-        seps = []
-        seps.append(f'kind={wasmi.spec.external.info[self.kind]}')
-        seps.append(f'name={self.name}')
-        seps.append(f'idx={self.idx}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Export<kind={wasmi.spec.external.info[self.kind]} name={self.name} idx={self.idx}>'
 
 
 class Locals:
@@ -227,11 +206,7 @@ class Locals:
         self.valtype = valtype
 
     def __repr__(self):
-        name = 'Locals'
-        seps = []
-        seps.append(f'n={self.n}')
-        seps.append(f'valtype={self.valtype}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Locals<n={self.n} valtype={self.valtype}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -276,12 +251,7 @@ class Code:
         self.pos_br = len(self.expr.data) - 1
 
     def __repr__(self):
-        name = 'Code'
-        seps = []
-        seps.append(f'locals={self.locals}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'bmap={self.bmap}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Code<locals={self.locals} expr={self.expr}>'
 
     def imap(self) -> typing.Dict[int, Block]:
         pc = 0
@@ -351,12 +321,7 @@ class Data:
         self.init = init
 
     def __repr__(self):
-        name = 'Data'
-        seps = []
-        seps.append(f'memidx={self.memidx}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'init={self.init.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Data<memidx={self.memidx} expr={self.expr} init={self.init.hex()}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -380,11 +345,7 @@ class Table:
         self.limits = limits
 
     def __repr__(self):
-        name = 'Table'
-        seps = []
-        seps.append(f'elemtype={wasmi.spec.valtype.info[self.elemtype]}')
-        seps.append(f'limits={self.limits}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Table<elemtype={wasmi.spec.valtype.info[self.elemtype]} limits={self.limits}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -403,10 +364,7 @@ class Memory:
         self.limits = limits
 
     def __repr__(self):
-        name = 'Memory'
-        seps = []
-        seps.append(f'limits={self.limits}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Memory<limits={self.limits}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -440,13 +398,7 @@ class Import:
         self.desc = None
 
     def __repr__(self):
-        name = 'Import'
-        seps = []
-        seps.append(f'kind={self.kind}')
-        seps.append(f'module={self.module}')
-        seps.append(f'name={self.name}')
-        seps.append(f'desc={self.desc}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Import<kind={self.kind} module={self.module} name={self.name} desc={self.desc}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -487,12 +439,7 @@ class Element:
         self.init = init
 
     def __repr__(self):
-        name = 'Element'
-        seps = []
-        seps.append(f'tableidx={self.tableidx}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'init={self.init}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Element<tableidx={self.tableidx} expr={self.expr} init={self.init}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -518,10 +465,7 @@ class Section:
         self.contents: bytearray
 
     def __repr__(self):
-        name = 'Section'
-        seps = []
-        seps.append(f'contents={self.contents.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Section<section_id={self.section_id} contents={self.contents.hex()}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -549,11 +493,7 @@ class SectionCustom:
         self.data: bytearray = None
 
     def __repr__(self):
-        name = 'SectionCustom'
-        seps = []
-        seps.append(f'name={self.name}')
-        seps.append(f'data={self.data}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionCustom<name={self.name} data={self.data}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -576,10 +516,7 @@ class SectionType:
         self.entries: typing.List[FuncType] = []
 
     def __repr__(self):
-        name = 'SectionType'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionType<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -608,10 +545,7 @@ class SectionImport:
         self.entries: typing.List[Import] = []
 
     def __repr__(self):
-        name = 'SectionImport'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionImport<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -637,10 +571,7 @@ class SectionFunction:
         self.entries: typing.List[int] = []
 
     def __repr__(self):
-        name = 'SectionFunction'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionFunction<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -666,11 +597,7 @@ class SectionTable:
         self.dict = {}
 
     def __repr__(self):
-        name = 'SectionTable'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        seps.append(f'dict={self.dict}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionTable<entries={self.entries} dict={self.dict}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -696,10 +623,7 @@ class SectionMemory:
         self.entries: typing.List[Memory] = []
 
     def __repr__(self):
-        name = 'SectionMemory'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionMemory<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -724,10 +648,7 @@ class SectionGlobal:
         self.entries: typing.List[Global] = []
 
     def __repr__(self):
-        name = 'SectionGlobal'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionGlobal<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -756,10 +677,7 @@ class SectionExport:
         self.entries: typing.List[Export] = []
 
     def __repr__(self):
-        name = 'SectionExport'
-        seps = []
-        seps.append(f'entries={",".join([str(e) for e in self.entries])}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionExport<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -787,10 +705,7 @@ class SectionStart:
         self.funcidx: int
 
     def __repr__(self):
-        name = 'SectionStart'
-        seps = []
-        seps.append(f'funcidx={self.funcidx}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionStart<funcidx={self.funcidx}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -813,10 +728,7 @@ class SectionElement:
         self.entries: typing.List[Element] = []
 
     def __repr__(self):
-        name = 'SectionElement'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionElement<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -858,10 +770,7 @@ class SectionCode:
         self.entries: typing.List[Code] = []
 
     def __repr__(self):
-        name = 'SectionCode'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionCode<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
@@ -886,10 +795,7 @@ class SectionData:
         self.entries: typing.List[Data] = []
 
     def __repr__(self):
-        name = 'SectionData'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionData<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
