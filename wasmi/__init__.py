@@ -321,7 +321,7 @@ class Vm:
                 continue
             if opcode == wasmi.spec.op.END:
                 b, sp = ctx.ctack.pop()
-                if isinstance(b, section.Code):
+                if isinstance(b, wasmi.section.Code):
                     if not ctx.ctack:
                         if f_sig.rets:
                             if f_sig.rets[0] != ctx.stack.top().valtype:
@@ -372,7 +372,7 @@ class Vm:
                 continue
             if opcode == wasmi.spec.op.RETURN:
                 while ctx.ctack:
-                    if isinstance(ctx.ctack[-1][0], section.Code):
+                    if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
                         break
                     ctx.ctack.pop()
                 b, _ = ctx.ctack[-1]
