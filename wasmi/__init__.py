@@ -128,9 +128,9 @@ class Ctx:
 
 
 class Function:
-    def __init__(self, signature: section.FuncType):
+    def __init__(self, signature: wasmi.section.FuncType):
         self.signature = signature
-        self.code: section.Code = None
+        self.code: wasmi.section.Code = None
         self.envb = False
         self.module: str
         self.name: str
@@ -146,13 +146,13 @@ class Function:
         return f'{name}<{" ".join(seps)}>'
 
     @classmethod
-    def from_sec(cls, signature: section.FuncType, code: section.Code):
+    def from_sec(cls, signature: wasmi.section.FuncType, code: wasmi.section.Code):
         func = Function(signature)
         func.code = code
         return func
 
     @classmethod
-    def from_env(cls, signature: section.FuncType, module: str, name: str):
+    def from_env(cls, signature: wasmi.section.FuncType, module: str, name: str):
         func = Function(signature)
         func.envb = True
         func.module = module
