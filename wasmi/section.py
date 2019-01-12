@@ -465,7 +465,8 @@ class Section:
         self.contents: bytearray
 
     def __repr__(self):
-        return f'Section<section_id={self.section_id} contents={self.contents.hex()}>'
+        section_id = wasmi.spec.section.info[self.section_id]
+        return f'Section<section_id={section_id} contents={self.contents.hex()}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):

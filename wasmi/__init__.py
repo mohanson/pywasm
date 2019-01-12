@@ -15,8 +15,6 @@ import wasmi.stack
 
 class Mod:
     def __init__(self):
-        self.sections: typing.List[wasmi.section.Section] = []
-
         self.section_custom: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
         self.section_import: wasmi.section.SectionImport = None
@@ -39,17 +37,19 @@ class Mod:
         ver = wasmi.num.LittleEndian.u32(r.read(4))
         if ver != 0x01:
             raise wasmi.error.WAException('invalid version')
+
         wasmi.log.println('Section slice'.center(80, '-'))
+        sections: typing.List[wasmi.section.Section] = []
         for _ in range(1 << 32):
             try:
                 sec = wasmi.section.Section.from_reader(r)
             except Exception as e:
                 break
-            else:
-                wasmi.log.println(sec)
-                mod.sections.append(sec)
+            wasmi.log.println(sec)
+            sections.append(sec)
+
         wasmi.log.println('Section parse'.center(80, '-'))
-        for e in mod.sections:
+        for e in sections:
             if e.section_id == wasmi.spec.section.CUSTOM:
                 mod.section_custom = wasmi.section.SectionCustom.from_section(e)
                 wasmi.log.println(mod.section_custom)
