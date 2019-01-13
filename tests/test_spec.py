@@ -23,8 +23,7 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        with open(os.path.join('./tests/spec/', file), 'rb') as f:
-            mod = wasmi.Mod.from_reader(f)
+        mod = wasmi.Module.open(os.path.join('./tests/spec/', file))
         vm = wasmi.Vm(mod)
         for test in case['tests']:
             function = test['function']

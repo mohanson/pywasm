@@ -13,7 +13,7 @@ import wasmi.spec.valtype
 import wasmi.stack
 
 
-class Mod:
+class Module:
     def __init__(self):
         self.section_custom: wasmi.section.SectionUnknown = None
         self.section_type: wasmi.section.SectionType = None
@@ -35,7 +35,7 @@ class Mod:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        mod = Mod()
+        mod = Module()
         mag = wasmi.num.LittleEndian.u32(r.read(4))
         if mag != 0x6d736100:
             raise wasmi.error.WAException('invalid magic number')
@@ -172,7 +172,7 @@ class Function:
 
 
 class Vm:
-    def __init__(self, mod: Mod, env: Env = None):
+    def __init__(self, mod: Module, env: Env = None):
         self.mod = mod
         self.global_data: typing.List[wasmi.stack.Entry] = []
         self.mem = bytearray()
