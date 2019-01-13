@@ -1,9 +1,12 @@
 import io
 import typing
 
-import wasmi.common as common
-import wasmi.error as error
-import wasmi.opcodes as opcodes
+import wasmi.common
+import wasmi.error
+import wasmi.spec.external
+import wasmi.spec.op
+import wasmi.spec.section
+import wasmi.spec.valtype
 
 
 class Limits:
@@ -20,19 +23,16 @@ class Limits:
         self.maximum = maximum
 
     def __repr__(self):
-        name = 'Limits'
-        seps = []
-        seps.append(f'flag={self.flag}')
-        seps.append(f'minimum={self.minimum}')
-        seps.append(f'maximum={self.maximum}')
-        return f'{name}<{" ".join(seps)}>'
+        if self.flag:
+            return f'Limits<minimum={self.minimum} maximum={self.maximum}>'
+        return f'Limits<minimum={self.minimum} maximum=inf>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         flag = ord(r.read(1))
-        minimum = common.read_leb(r, 32)[1]
+        minimum = wasmi.common.read_leb(r, 32)[1]
         if flag == 1:
-            maximum = common.read_leb(r, 32)[1]
+            maximum = wasmi.common.read_leb(r, 32)[1]
             return Limits(flag, minimum, maximum)
         return Limits(flag, minimum, 0)
 
@@ -48,29 +48,26 @@ class Expression:
         self.data = data
 
     def __repr__(self):
-        name = 'Expression'
-        seps = []
-        seps.append(f'data={self.data.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Expression<data={self.data.hex()}>'
 
     @classmethod
     def skip(cls, opcode: int, r: typing.BinaryIO):
         data = bytearray()
-        for e in opcodes.OP_INFO[opcode][1]:
+        for e in wasmi.spec.op.info[opcode][1]:
             if e == 'leb_1':
-                a = common.read_leb(r, 1)[2]
+                a = wasmi.common.read_leb(r, 1)[2]
                 data.extend(a)
                 continue
             if e == 'leb_7':
-                a = common.read_leb(r, 7)[2]
+                a = wasmi.common.read_leb(r, 7)[2]
                 data.extend(a)
                 continue
             if e == 'leb_32':
-                a = common.read_leb(r, 32)[2]
+                a = wasmi.common.read_leb(r, 32)[2]
                 data.extend(a)
                 continue
             if e == 'leb_64':
-                a = common.read_leb(r, 64)[2]
+                a = wasmi.common.read_leb(r, 64)[2]
                 data.extend(a)
                 continue
             if e == 'bit_32':
@@ -82,10 +79,10 @@ class Expression:
                 data.extend(a)
                 continue
             if e == 'leb_32xleb_32':
-                _, c, a = common.read_leb(r, 64)
+                _, c, a = wasmi.common.read_leb(r, 64)
                 data.extend(a)
                 for _ in range(c):
-                    a = common.read_leb(r, 64)[2]
+                    a = wasmi.common.read_leb(r, 64)[2]
                     data.extend(a)
                 continue
         return data
@@ -97,9 +94,9 @@ class Expression:
         for _ in range(1 << 32):
             op = ord(r.read(1))
             data.append(op)
-            if op in [opcodes.BLOCK, opcodes.LOOP, opcodes.IF]:
+            if op in [wasmi.spec.op.BLOCK, wasmi.spec.op.LOOP, wasmi.spec.op.IF]:
                 d += 1
-            if op == opcodes.END:
+            if op == wasmi.spec.op.END:
                 d -= 1
                 if not d:
                     break
@@ -119,18 +116,16 @@ class FuncType:
         self.rets = rets
 
     def __repr__(self):
-        name = 'FuncType'
-        seps = []
-        seps.append(f'args={[opcodes.VALTYPE_INFO[i] for i in self.args]}')
-        seps.append(f'rets={[opcodes.VALTYPE_INFO[i] for i in self.rets]}')
-        return f'{name}<{" ".join(seps)}>'
+        args = [wasmi.spec.valtype.info[i] for i in self.args]
+        rets = [wasmi.spec.valtype.info[i] for i in self.rets]
+        return f'FuncType<args={args} rets={rets}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         assert ord(r.read(1)) == 0x60
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         args = r.read(n)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         rets = r.read(n)
         return FuncType(list(args), list(rets))
 
@@ -149,11 +144,7 @@ class GlobalType:
         self.mut = mut
 
     def __repr__(self):
-        name = 'GlobalType'
-        seps = []
-        seps.append(f'valtype={opcodes.VALTYPE_INFO[self.valtype]}')
-        seps.append(f'mut={self.mut}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'GlobalType<valtype={wasmi.spec.valtype.info[self.valtype]} mut={self.mut}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -172,11 +163,7 @@ class Global:
         self.expr = expr
 
     def __repr__(self):
-        name = 'Global'
-        seps = []
-        seps.append(f'globaltype={self.globaltype}')
-        seps.append(f'expr={self.expr}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Global<globaltype={self.globaltype} expr={self.expr}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -206,12 +193,7 @@ class Export:
         self.idx = idx
 
     def __repr__(self):
-        name = 'Export'
-        seps = []
-        seps.append(f'kind={opcodes.EXTERNAL_INFO[self.kind]}')
-        seps.append(f'name={self.name}')
-        seps.append(f'idx={self.idx}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Export<kind={wasmi.spec.external.info[self.kind]} name={self.name} idx={self.idx}>'
 
 
 class Locals:
@@ -224,15 +206,11 @@ class Locals:
         self.valtype = valtype
 
     def __repr__(self):
-        name = 'Locals'
-        seps = []
-        seps.append(f'n={self.n}')
-        seps.append(f'valtype={self.valtype}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Locals<n={self.n} valtype={self.valtype}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         valtype = ord(r.read(1))
         return Locals(n, valtype)
 
@@ -249,8 +227,8 @@ class Block:
     def __repr__(self):
         name = 'Block'
         seps = []
-        seps.append(f'opcode={opcodes.OP_INFO[self.opcode][0]}')
-        seps.append(f'kind={opcodes.VALTYPE_INFO[self.kind]}')
+        seps.append(f'opcode={wasmi.spec.op.info[self.opcode][0]}')
+        seps.append(f'kind={wasmi.spec.valtype.info[self.kind]}')
         seps.append(f'pos_head={self.pos_head}')
         seps.append(f'pos_stop={self.pos_stop}')
         seps.append(f'pos_else={self.pos_else}')
@@ -273,12 +251,7 @@ class Code:
         self.pos_br = len(self.expr.data) - 1
 
     def __repr__(self):
-        name = 'Code'
-        seps = []
-        seps.append(f'locals={self.locals}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'bmap={self.bmap}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Code<locals={self.locals} expr={self.expr}>'
 
     def imap(self) -> typing.Dict[int, Block]:
         pc = 0
@@ -288,24 +261,24 @@ class Code:
         for _ in range(1 << 32):
             op = code[pc]
             pc += 1
-            if op >= opcodes.BLOCK and op <= opcodes.IF:
+            if op >= wasmi.spec.op.BLOCK and op <= wasmi.spec.op.IF:
                 b = Block(op, code[pc], pc - 1)
                 bstack.append(b)
                 bmap[pc - 1] = b
                 data = Expression.skip(op, io.BytesIO(code[pc:]))
                 pc += len(data)
                 continue
-            if op == opcodes.ELSE:
-                if bstack[-1].opcode != opcodes.IF:
-                    raise error.WAException('else not matched with if')
+            if op == wasmi.spec.op.ELSE:
+                if bstack[-1].opcode != wasmi.spec.op.IF:
+                    raise wasmi.error.WAException('else not matched with if')
                 bstack[-1].pos_else = pc
                 bmap[bstack[-1].pos_head].pos_else = pc
                 continue
-            if op == opcodes.END:
+            if op == wasmi.spec.op.END:
                 if pc == len(code):
                     break
                 b = bstack.pop()
-                if b.opcode == opcodes.LOOP:
+                if b.opcode == wasmi.spec.op.LOOP:
                     b.pos_stop = pc - 1
                     b.pos_br = b.pos_head + 2
                     continue
@@ -314,16 +287,16 @@ class Code:
                 continue
             data = Expression.skip(op, io.BytesIO(code[pc:]))
             pc += len(data)
-        if op != opcodes.END:
-            raise error.WAException('function block did not end with 0xb')
+        if op != wasmi.spec.op.END:
+            raise wasmi.error.WAException('function block did not end with 0xb')
         if bstack:
-            raise error.WAException('function ended in middle of block')
+            raise wasmi.error.WAException('function ended in middle of block')
         return bmap
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        n = common.read_leb(r, 32)[1]
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         locs = [Locals.from_reader(r) for _ in range(n)]
         expr = Expression.from_reader(r)
         return Code(locs, expr)
@@ -348,18 +321,13 @@ class Data:
         self.init = init
 
     def __repr__(self):
-        name = 'Data'
-        seps = []
-        seps.append(f'memidx={self.memidx}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'init={self.init.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Data<memidx={self.memidx} expr={self.expr} init={self.init.hex()}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        memidx = common.read_leb(r, 32)[1]
+        memidx = wasmi.common.read_leb(r, 32)[1]
         expr = Expression.from_reader(r)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         init = r.read(n)
         return Data(memidx, expr, bytearray(init))
 
@@ -377,11 +345,7 @@ class Table:
         self.limits = limits
 
     def __repr__(self):
-        name = 'Table'
-        seps = []
-        seps.append(f'elemtype={opcodes.VALTYPE_INFO[self.elemtype]}')
-        seps.append(f'limits={self.limits}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Table<elemtype={wasmi.spec.valtype.info[self.elemtype]} limits={self.limits}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -400,10 +364,7 @@ class Memory:
         self.limits = limits
 
     def __repr__(self):
-        name = 'Memory'
-        seps = []
-        seps.append(f'limits={self.limits}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Memory<limits={self.limits}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -437,30 +398,24 @@ class Import:
         self.desc = None
 
     def __repr__(self):
-        name = 'Import'
-        seps = []
-        seps.append(f'kind={self.kind}')
-        seps.append(f'module={self.module}')
-        seps.append(f'name={self.name}')
-        seps.append(f'desc={self.desc}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Import<kind={self.kind} module={self.module} name={self.name} desc={self.desc}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         module = r.read(n).decode()
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         name = r.read(n).decode()
         kind = ord(r.read(1))
         sec = Import(kind, module, name)
-        if kind == opcodes.EXTERNAL_FUNCTION:
-            n = common.read_leb(r, 32)[1]
+        if kind == wasmi.spec.external.FUNCTION:
+            n = wasmi.common.read_leb(r, 32)[1]
             sec.desc = n
-        if kind == opcodes.EXTERNAL_TABLE:
+        if kind == wasmi.spec.external.TABLE:
             sec.desc = Table.from_reader(r)
-        if kind == opcodes.EXTERNAL_MEMORY:
+        if kind == wasmi.spec.external.MEMORY:
             sec.desc = Memory.from_reader(r)
-        if kind == opcodes.EXTERNAL_GLOBAL:
+        if kind == wasmi.spec.external.GLOBAL:
             sec.desc = GlobalType.from_reader(r)
         return sec
 
@@ -484,21 +439,16 @@ class Element:
         self.init = init
 
     def __repr__(self):
-        name = 'Element'
-        seps = []
-        seps.append(f'tableidx={self.tableidx}')
-        seps.append(f'expr={self.expr}')
-        seps.append(f'init={self.init}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'Element<tableidx={self.tableidx} expr={self.expr} init={self.init}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        tableidx = common.read_leb(r, 32)[1]
+        tableidx = wasmi.common.read_leb(r, 32)[1]
         expr = Expression.from_reader(r)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         init = []
         for _ in range(n):
-            e = common.read_leb(r, 32)[1]
+            e = wasmi.common.read_leb(r, 32)[1]
             init.append(e)
         return Element(tableidx, expr, init)
 
@@ -515,16 +465,13 @@ class Section:
         self.contents: bytearray
 
     def __repr__(self):
-        name = 'Section'
-        seps = []
-        seps.append(f'section_id={opcodes.SECTION_INFO[self.section_id]}')
-        seps.append(f'contents={self.contents.hex()}')
-        return f'{name}<{" ".join(seps)}>'
+        section_id = wasmi.spec.section.info[self.section_id]
+        return f'Section<section_id={section_id} contents={self.contents.hex()}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        section_id = common.read_leb(r, 32)[1]
-        n = common.read_leb(r, 32)[1]
+        section_id = wasmi.common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         contents = r.read(n)
         sec = Section()
         sec.section_id = section_id
@@ -547,17 +494,13 @@ class SectionCustom:
         self.data: bytearray = None
 
     def __repr__(self):
-        name = 'SectionCustom'
-        seps = []
-        seps.append(f'name={self.name}')
-        seps.append(f'data={self.data}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionCustom<name={self.name} data={self.data}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionCustom()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         sec.name = r.read(n).decode()
         sec.data = bytearray(r.read(-1))
         return sec
@@ -574,16 +517,13 @@ class SectionType:
         self.entries: typing.List[FuncType] = []
 
     def __repr__(self):
-        name = 'SectionType'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionType<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionType()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = FuncType.from_reader(r)
             sec.entries.append(e)
@@ -606,16 +546,13 @@ class SectionImport:
         self.entries: typing.List[Import] = []
 
     def __repr__(self):
-        name = 'SectionImport'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionImport<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionImport()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Import.from_reader(r)
             sec.entries.append(e)
@@ -635,18 +572,15 @@ class SectionFunction:
         self.entries: typing.List[int] = []
 
     def __repr__(self):
-        name = 'SectionFunction'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionFunction<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionFunction()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
-            _, e, _ = common.read_leb(r, 32)
+            _, e, _ = wasmi.common.read_leb(r, 32)
             sec.entries.append(e)
         return sec
 
@@ -664,17 +598,13 @@ class SectionTable:
         self.dict = {}
 
     def __repr__(self):
-        name = 'SectionTable'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        seps.append(f'dict={self.dict}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionTable<entries={self.entries} dict={self.dict}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionTable()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Table.from_reader(r)
             sec.entries.append(e)
@@ -694,16 +624,13 @@ class SectionMemory:
         self.entries: typing.List[Memory] = []
 
     def __repr__(self):
-        name = 'SectionMemory'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionMemory<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionMemory()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Memory.from_reader(r)
             sec.entries.append(e)
@@ -722,16 +649,13 @@ class SectionGlobal:
         self.entries: typing.List[Global] = []
 
     def __repr__(self):
-        name = 'SectionGlobal'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionGlobal<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionGlobal()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Global.from_reader(r)
             sec.entries.append(e)
@@ -754,21 +678,18 @@ class SectionExport:
         self.entries: typing.List[Export] = []
 
     def __repr__(self):
-        name = 'SectionExport'
-        seps = []
-        seps.append(f'entries={",".join([str(e) for e in self.entries])}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionExport<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionExport()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
-            n = common.read_leb(r, 32)[1]
+            n = wasmi.common.read_leb(r, 32)[1]
             name = r.read(n).decode()
             kind = ord(r.read(1))
-            n = common.read_leb(r, 32)[1]
+            n = wasmi.common.read_leb(r, 32)[1]
             sec.entries.append(Export(kind, name, n))
         return sec
 
@@ -785,16 +706,13 @@ class SectionStart:
         self.funcidx: int
 
     def __repr__(self):
-        name = 'SectionStart'
-        seps = []
-        seps.append(f'funcidx={self.funcidx}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionStart<funcidx={self.funcidx}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionStart()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         sec.funcidx = n
         return sec
 
@@ -811,16 +729,13 @@ class SectionElement:
         self.entries: typing.List[Element] = []
 
     def __repr__(self):
-        name = 'SectionElement'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionElement<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionElement()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Element.from_reader(r)
             sec.entries.append(e)
@@ -856,16 +771,13 @@ class SectionCode:
         self.entries: typing.List[Code] = []
 
     def __repr__(self):
-        name = 'SectionCode'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionCode<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionCode()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Code.from_reader(r)
             sec.entries.append(e)
@@ -884,16 +796,13 @@ class SectionData:
         self.entries: typing.List[Data] = []
 
     def __repr__(self):
-        name = 'SectionData'
-        seps = []
-        seps.append(f'entries={self.entries}')
-        return f'{name}<{" ".join(seps)}>'
+        return f'SectionData<entries={self.entries}>'
 
     @classmethod
     def from_section(cls, f: Section):
         sec = SectionData()
         r = io.BytesIO(f.contents)
-        n = common.read_leb(r, 32)[1]
+        n = wasmi.common.read_leb(r, 32)[1]
         for _ in range(n):
             e = Data.from_reader(r)
             sec.entries.append(e)

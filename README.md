@@ -51,7 +51,7 @@ Generate `fib.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and th
 import wasmi
 
 path = './examples/fib.wasm'
-mod = wasmi.Mod.from_reader(open(path, 'rb'))
+mod = wasmi.Module.open(path)
 vm = wasmi.Vm(mod)
 r = vm.exec('fib', [10])
 print(r) # 55
