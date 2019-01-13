@@ -398,7 +398,7 @@ class Vm:
                     name = son_f_fun.module + '.' + son_f_fun.name
                     func = self.env.import_func[name]
                     r = func(self.mem, [ctx.stack.pop() for _ in son_f_sig.args][::-1])
-                    e = wasmi.stack.Entry(ord(son_f_sig.rets), r)
+                    e = wasmi.stack.Entry(son_f_sig.rets[0], r)
                     ctx.stack.add(e)
                     continue
                 pre_locals_data = ctx.locals_data
