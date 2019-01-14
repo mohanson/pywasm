@@ -116,6 +116,13 @@ class GlobalType:
         return o
 
 
+class ExternalType:
+    # External types classify imports and external values with their respective types.
+    #
+    # externtype ::= func functype | table tabletype | mem memtype | global globaltype
+    pass
+
+
 class Module:
     def __init__(self):
         pass
