@@ -183,6 +183,88 @@ class Expression:
         return o
 
 
+class Function:
+    # The funcs component of a module defines a vector of functions with the following structure:
+    #
+    # func ::= {type typeidx, locals vec(valtype), body expr}
+    pass
+
+
+class Table:
+    # The tables component of a module defines a vector of tables described by their table type:
+    #
+    # table ::= {type tabletype}
+    pass
+
+
+class Memory:
+    # The mems component of a module defines a vector of linear memories (or memories for short) as described by their
+    # memory type:
+    #
+    # mem ::= {type memtype}
+    pass
+
+
+class Global:
+    # The globals component of a module defines a vector of global variables (or globals for short):
+    #
+    # global ::= {type globaltype, init expr}
+    pass
+
+
+class ElementSegment:
+    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+    #
+    # elem ::= {table tableidx, offset expr, init vec(funcidx)}
+    #
+    # The offset is given by a constant expression.
+    pass
+
+
+class DataSegment:
+    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
+    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
+    #
+    # data::={data memidx,offset expr,init vec(byte)}
+    #
+    # The offset is given by a constant expression.
+    pass
+
+
+class StartFunction:
+    # The start component of a module declares the function index of a start function that is automatically invoked
+    # when the module is instantiated, after tables and memories have been initialized.
+    #
+    # start ::= {func funcidx}
+    pass
+
+
+class Export:
+    # The exports component of a module defines a set of exports that become accessible to the host environment once
+    # the module has been instantiated.
+    #
+    # export ::= {name name, desc exportdesc}
+    # exportdesc ::= func funcidx | table tableidx | mem memidx | global globalidx
+    #
+    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
+    # which are referenced through a respective descriptor.
+    pass
+
+
+class Import:
+    # The imports component of a module defines a set of imports that are required for instantiation.
+    #
+    # import ::= {module name, name name, desc importdesc}
+    # importdesc ::= func typeidx | table tabletype | mem memtype | global globaltype
+    #
+    # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
+    # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
+    # descriptor with a respective type that a definition provided during instantiation is required to match. Every
+    # import defines an index in the respective index space. In each index space, the indices of imports go before the
+    # first index of any definition contained in the module itself.
+    pass
+
 
 class Module:
     def __init__(self):

@@ -25,6 +25,7 @@ def op(code, name, code_size, load_size):
     return code
 
 
+# control Instructions
 unreachable = op(0x00, 'unreachable', [], 0)
 nop = op(0x01, 'nop', [], 0)
 block = op(0x02, 'block', ['leb_7'], 0)
@@ -36,19 +37,18 @@ br = op(0x0c, 'br', ['leb_32'], 0)
 br_if = op(0x0d, 'br_if', ['leb_32'], 0)
 br_table = op(0x0e, 'br_table', ['leb_32xleb_32', 'leb_32'], 0)
 return_ = op(0x0f, 'return', [], 0)
-
 call = op(0x10, 'call', ['leb_32'], 0)
 call_indirect = op(0x11, 'call_indirect', ['leb_32', 'leb_1'], 0)
-
+# parametric Instructions
 drop = op(0x1a, 'drop', [], 0)
 select = op(0x1b, 'select', [], 0)
-
+# variable instructions
 get_local = op(0x20, 'local.get', ['leb_32'], 0)
 set_local = op(0x21, 'local.set', ['leb_32'], 0)
 tee_local = op(0x22, 'local.tee', ['leb_32'], 0)
 get_global = op(0x23, 'global.get', ['leb_32'], 0)
 set_global = op(0x24, 'global.set', ['leb_32'], 0)
-
+# memory instructions
 i32_load = op(0x28, 'i32.load', ['leb_32', 'leb_32'], 4)
 i64_load = op(0x29, 'i64.load', ['leb_32', 'leb_32'], 8)
 f32_load = op(0x2a, 'f32.load', ['leb_32', 'leb_32'], 4)
@@ -74,12 +74,11 @@ i64_store16 = op(0x3d, 'i64.store16', ['leb_32', 'leb_32'], 2)
 i64_store32 = op(0x3e, 'i64.store32', ['leb_32', 'leb_32'], 4)
 current_memory = op(0x3f, 'memory.size', ['leb_1'], 0)
 grow_memory = op(0x40, 'memory.grow', ['leb_1'], 1)
-
+# numeric instructions
 i32_const = op(0x41, 'i32.const', ['leb_32'], 2)
 i64_const = op(0x42, 'i64.const', ['leb_64'], 1)
 f32_const = op(0x43, 'f32.const', ['bit_32'], 2)
 f64_const = op(0x44, 'f64.const', ['bit_64'], 4)
-
 i32_eqz = op(0x45, 'i32.eqz', [], 0)
 i32_eq = op(0x46, 'i32.eq', [], 0)
 i32_ne = op(0x47, 'i32.ne', [], 0)
@@ -114,7 +113,6 @@ f64_lt = op(0x63, 'f64.lt', [], 0)
 f64_gt = op(0x64, 'f64.gt', [], 0)
 f64_le = op(0x65, 'f64.le', [], 0)
 f64_ge = op(0x66, 'f64.ge', [], 0)
-
 i32_clz = op(0x67, 'i32.clz', [], 0)
 i32_ctz = op(0x68, 'i32.ctz', [], 0)
 i32_popcnt = op(0x69, 'i32.popcnt', [], 0)
@@ -179,7 +177,6 @@ f64_div = op(0xa3, 'f64.div', [], 0)
 f64_min = op(0xa4, 'f64.min', [], 0)
 f64_max = op(0xa5, 'f64.max', [], 0)
 f64_copysign = op(0xa6, 'f64.copysign', [], 0)
-
 i32_wrap_i64 = op(0xa7, 'i32.wrap_i64', [], 0)
 i32_trunc_sf32 = op(0xa8, 'i32.trunc_f32_s', [], 0)
 i32_trunc_uf32 = op(0xa9, 'i32.trunc_f32_u', [], 0)
@@ -201,8 +198,35 @@ f64_convert_ui32 = op(0xb8, 'f64.convert_i32_u', [], 0)
 f64_convert_si64 = op(0xb9, 'f64.convert_i64_s', [], 0)
 f64_convert_ui64 = op(0xba, 'f64.convert_i64_u', [], 0)
 f64_promote_f32 = op(0xbb, 'f64.promote_f32', [], 0)
-
 i32_reinterpret_f32 = op(0xbc, 'i32.reinterpret_f32', [], 0)
 i64_reinterpret_f64 = op(0xbd, 'i64.reinterpret.f64', [], 0)
 f32_reinterpret_i32 = op(0xbe, 'f32.reinterpret.i32', [], 0)
 f64_reinterpret_i64 = op(0xbf, 'f64.reinterpret.i64', [], 0)
+
+custom_section = 0x00
+type_section = 0x01
+import_section = 0x02
+function_section = 0x03
+table_section = 0x04
+memory_section = 0x05
+global_section = 0x06
+export_section = 0x07
+start_section = 0x08
+element_section = 0x09
+code_section = 0x0a
+data_section = 0x0b
+
+section = {
+    custom_section: ['custom'],
+    type_section: ['type'],
+    import_section: ['import'],
+    function_section: ['function'],
+    table_section: ['table'],
+    memory_section: ['memory'],
+    global_section: ['global'],
+    export_section: ['export'],
+    start_section: ['start'],
+    element_section: ['element'],
+    code_section: ['code'],
+    data_section: ['data'],
+}
