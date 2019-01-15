@@ -123,6 +123,67 @@ class ExternalType:
     pass
 
 
+class Expression:
+    # Function bodies, initialization values for globals, and offsets of element or data segments are given as
+    # expressions, which are sequences of instructions terminated by an end marker.
+    #
+    # expr ::= instr∗ end
+    #
+    # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
+
+    def __init__(self):
+        self.data: bytearray
+
+    def __repr__(self):
+        return f'Expression<data={self.data.hex()}>'
+
+    @classmethod
+    def skip(cls, opcode: int, r: typing.BinaryIO):
+        data = bytearray()
+        for e in convention.opcodes[opcode][1]:
+            if e == 'leb_1':
+                data.extend(num.leb(r, 1)[2])
+            elif e == 'leb_7':
+                data.extend(num.leb(r, 7)[2])
+            elif e == 'leb_32':
+                data.extend(num.leb(r, 32)[2])
+            elif e == 'leb_64':
+                data.extend(num.leb(r, 64)[2])
+            elif e == 'bit_32':
+                data.extend(r.read(4))
+            elif e == 'bit_64':
+                data.extend(r.read(8))
+            elif e == 'leb_32xleb_32':
+                _, c, a = num.leb(r, 32)
+                data.extend(a)
+                for _ in range(c):
+                    data.extend(num.leb(r, 32)[2])
+            else:
+                log.panicln('pywasm: invalid code size')
+        return data
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        data = bytearray()
+        d = 1
+        for _ in range(1 << 32):
+            op = ord(r.read(1))
+            data.append(op)
+            if op in [convention.block, convention.loop, convention.if_]:
+                d += 1
+            elif op == convention.end:
+                d -= 1
+                if not d:
+                    break
+            else:
+                continue
+            data.extend(cls.skip(op, r))
+        o = Expression()
+        o.data = data
+        return o
+
+
+
 class Module:
     def __init__(self):
         pass
