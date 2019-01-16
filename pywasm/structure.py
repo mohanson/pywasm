@@ -1,3 +1,4 @@
+import io
 import typing
 
 from pywasm import common
@@ -194,7 +195,17 @@ class Table:
     # The tables component of a module defines a vector of tables described by their table type:
     #
     # table ::= {type tabletype}
-    pass
+    def __init__(self):
+        self.tabletype: TableType
+
+    def __repr__(self):
+        return f'Table<tabletype={self.tabletype}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Table()
+        o.tabletype = TableType.from_reader(r)
+        return o
 
 
 class Memory:
@@ -263,12 +274,349 @@ class Import:
     # descriptor with a respective type that a definition provided during instantiation is required to match. Every
     # import defines an index in the respective index space. In each index space, the indices of imports go before the
     # first index of any definition contained in the module itself.
-    pass
+    def __init__(self):
+        self.module: str
+        self.name: str
+        self.desc = None
+
+    def __repr__(self):
+        return f'Import<module={self.module} name={self.name} desc={self.desc}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Import()
+        o.module = common.read_bytes(r, 32).decode()
+        o.name = common.read_bytes(r, 32).decode()
+        kind = ord(r.read(1))
+        if kind == 0x00:
+            o.desc = common.read_count(r, 32)
+        elif kind == 0x01:
+            o.desc = TableType.from_reader(r)
+        elif kind == 0x02:
+            o.desc = MemoryType.from_reader(r)
+        elif kind == 0x03:
+            o.desc = GlobalType.from_reader(r)
+        else:
+            log.panicln('pywasm: malformed')
+        return o
+
+
+class CustomSection:
+    # Custom sections have the id 0. They are intended to be used for debugging
+    # information or third-party extensions, and are ignored by the WebAssembly
+    # semantics. Their contents consist of a name further identifying the custom
+    # section, followed by an uninterpreted sequence of bytes for custom use.
+    #
+    # customsec ::= section0(custom)
+    # custom ::= name byte∗
+    def __init__(self):
+        self.name: str = None
+        self.data: bytearray = None
+
+    def __repr__(self):
+        return f'Custom<name={self.name} data={self.data}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = CustomSection()
+        n = common.read_count(r, 32)
+        o.name = r.read(n).decode()
+        o.data = bytearray(r.read(-1))
+        return o
+
+
+class TypeSection:
+    # The type section has the id 1. It decodes into a vector of function
+    # types that represent the types component of a module.
+    #
+    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
+
+    def __init__(self):
+        self.vec: typing.List[FunctionType] = []
+
+    def __repr__(self):
+        return f'TypeSection<vec={self.vec}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TypeSection()
+        n = common.read_count(r, 32)
+        o.vec = [FunctionType.from_reader(r) for _ in range(n)]
+        return o
+
+
+class ImportSection:
+    # The import section has the id 2. It decodes into a vector of imports
+    # that represent the imports component of a module.
+    #
+    # importsec ::= im∗:section2(vec(import)) ⇒ im∗
+    # import ::= mod:name nm:name d:importdesc ⇒ {module mod, name nm, desc d}
+    # importdesc ::= 0x00 x:typeidx ⇒ func x
+    #              | 0x01 tt:tabletype ⇒ table tt
+    #              | 0x02 mt:memtype ⇒ mem mt
+    #              | 0x03 gt:globaltype ⇒ global gt
+
+    def __init__(self):
+        self.vec: typing.List[Import] = []
+
+    def __repr__(self):
+        return f'ImportSection<vec={self.vec}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ImportSection()
+        n = common.read_count(r, 32)
+        o.vec = [Import.from_reader(r) for _ in range(n)]
+        return o
+
+
+class FunctionSection:
+    # The function section has the id 3. It decodes into a vector of type
+    # indices that represent the type fields of the functions in the funcs
+    # component of a module. The locals and body fields of the respective
+    # functions are encoded separately in the code section.
+    #
+    # funcsec ::= x∗:section3(vec(typeidx)) ⇒ x∗
+
+    def __init__(self):
+        self.vec: typing.List[int] = []
+
+    def __repr__(self):
+        return f'FunctionSection<vec={self.vec}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = FunctionSection()
+        n = common.read_count(r, 32)
+        o.vec = [common.read_count(r, 32) for _ in range(n)]
+        return o
+
+
+class TableSection:
+    # The table section has the id 4. It decodes into a vector of tables that
+    # represent the tables component of a module.
+    #
+    # tablesec ::= tab∗:section4(vec(table)) ⇒ tab∗
+    # table ::= tt:tabletype ⇒ {type tt}
+
+    def __init__(self):
+        self.vec: typing.List[Table] = []
+
+    def __repr__(self):
+        return f'TableSection<vec={self.vec}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TableSection()
+        n = common.read_count(r, 32)
+        o.vec = [Table.from_reader(r) for _ in range(n)]
+        return o
+
+
+# class SectionMemory:
+#     """The memory section has the id 5. It decodes into a vector of memories
+#     that represent the mems component of a module.
+
+#     memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
+#     mem ::= mt:memtype ⇒ {type mt}
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Memory] = []
+
+#     def __repr__(self):
+#         return f'SectionMemory<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionMemory()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             e = Memory.from_reader(r)
+#             sec.entries.append(e)
+#         return sec
+
+
+# class SectionGlobal:
+#     """The global section has the id 6. It decodes into a vector of globals
+#     that represent the globals component of a module.
+
+#     globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
+#     global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Global] = []
+
+#     def __repr__(self):
+#         return f'SectionGlobal<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionGlobal()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             e = Global.from_reader(r)
+#             sec.entries.append(e)
+#         return sec
+
+
+# class SectionExport:
+#     """The export section has the id 7. It decodes into a vector of exports
+#     that represent the exports component of a module.
+
+#     exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
+#     export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
+#     exportdesc ::= 0x00 x:funcidx ⇒ func x
+#                  | 0x01 x:tableidx ⇒ table x
+#                  | 0x02 x:memidx ⇒ mem x
+#                  | 0x03 x:globalidx⇒global x
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Export] = []
+
+#     def __repr__(self):
+#         return f'SectionExport<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionExport()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             n = wasmi.common.read_leb(r, 32)[1]
+#             name = r.read(n).decode()
+#             kind = ord(r.read(1))
+#             n = wasmi.common.read_leb(r, 32)[1]
+#             sec.entries.append(Export(kind, name, n))
+#         return sec
+
+
+# class SectionStart:
+#     """The start section has the id 8. It decodes into an optional start
+#     function that represents the start component of a module.
+
+#     startsec ::= st?:section8(start) ⇒ st?
+#     start ::= x:funcidx ⇒ {func x}
+#     """
+
+#     def __init__(self):
+#         self.funcidx: int
+
+#     def __repr__(self):
+#         return f'SectionStart<funcidx={self.funcidx}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionStart()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         sec.funcidx = n
+#         return sec
+
+
+# class SectionElement:
+#     """The element section has the id 9. It decodes into a vector of element
+#     segments that represent the elem component of a module.
+
+#     elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
+#     elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Element] = []
+
+#     def __repr__(self):
+#         return f'SectionElement<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionElement()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             e = Element.from_reader(r)
+#             sec.entries.append(e)
+#         return sec
+
+
+# class SectionCode:
+#     """The code section has the id 10. It decodes into a vector of code
+#     entries that are pairs of value type vectors and expressions. They
+#     represent the locals and body field of the functions in the funcs
+#     component of a module. The type fields of the respective functions are
+#     encoded separately in the function section.
+
+#     The encoding of each code entry consists of
+#         1. the u32 size of the function code in bytes,
+#         2. the actual function code, which in turn consists of
+#             1. the declaration of locals,
+#             2. the function body as an expression.
+
+#     Local declarations are compressed into a vector whose entries consist of
+#         1. a u32 count,
+#         2. a value type,
+
+#     denoting count locals of the same value type.
+
+#     codesec ::= code∗:section10(vec(code)) ⇒ code∗
+#     code ::= size:u32 code:func ⇒ code(ifsize=||func||)
+#     func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
+#     locals ::= n:u32 t:valtype⇒tn
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Code] = []
+
+#     def __repr__(self):
+#         return f'SectionCode<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionCode()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             e = Code.from_reader(r)
+#             sec.entries.append(e)
+#         return sec
+
+
+# class SectionData:
+#     """The data section has the id 11. It decodes into a vector of data
+#     segments that represent the data component of a module.
+
+#     datasec ::= seg∗:section11(vec(data)) ⇒ seg
+#     data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+#     """
+
+#     def __init__(self):
+#         self.entries: typing.List[Data] = []
+
+#     def __repr__(self):
+#         return f'SectionData<entries={self.entries}>'
+
+#     @classmethod
+#     def from_section(cls, f: Section):
+#         sec = SectionData()
+#         r = io.BytesIO(f.contents)
+#         n = wasmi.common.read_leb(r, 32)[1]
+#         for _ in range(n):
+#             e = Data.from_reader(r)
+#             sec.entries.append(e)
+#         return sec
 
 
 class Module:
     def __init__(self):
-        pass
+        self.custom_section: CustomSection = None
+        self.type_section: TypeSection = None
+        self.import_section: ImportSection = None
+        self.function_section: FunctionSection = None
+        self.table_section: TableSection = None
 
     def __repr__(self):
         pass
@@ -284,3 +632,45 @@ class Module:
             log.panicln('pywasm: invalid magic number')
         if list(r.read(4)) != [0x01, 0x00, 0x00, 0x00]:
             log.panicln('pywasm: invalid version')
+        mod = Module()
+        log.debugln('Sections:')
+        while True:
+            section_id_byte = r.read(1)
+            if not section_id_byte:
+                break
+            section_id = ord(section_id_byte)
+            n = common.read_count(r, 32)
+            data = r.read(n)
+            if len(data) != n:
+                log.panicln('pywasm: invalid section size')
+            if section_id == convention.custom_section:
+                mod.custom_section = CustomSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.custom_section)
+            elif section_id == convention.type_section:
+                mod.type_section = TypeSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.type_section)
+            elif section_id == convention.import_section:
+                mod.import_section = ImportSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.import_section)
+            elif section_id == convention.function_section:
+                mod.function_section = FunctionSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.function_section)
+            elif section_id == convention.table_section:
+                mod.table_section = TableSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.table_section)
+            elif section_id == convention.memory_section:
+                pass
+            elif section_id == convention.global_section:
+                pass
+            elif section_id == convention.export_section:
+                pass
+            elif section_id == convention.start_section:
+                pass
+            elif section_id == convention.element_section:
+                pass
+            elif section_id == convention.code_section:
+                pass
+            elif section_id == convention.data_section:
+                pass
+            else:
+                log.panicln('pywasm: invalid section id')
