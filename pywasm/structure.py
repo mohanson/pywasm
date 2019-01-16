@@ -265,7 +265,17 @@ class Memory:
     # memory type:
     #
     # mem ::= {type memtype}
-    pass
+    def __init__(self):
+        self.memtype: MemoryType
+
+    def __repr__(self):
+        return f'Memory<memtype={self.memtype}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Memory()
+        o.memtype = MemoryType.from_reader(r)
+        return o
 
 
 class Global:
@@ -465,29 +475,25 @@ class TableSection:
         return o
 
 
-# class SectionMemory:
-#     """The memory section has the id 5. It decodes into a vector of memories
-#     that represent the mems component of a module.
+class MemorySection:
+    # The memory section has the id 5. It decodes into a vector of memories
+    # that represent the mems component of a module.
+    #
+    # memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
+    # mem ::= mt:memtype ⇒ {type mt}
 
-#     memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
-#     mem ::= mt:memtype ⇒ {type mt}
-#     """
+    def __init__(self):
+        self.vec: typing.List[Memory] = []
 
-#     def __init__(self):
-#         self.entries: typing.List[Memory] = []
+    def __repr__(self):
+        return f'Memory<vec={self.vec}>'
 
-#     def __repr__(self):
-#         return f'SectionMemory<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionMemory()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             e = Memory.from_reader(r)
-#             sec.entries.append(e)
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = MemorySection()
+        n = common.read_count(r, 32)
+        o.vec = [Memory.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class SectionGlobal:
@@ -669,6 +675,7 @@ class Module:
         self.import_section: ImportSection = None
         self.function_section: FunctionSection = None
         self.table_section: TableSection = None
+        self.memory_section: MemorySection = None
 
     def __repr__(self):
         pass
@@ -711,7 +718,8 @@ class Module:
                 mod.table_section = TableSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.table_section)
             elif section_id == convention.memory_section:
-                pass
+                mod.memory_section = MemorySection.from_reader(io.BytesIO(data))
+                log.debugln(mod.memory_section)
             elif section_id == convention.global_section:
                 pass
             elif section_id == convention.export_section:
