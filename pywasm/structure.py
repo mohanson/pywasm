@@ -123,6 +123,94 @@ class ExternalType:
     pass
 
 
+class Instruction:
+    # Instructions are encoded by opcodes. Each opcode is represented by a single byte, and is followed by the
+    # instruction’s immediate arguments, where present. The only exception are structured control instructions,
+    # which consist of several opcodes bracketing their nested instruction sequences.
+    def __init__(self):
+        self.code: int
+        self.immediate_arguments = None
+
+    def __repr__(self):
+        if self.immediate_arguments is None:
+            return f'{convention.opcodes[self.code][0]}'
+        return f'{convention.opcodes[self.code][0]} {self.immediate_arguments}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        code_byte = r.read(1)
+        if not code_byte:
+            return None
+        code = ord(code_byte)
+        code_size = convention.opcodes[code][1]
+        o = Instruction()
+        o.code = code
+        if code_size == '':
+            pass
+        elif code_size == 'u8':
+            o.immediate_arguments = common.read_count(r, 8)
+        elif code_size == 'u32':
+            o.immediate_arguments = common.read_count(r, 32)
+        elif code_size == 'i32':
+            o.immediate_arguments = common.read_count(r, 32, signed=True)
+        elif code_size == 'i64':
+            o.immediate_arguments = common.read_count(r, 64, signed=True)
+        elif code_size == 'f32':
+            o.immediate_arguments = num.LittleEndian.f32(r.read(4))
+        elif code_size == 'f64':
+            o.immediate_arguments = num.LittleEndian.f64(r.read(8))
+        elif code_size == 'u32,u32':
+            o.immediate_arguments = [common.read_count(r, 32) for _ in range(2)]
+        elif code_size == 'complex':
+            if code in [convention.block, convention.loop, convention.if_]:
+                rt = ord(r.read(1))
+                instar = []
+                if code == convention.if_:
+                    instar_else = []
+                    while True:
+                        i = Instruction.from_reader(r)
+                        instar.append(i)
+                        if i.code in [convention.else_, convention.end]:
+                            break
+                    if instar[-1].code == convention.else_:
+                        while True:
+                            i = Instruction.from_reader(r)
+                            instar_else.append(i)
+                            if i.code == convention.end:
+                                break
+                    o.immediate_arguments = [rt, instar, instar_else]
+                else:
+                    while True:
+                        i = Instruction.from_reader(r)
+                        instar.append(i)
+                        if i.code == convention.end:
+                            break
+                    o.immediate_arguments = [rt, instar]
+            elif code in [convention.br, convention.br_if]:
+                # seems unnecessary to be handled separately
+                pass
+            elif code == convention.br_table:
+                n = common.read_count(r, 32)
+                a = [common.read_count(r, 32) for _ in range(n)]
+                b = common.read_count(r, 32)
+                o.immediate_arguments = [a, b]
+            elif code == convention.call:
+                funcidx = common.read_count(r, 32)
+                o.immediate_arguments = funcidx
+            elif code == convention.call_indirect:
+                typeidx = common.read_count(r, 32)
+                # In future versions of WebAssembly, the zero byte occurring in the encoding of the call_indirect
+                # instruction may be used to index additional tables.
+                if r.read(1) != 0x00:
+                    log.println("pywasm: zero byte malformed in call_indirect")
+                o.immediate_arguments = typeidx
+            else:
+                log.panicln('pywasm: invalid code size')
+        else:
+            log.panicln('pywasm: invalid code size')
+        return o
+
+
 class Expression:
     # Function bodies, initialization values for globals, and offsets of element or data segments are given as
     # expressions, which are sequences of instructions terminated by an end marker.
@@ -130,56 +218,20 @@ class Expression:
     # expr ::= instr∗ end
     #
     # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
-
     def __init__(self):
-        self.data: bytearray
+        self.data: typing.List[Instruction] = []
 
     def __repr__(self):
-        return f'Expression<data={self.data.hex()}>'
-
-    @classmethod
-    def skip(cls, opcode: int, r: typing.BinaryIO):
-        data = bytearray()
-        for e in convention.opcodes[opcode][1]:
-            if e == 'leb_1':
-                data.extend(num.leb(r, 1)[2])
-            elif e == 'leb_7':
-                data.extend(num.leb(r, 7)[2])
-            elif e == 'leb_32':
-                data.extend(num.leb(r, 32)[2])
-            elif e == 'leb_64':
-                data.extend(num.leb(r, 64)[2])
-            elif e == 'bit_32':
-                data.extend(r.read(4))
-            elif e == 'bit_64':
-                data.extend(r.read(8))
-            elif e == 'leb_32xleb_32':
-                _, c, a = num.leb(r, 32)
-                data.extend(a)
-                for _ in range(c):
-                    data.extend(num.leb(r, 32)[2])
-            else:
-                log.panicln('pywasm: invalid code size')
-        return data
+        return f'Expression<data={self.data}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        data = bytearray()
-        d = 1
-        for _ in range(1 << 32):
-            op = ord(r.read(1))
-            data.append(op)
-            if op in [convention.block, convention.loop, convention.if_]:
-                d += 1
-            elif op == convention.end:
-                d -= 1
-                if not d:
-                    break
-            else:
-                continue
-            data.extend(cls.skip(op, r))
         o = Expression()
-        o.data = data
+        while True:
+            i = Instruction.from_reader(r)
+            if not i:
+                break
+            o.data.append(i)
         return o
 
 
