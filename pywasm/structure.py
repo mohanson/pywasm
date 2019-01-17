@@ -621,7 +621,7 @@ class ElementSection:
     # elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
     # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
     def __init__(self):
-        self.vec: typing.List[Element]
+        self.vec: typing.List[ElementSegment]
 
     def __repr__(self):
         return f'ElementSection<vec={self.vec}>'
