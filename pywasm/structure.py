@@ -282,7 +282,19 @@ class Global:
     # The globals component of a module defines a vector of global variables (or globals for short):
     #
     # global ::= {type globaltype, init expr}
-    pass
+    def __init__(self):
+        self.globaltype: GlobalType
+        self.expr: Expression
+
+    def __repr__(self):
+        return f'Global<globaltype={self.globaltype} expr={self.expr}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Global()
+        o.globaltype = GlobalType.from_reader(r)
+        o.expr = Expression.from_reader(r)
+        return o
 
 
 class ElementSegment:
@@ -322,7 +334,21 @@ class Export:
     #
     # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
     # which are referenced through a respective descriptor.
-    pass
+    def __init__(self):
+        self.name: str
+        self.kind: int
+        self.desc = None
+
+    def __repr__(self):
+        return f'Import<name={self.name} desc={self.desc}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Export()
+        o.name = common.read_bytes(r, 32).decode()
+        o.kind = ord(r.read(1))
+        o.desc = common.read_count(r, 32)
+        return o
 
 
 class Import:
@@ -339,6 +365,7 @@ class Import:
     def __init__(self):
         self.module: str
         self.name: str
+        self.kind: int
         self.desc = None
 
     def __repr__(self):
@@ -349,14 +376,14 @@ class Import:
         o = Import()
         o.module = common.read_bytes(r, 32).decode()
         o.name = common.read_bytes(r, 32).decode()
-        kind = ord(r.read(1))
-        if kind == 0x00:
+        o.kind = ord(r.read(1))
+        if o.kind == 0x00:
             o.desc = common.read_count(r, 32)
-        elif kind == 0x01:
+        elif o.kind == 0x01:
             o.desc = TableType.from_reader(r)
-        elif kind == 0x02:
+        elif o.kind == 0x02:
             o.desc = MemoryType.from_reader(r)
-        elif kind == 0x03:
+        elif o.kind == 0x03:
             o.desc = GlobalType.from_reader(r)
         else:
             log.panicln('pywasm: malformed')
@@ -496,61 +523,50 @@ class MemorySection:
         return o
 
 
-# class SectionGlobal:
-#     """The global section has the id 6. It decodes into a vector of globals
-#     that represent the globals component of a module.
+class GlobalSection:
+    # The global section has the id 6. It decodes into a vector of globals
+    # that represent the globals component of a module.
+    #
+    # globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
+    # global ::= gt:globaltype e:expr ⇒ {type gt, init e}
 
-#     globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
-#     global ::= gt:globaltype e:expr ⇒ {type gt, init e}
-#     """
+    def __init__(self):
+        self.vec: typing.List[Global] = []
 
-#     def __init__(self):
-#         self.entries: typing.List[Global] = []
+    def __repr__(self):
+        return f'GlobalSection<vec={self.vec}>'
 
-#     def __repr__(self):
-#         return f'SectionGlobal<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionGlobal()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             e = Global.from_reader(r)
-#             sec.entries.append(e)
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = GlobalSection()
+        n = common.read_count(r, 32)
+        o.vec = [Global.from_reader(r) for _ in range(n)]
+        return o
 
 
-# class SectionExport:
-#     """The export section has the id 7. It decodes into a vector of exports
-#     that represent the exports component of a module.
+class ExportSection:
+    # The export section has the id 7. It decodes into a vector of exports
+    # that represent the exports component of a module.
+    #
+    # exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
+    # export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
+    # exportdesc ::= 0x00 x:funcidx ⇒ func x
+    #              | 0x01 x:tableidx ⇒ table x
+    #              | 0x02 x:memidx ⇒ mem x
+    #              | 0x03 x:globalidx⇒global x
 
-#     exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
-#     export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
-#     exportdesc ::= 0x00 x:funcidx ⇒ func x
-#                  | 0x01 x:tableidx ⇒ table x
-#                  | 0x02 x:memidx ⇒ mem x
-#                  | 0x03 x:globalidx⇒global x
-#     """
+    def __init__(self):
+        self.vec: typing.List[Export] = []
 
-#     def __init__(self):
-#         self.entries: typing.List[Export] = []
+    def __repr__(self):
+        return f'ExportSection<vec={self.vec}>'
 
-#     def __repr__(self):
-#         return f'SectionExport<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionExport()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             n = wasmi.common.read_leb(r, 32)[1]
-#             name = r.read(n).decode()
-#             kind = ord(r.read(1))
-#             n = wasmi.common.read_leb(r, 32)[1]
-#             sec.entries.append(Export(kind, name, n))
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ExportSection()
+        n = common.read_count(r, 32)
+        o.vec = [Export.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class SectionStart:
@@ -676,6 +692,8 @@ class Module:
         self.function_section: FunctionSection = None
         self.table_section: TableSection = None
         self.memory_section: MemorySection = None
+        self.global_section: GlobalSection = None
+        self.export_section: ExportSection = None
 
     def __repr__(self):
         pass
@@ -721,9 +739,11 @@ class Module:
                 mod.memory_section = MemorySection.from_reader(io.BytesIO(data))
                 log.debugln(mod.memory_section)
             elif section_id == convention.global_section:
-                pass
+                mod.global_section = GlobalSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.global_section)
             elif section_id == convention.export_section:
-                pass
+                mod.export_section = ExportSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.export_section)
             elif section_id == convention.start_section:
                 pass
             elif section_id == convention.element_section:
