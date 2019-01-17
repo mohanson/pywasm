@@ -322,7 +322,17 @@ class StartFunction:
     # when the module is instantiated, after tables and memories have been initialized.
     #
     # start ::= {func funcidx}
-    pass
+    def __init__(self):
+        self.funcidx: int
+
+    def __repr__(self):
+        return f'StartFunction<funcidx={self.funcidx}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = StartFunction()
+        o.funcidx = common.read_count(r, 32)
+        return o
 
 
 class Export:
@@ -569,27 +579,24 @@ class ExportSection:
         return o
 
 
-# class SectionStart:
-#     """The start section has the id 8. It decodes into an optional start
-#     function that represents the start component of a module.
+class StartSection:
+    # The start section has the id 8. It decodes into an optional start
+    # function that represents the start component of a module.
+    #
+    # startsec ::= st?:section8(start) ⇒ st?
+    # start ::= x:funcidx ⇒ {func x}
 
-#     startsec ::= st?:section8(start) ⇒ st?
-#     start ::= x:funcidx ⇒ {func x}
-#     """
+    def __init__(self):
+        self.start_function: StartFunction
 
-#     def __init__(self):
-#         self.funcidx: int
+    def __repr__(self):
+        return f'StartSection<start_function={self.start_function}>'
 
-#     def __repr__(self):
-#         return f'SectionStart<funcidx={self.funcidx}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionStart()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         sec.funcidx = n
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = StartSection()
+        o.start_function = StartFunction.from_reader(r)
+        return o
 
 
 # class SectionElement:
@@ -694,9 +701,7 @@ class Module:
         self.memory_section: MemorySection = None
         self.global_section: GlobalSection = None
         self.export_section: ExportSection = None
-
-    def __repr__(self):
-        pass
+        self.start_section: StartFunction = None
 
     @classmethod
     def open(cls, file: str):
@@ -745,7 +750,8 @@ class Module:
                 mod.export_section = ExportSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.export_section)
             elif section_id == convention.start_section:
-                pass
+                mod.start_section = StartSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.start_section)
             elif section_id == convention.element_section:
                 pass
             elif section_id == convention.code_section:
