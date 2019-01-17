@@ -1,7 +1,7 @@
 import typing
 
-from pywasm import num
 from pywasm import convention
+from pywasm import num
 
 
 class OperandEntry:
