@@ -224,16 +224,16 @@ code_section = 0x0a
 data_section = 0x0b
 
 section = {
-    custom_section: ['custom'],
-    type_section: ['type'],
-    import_section: ['import'],
-    function_section: ['function'],
-    table_section: ['table'],
-    memory_section: ['memory'],
-    global_section: ['global'],
-    export_section: ['export'],
-    start_section: ['start'],
-    element_section: ['element'],
-    code_section: ['code'],
-    data_section: ['data'],
+    custom_section: ['Custom'],
+    type_section: ['Type'],
+    import_section: ['Import'],
+    function_section: ['Function'],
+    table_section: ['Table'],
+    memory_section: ['Memory'],
+    global_section: ['Global'],
+    export_section: ['Export'],
+    start_section: ['Start'],
+    element_section: ['Element'],
+    code_section: ['Code'],
+    data_section: ['Data'],
 }

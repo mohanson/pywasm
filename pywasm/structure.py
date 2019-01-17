@@ -18,7 +18,9 @@ class FunctionType:
     def __repr__(self):
         args = [convention.valtype[i][0] for i in self.args]
         rets = [convention.valtype[i][0] for i in self.rets]
-        return f'FuncType<args={args} rets={rets}>'
+        a = ', '.join(args)
+        b = rets[0]
+        return f'({a}) -> {b}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -47,7 +49,9 @@ class Limits:
         self.maximum: int
 
     def __repr__(self):
-        return f'Limits<minimum={self.minimum} maximum={self.maximum}>'
+        if self.maximum:
+            return f'minimum={self.minimum} maximum={self.maximum}'
+        return f'minimum={self.minimum}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -84,9 +88,6 @@ class TableType:
         self.limits: Limits
         self.elemtype: int
 
-    def __repr__(self):
-        return f'TableType<limits={self.limits} elemtype={convention.elemtype[self.elemtype]}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
@@ -107,7 +108,9 @@ class GlobalType:
         self.mut: bool
 
     def __repr__(self):
-        return f'GlobalType<valtype={convention.valtype[self.valtype]} mut={self.mut}>'
+        if self.mut:
+            return f'var {convention.valtype[self.valtype]}'
+        return f'const {convention.valtype[self.valtype]}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -222,9 +225,6 @@ class Expression:
     def __init__(self):
         self.data: typing.List[Instruction] = []
 
-    def __repr__(self):
-        return f'Expression<data={self.data}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Expression()
@@ -245,9 +245,6 @@ class Locals:
     def __init__(self):
         self.n: int
         self.valtype: int
-
-    def __repr__(self):
-        return f'Locals<n={self.n} valtype={self.valtype}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -270,7 +267,7 @@ class Function:
         self.expr: Expression
 
     def __repr__(self):
-        return f'Function<locals={self.locals} expr={self.expr}>'
+        return f'locals={self.locals}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -293,7 +290,7 @@ class Table:
         self.tabletype: TableType
 
     def __repr__(self):
-        return f'Table<tabletype={self.tabletype}>'
+        return f'{convention.elemtype[self.tabletype.elemtype][0]} {self.tabletype.limits}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -311,7 +308,7 @@ class Memory:
         self.memtype: MemoryType
 
     def __repr__(self):
-        return f'Memory<memtype={self.memtype}>'
+        return f'{self.memtype}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -329,7 +326,7 @@ class Global:
         self.expr: Expression
 
     def __repr__(self):
-        return f'Global<globaltype={self.globaltype} expr={self.expr}>'
+        return f'{self.globaltype} expr={self.expr}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -350,9 +347,6 @@ class ElementSegment:
         self.tableidx: int
         self.expr: Expression
         self.init: typing.List[int]
-
-    def __repr__(self):
-        return f'ElementSegment<tableidx={self.tableidx} expr={self.expr} init={self.init}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -376,9 +370,6 @@ class DataSegment:
         self.expr: Expression
         self.init: bytearray
 
-    def __repr__(self):
-        return f'DataSegment<memidx={self.memidx} expr={self.expr} init={self.init.hex()}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSegment()
@@ -395,9 +386,6 @@ class StartFunction:
     # start ::= {func funcidx}
     def __init__(self):
         self.funcidx: int
-
-    def __repr__(self):
-        return f'StartFunction<funcidx={self.funcidx}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -421,7 +409,15 @@ class Export:
         self.desc = None
 
     def __repr__(self):
-        return f'Import<name={self.name} desc={self.desc}>'
+        if self.kind == 0:
+            return f'{self.name} -> Function[{self.desc}]'
+        if self.kind == 1:
+            return f'{self.name} -> Table[{self.desc}]'
+        if self.kind == 2:
+            return f'{self.name} -> Memory[{self.desc}]'
+        if self.kind == 3:
+            return f'{self.name} -> Global[{self.desc}]'
+        return f'{self.name}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -450,7 +446,15 @@ class Import:
         self.desc = None
 
     def __repr__(self):
-        return f'Import<module={self.module} name={self.name} desc={self.desc}>'
+        if self.kind == 0:
+            return f'{self.module}.{self.name} -> Function[{self.desc}]'
+        if self.kind == 1:
+            return f'{self.module}.{self.name} -> Table[{self.desc}]'
+        if self.kind == 2:
+            return f'{self.module}.{self.name} -> Memory[{self.desc}]'
+        if self.kind == 3:
+            return f'{self.module}.{self.name} -> Global[{self.desc}]'
+        return f'{self.module}.{self.name}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -483,9 +487,6 @@ class CustomSection:
         self.name: str = None
         self.data: bytearray = None
 
-    def __repr__(self):
-        return f'Custom<name={self.name} data={self.data}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CustomSection()
@@ -503,9 +504,6 @@ class TypeSection:
 
     def __init__(self):
         self.vec: typing.List[FunctionType] = []
-
-    def __repr__(self):
-        return f'TypeSection<vec={self.vec}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -529,9 +527,6 @@ class ImportSection:
     def __init__(self):
         self.vec: typing.List[Import] = []
 
-    def __repr__(self):
-        return f'ImportSection<vec={self.vec}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ImportSection()
@@ -551,9 +546,6 @@ class FunctionSection:
     def __init__(self):
         self.vec: typing.List[int] = []
 
-    def __repr__(self):
-        return f'FunctionSection<vec={self.vec}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionSection()
@@ -571,9 +563,6 @@ class TableSection:
 
     def __init__(self):
         self.vec: typing.List[Table] = []
-
-    def __repr__(self):
-        return f'TableSection<vec={self.vec}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -593,9 +582,6 @@ class MemorySection:
     def __init__(self):
         self.vec: typing.List[Memory] = []
 
-    def __repr__(self):
-        return f'Memory<vec={self.vec}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = MemorySection()
@@ -613,9 +599,6 @@ class GlobalSection:
 
     def __init__(self):
         self.vec: typing.List[Global] = []
-
-    def __repr__(self):
-        return f'GlobalSection<vec={self.vec}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -639,9 +622,6 @@ class ExportSection:
     def __init__(self):
         self.vec: typing.List[Export] = []
 
-    def __repr__(self):
-        return f'ExportSection<vec={self.vec}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ExportSection()
@@ -660,9 +640,6 @@ class StartSection:
     def __init__(self):
         self.start_function: StartFunction
 
-    def __repr__(self):
-        return f'StartSection<start_function={self.start_function}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = StartSection()
@@ -678,9 +655,6 @@ class ElementSection:
     # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
     def __init__(self):
         self.vec: typing.List[ElementSegment]
-
-    def __repr__(self):
-        return f'ElementSection<vec={self.vec}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -716,9 +690,6 @@ class CodeSection:
     def __init__(self):
         self.vec: typing.List[Function] = []
 
-    def __repr__(self):
-        return f'CodeSection<vec={self.vec}>'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CodeSection()
@@ -735,9 +706,6 @@ class DataSection:
     # data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
     def __init__(self):
         self.vec: typing.List[DataSegment] = []
-
-    def __repr__(self):
-        return f'DataSection<vec={self.vec}>'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -775,6 +743,7 @@ class Module:
             log.panicln('pywasm: invalid version')
         mod = Module()
         log.debugln('Sections:')
+        log.debugln()
         while True:
             section_id_byte = r.read(1)
             if not section_id_byte:
@@ -789,25 +758,32 @@ class Module:
                 log.debugln(mod.custom_section)
             elif section_id == convention.type_section:
                 mod.type_section = TypeSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.type_section)
+                for i, e in enumerate(mod.type_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.import_section:
                 mod.import_section = ImportSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.import_section)
+                for i, e in enumerate(mod.import_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.function_section:
                 mod.function_section = FunctionSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.function_section)
+                for i, e in enumerate(mod.function_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] sig={e}')
             elif section_id == convention.table_section:
                 mod.table_section = TableSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.table_section)
+                for i, e in enumerate(mod.table_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.memory_section:
                 mod.memory_section = MemorySection.from_reader(io.BytesIO(data))
-                log.debugln(mod.memory_section)
+                for i, e in enumerate(mod.memory_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.global_section:
                 mod.global_section = GlobalSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.global_section)
+                for i, e in enumerate(mod.global_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.export_section:
                 mod.export_section = ExportSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.export_section)
+                for i, e in enumerate(mod.export_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
             elif section_id == convention.start_section:
                 mod.start_section = StartSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.start_section)
@@ -816,7 +792,26 @@ class Module:
                 log.debugln(mod.element_section)
             elif section_id == convention.code_section:
                 mod.code_section = CodeSection.from_reader(io.BytesIO(data))
-                log.debugln(mod.code_section)
+
+                def printex(instrs: typing.List[Instruction], prefix=0):
+                    preblc = ' ' * prefix
+                    for e in instrs:
+                        a = f'           | {preblc}{convention.opcodes[e.code][0]}'
+                        if e.immediate_arguments is None:
+                            log.debugln(f'{a}')
+                        elif e.code in [convention.block, convention.loop, convention.if_]:
+                            log.debugln(f'{a}')
+                            printex(e.immediate_arguments[1], prefix + 2)
+                            if e.code == convention.if_ and len(e.immediate_arguments) == 3:
+                                log.debugln(' ' * (prefix - 2) + 'else')
+                                printex(e.immediate_arguments[2], prefix + 2)
+                        elif isinstance(e.immediate_arguments, list):
+                            log.debugln(f'{a} {" ".join(e.immediate_arguments)}')
+                        else:
+                            log.debugln(f'{a} {e.immediate_arguments}')
+                for i, e in enumerate(mod.code_section.vec):
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
+                    printex(e.expr.data)
             elif section_id == convention.data_section:
                 mod.data_section = DataSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.data_section)
