@@ -304,7 +304,22 @@ class ElementSegment:
     # elem ::= {table tableidx, offset expr, init vec(funcidx)}
     #
     # The offset is given by a constant expression.
-    pass
+    def __init__(self):
+        self.tableidx: int
+        self.expr: Expression
+        self.init: typing.List[int]
+
+    def __repr__(self):
+        return f'ElementSegment<tableidx={self.tableidx} expr={self.expr} init={self.init}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementSegment()
+        o.tableidx = common.read_count(r, 32)
+        o.expr = Expression.from_reader(r)
+        n = common.read_count(r, 32)
+        o.init = [common.read_count(r, 32) for _ in range(n)]
+        return o
 
 
 class DataSegment:
@@ -599,29 +614,24 @@ class StartSection:
         return o
 
 
-# class SectionElement:
-#     """The element section has the id 9. It decodes into a vector of element
-#     segments that represent the elem component of a module.
+class ElementSection:
+    # The element section has the id 9. It decodes into a vector of element
+    # segments that represent the elem component of a module.
+    #
+    # elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
+    # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
+    def __init__(self):
+        self.vec: typing.List[Element]
 
-#     elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
-#     elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
-#     """
+    def __repr__(self):
+        return f'ElementSection<vec={self.vec}>'
 
-#     def __init__(self):
-#         self.entries: typing.List[Element] = []
-
-#     def __repr__(self):
-#         return f'SectionElement<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionElement()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             e = Element.from_reader(r)
-#             sec.entries.append(e)
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementSection()
+        n = common.read_count(r, 32)
+        o.vec = [ElementSegment.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class SectionCode:
@@ -702,6 +712,7 @@ class Module:
         self.global_section: GlobalSection = None
         self.export_section: ExportSection = None
         self.start_section: StartFunction = None
+        self.element_section: ElementSection = None
 
     @classmethod
     def open(cls, file: str):
@@ -753,7 +764,8 @@ class Module:
                 mod.start_section = StartSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.start_section)
             elif section_id == convention.element_section:
-                pass
+                mod.element_section = ElementSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.element_section)
             elif section_id == convention.code_section:
                 pass
             elif section_id == convention.data_section:
