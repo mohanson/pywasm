@@ -236,11 +236,53 @@ class Expression:
         return o
 
 
+class Locals:
+    # The locals declare a vector of mutable local variables and their types. These variables are referenced through
+    # local indices in the function’s body. The index of the first local is the smallest index not referencing a
+    # parameter.
+    #
+    # locals ::= n:u32 t:valtype ⇒ tn
+    def __init__(self):
+        self.n: int
+        self.valtype: int
+
+    def __repr__(self):
+        return f'Locals<n={self.n} valtype={self.valtype}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Locals()
+        o.n = common.read_count(r, 32)
+        o.valtype = ord(r.read(1))
+        return o
+
+
+# code ::= size:u32 code:func ⇒ code(ifsize=||func||)
+# func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
+# locals ::= n:u32 t:valtype⇒tn
+
 class Function:
     # The funcs component of a module defines a vector of functions with the following structure:
     #
     # func ::= {type typeidx, locals vec(valtype), body expr}
-    pass
+    def __init__(self):
+        self.locals: typing.List[int] = []
+        self.expr: Expression
+
+    def __repr__(self):
+        return f'Function<locals={self.locals} expr={self.expr}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Function()
+        n = common.read_count(r, 32)
+        n = common.read_count(r, 32)
+        for _ in range(n):
+            n = common.read_count(r, 32)
+            valtype = ord(r.read(1))
+            o.locals.extend([valtype for _ in range(n)])
+        o.expr = Expression.from_reader(r)
+        return o
 
 
 class Table:
@@ -634,46 +676,41 @@ class ElementSection:
         return o
 
 
-# class SectionCode:
-#     """The code section has the id 10. It decodes into a vector of code
-#     entries that are pairs of value type vectors and expressions. They
-#     represent the locals and body field of the functions in the funcs
-#     component of a module. The type fields of the respective functions are
-#     encoded separately in the function section.
+class CodeSection:
+    # The code section has the id 10. It decodes into a vector of code
+    # entries that are pairs of value type vectors and expressions. They
+    # represent the locals and body field of the functions in the funcs
+    # component of a module. The type fields of the respective functions are
+    # encoded separately in the function section.
+    #
+    # The encoding of each code entry consists of
+    #     1. the u32 size of the function code in bytes,
+    #     2. the actual function code, which in turn consists of
+    #         1. the declaration of locals,
+    #         2. the function body as an expression.
+    #
+    # Local declarations are compressed into a vector whose entries consist of
+    #     1. a u32 count,
+    #     2. a value type,
+    #
+    # denoting count locals of the same value type.
+    #
+    # codesec ::= code∗:section10(vec(code)) ⇒ code∗
+    # code ::= size:u32 code:func ⇒ code(ifsize=||func||)
+    # func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
+    # locals ::= n:u32 t:valtype⇒tn
+    def __init__(self):
+        self.vec: typing.List[Function] = []
 
-#     The encoding of each code entry consists of
-#         1. the u32 size of the function code in bytes,
-#         2. the actual function code, which in turn consists of
-#             1. the declaration of locals,
-#             2. the function body as an expression.
+    def __repr__(self):
+        return f'CodeSection<vec={self.vec}>'
 
-#     Local declarations are compressed into a vector whose entries consist of
-#         1. a u32 count,
-#         2. a value type,
-
-#     denoting count locals of the same value type.
-
-#     codesec ::= code∗:section10(vec(code)) ⇒ code∗
-#     code ::= size:u32 code:func ⇒ code(ifsize=||func||)
-#     func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
-#     locals ::= n:u32 t:valtype⇒tn
-#     """
-
-#     def __init__(self):
-#         self.entries: typing.List[Code] = []
-
-#     def __repr__(self):
-#         return f'SectionCode<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionCode()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             e = Code.from_reader(r)
-#             sec.entries.append(e)
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = CodeSection()
+        n = common.read_count(r, 32)
+        o.vec = [Function.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class SectionData:
@@ -713,6 +750,7 @@ class Module:
         self.export_section: ExportSection = None
         self.start_section: StartFunction = None
         self.element_section: ElementSection = None
+        self.code_section: CodeSection = None
 
     @classmethod
     def open(cls, file: str):
@@ -767,7 +805,8 @@ class Module:
                 mod.element_section = ElementSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.element_section)
             elif section_id == convention.code_section:
-                pass
+                mod.code_section = CodeSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.code_section)
             elif section_id == convention.data_section:
                 pass
             else:
