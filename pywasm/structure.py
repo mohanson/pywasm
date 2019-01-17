@@ -371,7 +371,21 @@ class DataSegment:
     # data::={data memidx,offset expr,init vec(byte)}
     #
     # The offset is given by a constant expression.
-    pass
+    def __init__(self):
+        self.memidx: int
+        self.expr: Expression
+        self.init: bytearray
+
+    def __repr__(self):
+        return f'DataSegment<memidx={self.memidx} expr={self.expr} init={self.init.hex()}>'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = DataSegment()
+        o.memidx = common.read_count(r, 32)
+        o.expr = Expression.from_reader(r)
+        o.init = bytearray(common.read_bytes(r, 32))
+        return o
 
 
 class StartFunction:
@@ -713,29 +727,24 @@ class CodeSection:
         return o
 
 
-# class SectionData:
-#     """The data section has the id 11. It decodes into a vector of data
-#     segments that represent the data component of a module.
+class DataSection:
+    # The data section has the id 11. It decodes into a vector of data
+    # segments that represent the data component of a module.
+    #
+    # datasec ::= seg∗:section11(vec(data)) ⇒ seg
+    # data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+    def __init__(self):
+        self.vec: typing.List[DataSegment] = []
 
-#     datasec ::= seg∗:section11(vec(data)) ⇒ seg
-#     data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
-#     """
+    def __repr__(self):
+        return f'DataSection<vec={self.vec}>'
 
-#     def __init__(self):
-#         self.entries: typing.List[Data] = []
-
-#     def __repr__(self):
-#         return f'SectionData<entries={self.entries}>'
-
-#     @classmethod
-#     def from_section(cls, f: Section):
-#         sec = SectionData()
-#         r = io.BytesIO(f.contents)
-#         n = wasmi.common.read_leb(r, 32)[1]
-#         for _ in range(n):
-#             e = Data.from_reader(r)
-#             sec.entries.append(e)
-#         return sec
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = DataSection()
+        n = common.read_count(r, 32)
+        o.vec = [DataSegment.from_reader(r) for _ in range(n)]
+        return o
 
 
 class Module:
@@ -751,6 +760,7 @@ class Module:
         self.start_section: StartFunction = None
         self.element_section: ElementSection = None
         self.code_section: CodeSection = None
+        self.data_section: DataSection = None
 
     @classmethod
     def open(cls, file: str):
@@ -808,6 +818,7 @@ class Module:
                 mod.code_section = CodeSection.from_reader(io.BytesIO(data))
                 log.debugln(mod.code_section)
             elif section_id == convention.data_section:
-                pass
+                mod.data_section = DataSection.from_reader(io.BytesIO(data))
+                log.debugln(mod.data_section)
             else:
                 log.panicln('pywasm: invalid section id')
