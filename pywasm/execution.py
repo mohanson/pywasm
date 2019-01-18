@@ -163,6 +163,31 @@ class Stack:
     pass
 
 
+class AdministrativeInstruction:
+    pass
+
+
+class BlockContext:
+    pass
+
+
+class Configuration:
+    # A configuration consists of the current store and an executing thread.
+    #
+    # A thread is a computation over instructions that operates relative to a current frame referring to the home
+    # module instance that the computation runs in.
+    #
+    # config ::= store;thread
+    # thread ::= frame;instr∗
+    pass
+
+
+class EvaluationContext:
+    # Finally, the following definition of evaluation context and associated structural rules enable reduction inside
+    # instruction sequences and administrative forms as well as the propagation of traps.
+    pass
+
+
 class AbstractMachine:
     def __init__(self):
         self.stack = None
