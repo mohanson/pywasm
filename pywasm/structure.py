@@ -446,13 +446,13 @@ class Import:
         self.desc = None
 
     def __repr__(self):
-        if self.kind == 0:
+        if self.kind == convention.external_func:
             return f'{self.module}.{self.name} -> Function[{self.desc}]'
-        if self.kind == 1:
+        if self.kind == convention.external_table:
             return f'{self.module}.{self.name} -> Table[{self.desc}]'
-        if self.kind == 2:
+        if self.kind == convention.external_mem:
             return f'{self.module}.{self.name} -> Memory[{self.desc}]'
-        if self.kind == 3:
+        if self.kind == convention.external_global:
             return f'{self.module}.{self.name} -> Global[{self.desc}]'
         return f'{self.module}.{self.name}'
 
