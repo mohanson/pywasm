@@ -1,5 +1,5 @@
 from pywasm import log
-from pywasm.execution import AbstractMachine
+from pywasm.execution import AbstractMachine, ModuleInstance
 from pywasm.structure import Module
 
 

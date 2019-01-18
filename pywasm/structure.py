@@ -409,13 +409,13 @@ class Export:
         self.desc = None
 
     def __repr__(self):
-        if self.kind == 0:
+        if self.kind == convention.external_func:
             return f'{self.name} -> Function[{self.desc}]'
-        if self.kind == 1:
+        if self.kind == convention.external_table:
             return f'{self.name} -> Table[{self.desc}]'
-        if self.kind == 2:
+        if self.kind == convention.external_mem:
             return f'{self.name} -> Memory[{self.desc}]'
-        if self.kind == 3:
+        if self.kind == convention.external_global:
             return f'{self.name} -> Global[{self.desc}]'
         return f'{self.name}'
 
@@ -462,13 +462,13 @@ class Import:
         o.module = common.read_bytes(r, 32).decode()
         o.name = common.read_bytes(r, 32).decode()
         o.kind = ord(r.read(1))
-        if o.kind == 0x00:
+        if o.kind == convention.external_func:
             o.desc = common.read_count(r, 32)
-        elif o.kind == 0x01:
+        elif o.kind == convention.external_table:
             o.desc = TableType.from_reader(r)
-        elif o.kind == 0x02:
+        elif o.kind == convention.external_mem:
             o.desc = MemoryType.from_reader(r)
-        elif o.kind == 0x03:
+        elif o.kind == convention.external_global:
             o.desc = GlobalType.from_reader(r)
         else:
             log.panicln('pywasm: malformed')
@@ -817,3 +817,5 @@ class Module:
                 log.debugln(mod.data_section)
             else:
                 log.panicln('pywasm: invalid section id')
+        log.debugln('')
+        return mod

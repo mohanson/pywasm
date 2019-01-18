@@ -1,3 +1,7 @@
+import typing
+
+from pywasm import convention
+from pywasm import log
 from pywasm import structure
 
 
@@ -21,22 +25,6 @@ class Store:
         self.tables = []
         self.mems = []
         self.globals = []
-
-
-class ModuleInstance:
-    # A module instance is the runtime representation of a module. It is created by instantiating a module, and
-    # collects runtime representations of all entities that are imported, defined, or exported by the module.
-    #
-    # moduleinst ::= {
-    #     types functype∗
-    #     funcaddrs funcaddr∗
-    #     tableaddrs tableaddr∗
-    #     memaddrs memaddr∗
-    #     globaladdrs globaladdr∗
-    #     exports exportinst∗
-    # }
-    def __init__(self):
-        pass
 
 
 class FunctionInstance:
@@ -186,6 +174,33 @@ class EvaluationContext:
     # Finally, the following definition of evaluation context and associated structural rules enable reduction inside
     # instruction sequences and administrative forms as well as the propagation of traps.
     pass
+
+
+class ModuleInstance:
+    # A module instance is the runtime representation of a module. It is created by instantiating a module, and
+    # collects runtime representations of all entities that are imported, defined, or exported by the module.
+    #
+    # moduleinst ::= {
+    #     types functype∗
+    #     funcaddrs funcaddr∗
+    #     tableaddrs tableaddr∗
+    #     memaddrs memaddr∗
+    #     globaladdrs globaladdr∗
+    #     exports exportinst∗
+    # }
+    def __init__(self,
+                 module: structure.Module,
+                 externalvals: typing.List[ExternalValue] = None,
+                 vals: typing.List[Value] = None):
+        self.types: typing.List[structure.FunctionType] = []
+        self.funcaddrs: typing.List[int] = []
+        self.tableaddrs: typing.List[int] = []
+        self.memaddrs: typing.List[int] = []
+        self.globaladdrs: typing.List[int] = []
+        self.exports: typing.List[ExportInstance] = []
+
+        self.store = Store()
+        log.debugln("Allocation:")
 
 
 class AbstractMachine:
