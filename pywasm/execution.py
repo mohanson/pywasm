@@ -293,7 +293,17 @@ class ModuleInstance:
                 assert a.value.valtype == b.valtype
             else:
                 log.panicln('pywasm: unlinkable')
-        # Let val be the vector of global initialization values determined by module and externvaln
+        # Let vals be the vector of global initialization values determined by module and externvaln
+        auxmod = ModuleInstance()
+        auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
+        stack = Stack()
+        frame = Frame(auxmod, [])
+        stack.add(frame)
+        vals = []
+        for glob in module.globals:
+            v = AbstractMachine.exec(auxmod, store, stack, glob.expr)
+            vals.append(v)
+        assert isinstance(stack.pop(), Frame)
 
         self.types = module.types
         # [TODO] Imports
@@ -316,13 +326,13 @@ class ModuleInstance:
             store.mems.append(meminst)
             self.memaddrs.append(len(store.mems) - 1)
         # For each global in module.globals, do:
-        for glob in module.globals:
-            val = AbstractMachine.init_expr(store, glob.expr)
-            if val.valtype != glob.globaltype.valtype:
-                log.panicln('pywasm: mismatch valtype')
-            globalinst = GlobalInstance(val, glob.globaltype.mut)
-            store.globals.append(globalinst)
-            self.globaladdrs.append(len(store.globals) - 1)
+        # for glob in module.globals:
+        #     val = AbstractMachine.init_expr(store, glob.expr)
+        #     if val.valtype != glob.globaltype.valtype:
+        #         log.panicln('pywasm: mismatch valtype')
+        #     globalinst = GlobalInstance(val, glob.globaltype.mut)
+        #     store.globals.append(globalinst)
+        #     self.globaladdrs.append(len(store.globals) - 1)
         # For each export in module.exports, do:
         for i, export in enumerate(module.exports):
             externval = ExternValue(export.kind, export.desc)
@@ -333,8 +343,23 @@ class ModuleInstance:
 class AbstractMachine:
 
     @classmethod
-    def init_expr(cls, store: Store, expr: structure.Expression):
-        stack = Stack()
+    def exec(
+        cls,
+        module: ModuleInstance,
+        store: Store,
+        stack: Stack,
+        expr: structure.Expression,
+    ):
+        return cls.init_expr(module, store, stack, expr)
+
+    @classmethod
+    def init_expr(
+        cls,
+        module: ModuleInstance,
+        store: Store,
+        stack: Stack,
+        expr: structure.Expression,
+    ):
         if not expr.data:
             log.panicln('pywasm: empty init expr')
         for i in expr.data:
@@ -348,7 +373,7 @@ class AbstractMachine:
             elif opcode == convention.f64_const:
                 stack.add(Value.from_f64(i.immediate_arguments))
             elif opcode == convention.get_global:
-                stack.add(store.globals[i.immediate_arguments])
+                stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
             elif opcode == convention.end:
                 break
             else:
