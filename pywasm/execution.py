@@ -181,8 +181,17 @@ class Stack:
     #
     # These entries can occur on the stack in any order during the execution of a program. Stack entries are described
     # by abstract syntax as follows.
-    #
-    pass
+    def __init__(self):
+        self.data = []
+
+    def add(self, e):
+        self.data.append(e)
+
+    def pop(self):
+        return self.data.pop()
+
+    def len(self):
+        return len(self.data)
 
 
 class AdministrativeInstruction:
@@ -256,9 +265,35 @@ class ModuleInstance:
             self.memaddrs.append(i)
         # For each global in module.globals, do:
         for i, glob in enumerate(module.globals):
-            globaltype = glob.globaltype
+            val = AbstractMachine.init_expr(store, glob.expr)
+            if val.valtype != glob.globaltype.valtype:
+                log.panicln('pywasm: mismatch valtype')
+            globalinst = GlobalInstance(val, glob.globaltype.mut)
+            store.globals.append(globalinst)
+            self.globaladdrs.append(i)
 
 
 class AbstractMachine:
-    def __init__(self):
-        pass
+
+    @classmethod
+    def init_expr(cls, store: Store, expr: structure.Expression):
+        stack = Stack()
+        if not expr.data:
+            log.panicln('pywasm: empty init expr')
+        for i in expr.data:
+            opcode = i.code
+            if opcode == convention.i32_const:
+                stack.add(Value.from_i32(i.immediate_arguments))
+            elif opcode == convention.i64_const:
+                stack.add(Value.from_i64(i.immediate_arguments))
+            elif opcode == convention.f32_const:
+                stack.add(Value.from_f32(i.immediate_arguments))
+            elif opcode == convention.f64_const:
+                stack.add(Value.from_f64(i.immediate_arguments))
+            elif opcode == convention.get_global:
+                stack.add(store.globals[i.immediate_arguments])
+            elif opcode == convention.end:
+                break
+            else:
+                log.panicln('pywasm: invalid opcode in init expr')
+        return stack.pop()
