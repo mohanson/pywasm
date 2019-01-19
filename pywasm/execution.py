@@ -65,13 +65,15 @@ class TableInstance:
     # Each function element is either empty, representing an uninitialized table entry, or a function address. Function
     # elements can be mutated through the execution of an element segment or by external means provided by the embedder.
     #
-    # tableinst ::= {elem vec(funcelem),max u32?}
+    # tableinst ::= {elem vec(funcelem), max u32?}
     # funcelem ::= funcaddr?
     #
     # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
     # present.
-    def __init__(self):
-        pass
+    def __init__(self, elemtype: int, elem: typing.List, maximum: int):
+        self.elemtype = elemtype
+        self.elem = elem
+        self.maximum = maximum
 
 
 class MemoryInstance:
@@ -212,13 +214,19 @@ class ModuleInstance:
         self.types = module.types
         # For each function func in module.funcs, do:
         for i, func in enumerate(module.funcs):
-            self.funcaddrs.append(i)
             functype = self.types[func.typeidx]
             funcinst = WasmFunc(functype, self, func)
             store.funcs.append(funcinst)
+            self.funcaddrs.append(i)
         # For each table in module.tables, do:
         for i, table in enumerate(module.tables):
-            pass
+            tabletype = table.tabletype
+            elemtype = tabletype.elemtype
+            elem = [None for _ in range(tabletype.limits.minimum)]
+            maximum = tabletype.limits.maximum
+            tableinst = TableInstance(elemtype, elem, maximum)
+            store.tables.append(tableinst)
+            self.tableaddrs.append(i)
 
 
 class AbstractMachine:
