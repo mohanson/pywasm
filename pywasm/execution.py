@@ -283,8 +283,12 @@ class ModuleInstance:
                 assert import_matching_limits(b.limits, a.limits)
             elif e.extern_type == convention.extern_mem:
                 a = store.mems[e.addr]
+                b = module.imports[i].desc
+                assert import_matching_limits(b, a)
             elif e.extern_type == convention.extern_global:
-                a = store.mems[e.addr]
+                a = store.globals[e.addr]
+                b = module.imports[i].desc
+                assert a.value.valtype == b.valtype
             else:
                 log.panicln('pywasm: unlinkable')
 
