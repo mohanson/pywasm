@@ -174,7 +174,9 @@ class Frame:
     #
     # activation ::= framen{frame}
     # frame ::= {locals val∗, module moduleinst}
-    pass
+    def __init__(self, module: 'ModuleInstance', locs: typing.List[Value]):
+        self.module = module
+        self.locals = locs
 
 
 class Stack:
@@ -248,12 +250,7 @@ class ModuleInstance:
     #     globaladdrs globaladdr∗
     #     exports exportinst∗
     # }
-    def __init__(
-        self,
-        module: structure.Module,
-        store: Store,
-        externvals: typing.List[ExternValue] = None,
-    ):
+    def __init__(self):
         self.types: typing.List[structure.FunctionType] = []
         self.funcaddrs: typing.List[int] = []
         self.tableaddrs: typing.List[int] = []
@@ -261,6 +258,12 @@ class ModuleInstance:
         self.globaladdrs: typing.List[int] = []
         self.exports: typing.List[ExportInstance] = []
 
+    def inst(
+        self,
+        module: structure.Module,
+        store: Store,
+        externvals: typing.List[ExternValue] = None,
+    ):
         # [TODO] If module is not valid, then panic
         # Assert: module is valid with external types classifying its imports
         for e in module.imports:
