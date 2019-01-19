@@ -114,7 +114,9 @@ class ExportInstance:
     # external value.
     #
     # exportinst ::= {name name, value externval}
-    pass
+    def __init__(self, name: str, value: 'ExternalValue'):
+        self.name = name
+        self.value = value
 
 
 class ExternalValue:
@@ -125,7 +127,9 @@ class ExternalValue:
     #             | table tableaddr
     #             | mem memaddr
     #             | global globaladdr
-    pass
+    def __init__(self, externval: int, addr: int):
+        self.externval = externval
+        self.addr = addr
 
 
 class Value:
@@ -243,34 +247,40 @@ class ModuleInstance:
         self.exports: typing.List[ExportInstance] = []
 
         self.types = module.types
+        # [TODO] Imports
         # For each function func in module.funcs, do:
-        for i, func in enumerate(module.funcs):
+        for func in module.funcs:
             functype = self.types[func.typeidx]
             funcinst = WasmFunc(functype, self, func)
             store.funcs.append(funcinst)
-            self.funcaddrs.append(i)
+            self.funcaddrs.append(len(store.funcs) - 1)
         # For each table in module.tables, do:
-        for i, table in enumerate(module.tables):
+        for table in module.tables:
             tabletype = table.tabletype
             elemtype = tabletype.elemtype
             elem = [None for _ in range(tabletype.limits.minimum)]
             maximum = tabletype.limits.maximum
             tableinst = TableInstance(elemtype, elem, maximum)
             store.tables.append(tableinst)
-            self.tableaddrs.append(i)
+            self.tableaddrs.append(len(store.tables) - 1)
         # For each memory module.mems, do:
-        for i, mem in enumerate(module.mems):
+        for mem in module.mems:
             meminst = MemoryInstance(mem.memtype.minimum, mem.memtype.maximum)
             store.mems.append(meminst)
-            self.memaddrs.append(i)
+            self.memaddrs.append(len(store.mems) - 1)
         # For each global in module.globals, do:
-        for i, glob in enumerate(module.globals):
+        for glob in module.globals:
             val = AbstractMachine.init_expr(store, glob.expr)
             if val.valtype != glob.globaltype.valtype:
                 log.panicln('pywasm: mismatch valtype')
             globalinst = GlobalInstance(val, glob.globaltype.mut)
             store.globals.append(globalinst)
-            self.globaladdrs.append(i)
+            self.globaladdrs.append(len(store.globals) - 1)
+        # For each export in module.exports, do:
+        for i, export in enumerate(module.exports):
+            externval = ExternalValue(export.kind, export.desc)
+            exportinst = ExportInstance(export.name, externval)
+            self.exports.append(exportinst)
 
 
 class AbstractMachine:
