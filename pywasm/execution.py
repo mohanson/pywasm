@@ -91,7 +91,9 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    pass
+    def __init__(self, minimum: int, maximum: int):
+        self.data = bytearray([0x00 for _ in range(minimum * 64 * 1024)])
+        self.maximum = maximum
 
 
 class GlobalInstance:
@@ -102,7 +104,9 @@ class GlobalInstance:
     #
     # The value of mutable globals can be mutated through variable instructions or by external means provided by the
     # embedder.
-    pass
+    def __init__(self, value: 'Value', mut: bool):
+        self.value = value
+        self.mut = mut
 
 
 class ExportInstance:
@@ -126,7 +130,25 @@ class ExternalValue:
 
 class Value:
     # Values are represented by themselves.
-    pass
+    def __init__(self, valtype: int, n):
+        self.valtype = valtype
+        self.n = n
+
+    @classmethod
+    def from_i32(cls, n):
+        return Value(convention.i32, n)
+
+    @classmethod
+    def from_i64(cls, n):
+        return Value(convention.i64, n)
+
+    @classmethod
+    def from_f32(cls, n):
+        return Value(convention.f32, n)
+
+    @classmethod
+    def from_f64(cls, n):
+        return Value(convention.f64, n)
 
 
 class Label:
@@ -227,6 +249,14 @@ class ModuleInstance:
             tableinst = TableInstance(elemtype, elem, maximum)
             store.tables.append(tableinst)
             self.tableaddrs.append(i)
+        # For each memory module.mems, do:
+        for i, mem in enumerate(module.mems):
+            meminst = MemoryInstance(mem.memtype.minimum, mem.memtype.maximum)
+            store.mems.append(meminst)
+            self.memaddrs.append(i)
+        # For each global in module.globals, do:
+        for i, glob in enumerate(module.globals):
+            globaltype = glob.globaltype
 
 
 class AbstractMachine:
