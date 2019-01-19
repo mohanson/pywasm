@@ -261,14 +261,13 @@ class ModuleInstance:
         self.globaladdrs: typing.List[int] = []
         self.exports: typing.List[ExportInstance] = []
 
-        log.debugln('Instantiation')
         # [TODO] If module is not valid, then panic
-        log.debugln('Assert: module is valid with external types classifying its imports')
+        # Assert: module is valid with external types classifying its imports
         for e in module.imports:
             assert e.kind in convention.extern_type
-        log.debugln('Assert: number m of imports is equal to the number n of provided external values')
+        # Assert: number m of imports is equal to the number n of provided external values
         assert len(module.imports) == len(externvals)
-        log.debugln('Assert: externvals matching imports of module')
+        # Assert: externvals matching imports of module
         for i in range(len(externvals)):
             e = externvals[i]
             if e.extern_type == convention.extern_func:
@@ -291,6 +290,7 @@ class ModuleInstance:
                 assert a.value.valtype == b.valtype
             else:
                 log.panicln('pywasm: unlinkable')
+        # Let val be the vector of global initialization values determined by module and externvaln
 
         self.types = module.types
         # [TODO] Imports
