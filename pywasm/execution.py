@@ -114,12 +114,12 @@ class ExportInstance:
     # external value.
     #
     # exportinst ::= {name name, value externval}
-    def __init__(self, name: str, value: 'ExternalValue'):
+    def __init__(self, name: str, value: 'ExternValue'):
         self.name = name
         self.value = value
 
 
-class ExternalValue:
+class ExternValue:
     # An external value is the runtime representation of an entity that can be imported or exported. It is an address
     # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
     #
@@ -127,8 +127,8 @@ class ExternalValue:
     #             | table tableaddr
     #             | mem memaddr
     #             | global globaladdr
-    def __init__(self, externval: int, addr: int):
-        self.externval = externval
+    def __init__(self, extern_type: int, addr: int):
+        self.extern_type = extern_type
         self.addr = addr
 
 
@@ -235,16 +235,31 @@ class ModuleInstance:
     #     globaladdrs globaladdr∗
     #     exports exportinst∗
     # }
-    def __init__(self, module: structure.Module,
-                 store: Store,
-                 externalvals: typing.List[ExternalValue] = None,
-                 vals: typing.List[Value] = None):
+    def __init__(
+        self,
+        module: structure.Module,
+        store: Store,
+        externvals: typing.List[ExternValue] = None,
+    ):
         self.types: typing.List[structure.FunctionType] = []
         self.funcaddrs: typing.List[int] = []
         self.tableaddrs: typing.List[int] = []
         self.memaddrs: typing.List[int] = []
         self.globaladdrs: typing.List[int] = []
         self.exports: typing.List[ExportInstance] = []
+
+        log.debugln('Instantiation')
+        # [TODO] If module is not valid, then panic
+        log.debugln('Assert: module is valid with external types classifying its imports')
+        for e in module.imports:
+            assert e.kind in convention.extern_type
+        log.debugln('Assert: number m of imports is equal to the number n of provided external values')
+        assert len(module.imports) == len(externvals)
+        # For each external value in externval
+        for i in range(len(externvals)):
+            a = externvals[i]
+            if a.externval == convention.extern_func:
+                pass
 
         self.types = module.types
         # [TODO] Imports
@@ -278,7 +293,7 @@ class ModuleInstance:
             self.globaladdrs.append(len(store.globals) - 1)
         # For each export in module.exports, do:
         for i, export in enumerate(module.exports):
-            externval = ExternalValue(export.kind, export.desc)
+            externval = ExternValue(export.kind, export.desc)
             exportinst = ExportInstance(export.name, externval)
             self.exports.append(exportinst)
 

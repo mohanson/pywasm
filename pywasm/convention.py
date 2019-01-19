@@ -238,14 +238,14 @@ section = {
     data_section: ['Data'],
 }
 
-external_func = 0x00
-external_table = 0x01
-external_mem = 0x02
-external_global = 0x03
+extern_func = 0x00
+extern_table = 0x01
+extern_mem = 0x02
+extern_global = 0x03
 
-externval = {
-    external_func: ['func'],
-    external_table: ['table'],
-    external_mem: ['mem'],
-    external_global: ['global'],
+extern_type = {
+    extern_func: ['func'],
+    extern_table: ['table'],
+    extern_mem: ['mem'],
+    extern_global: ['global'],
 }

@@ -122,7 +122,7 @@ class GlobalType:
         return o
 
 
-class ExternalType:
+class ExternType:
     # External types classify imports and external values with their respective types.
     #
     # externtype ::= func functype | table tabletype | mem memtype | global globaltype
@@ -447,13 +447,13 @@ class Export:
         self.desc = None
 
     def __repr__(self):
-        if self.kind == convention.external_func:
+        if self.kind == convention.extern_func:
             return f'{self.name} -> Function[{self.desc}]'
-        if self.kind == convention.external_table:
+        if self.kind == convention.extern_table:
             return f'{self.name} -> Table[{self.desc}]'
-        if self.kind == convention.external_mem:
+        if self.kind == convention.extern_mem:
             return f'{self.name} -> Memory[{self.desc}]'
-        if self.kind == convention.external_global:
+        if self.kind == convention.extern_global:
             return f'{self.name} -> Global[{self.desc}]'
         return f'{self.name}'
 
@@ -484,13 +484,13 @@ class Import:
         self.desc = None
 
     def __repr__(self):
-        if self.kind == convention.external_func:
+        if self.kind == convention.extern_func:
             return f'{self.module}.{self.name} -> Function[{self.desc}]'
-        if self.kind == convention.external_table:
+        if self.kind == convention.extern_table:
             return f'{self.module}.{self.name} -> Table[{self.desc}]'
-        if self.kind == convention.external_mem:
+        if self.kind == convention.extern_mem:
             return f'{self.module}.{self.name} -> Memory[{self.desc}]'
-        if self.kind == convention.external_global:
+        if self.kind == convention.extern_global:
             return f'{self.module}.{self.name} -> Global[{self.desc}]'
         return f'{self.module}.{self.name}'
 
@@ -500,13 +500,13 @@ class Import:
         o.module = common.read_bytes(r, 32).decode()
         o.name = common.read_bytes(r, 32).decode()
         o.kind = ord(r.read(1))
-        if o.kind == convention.external_func:
+        if o.kind == convention.extern_func:
             o.desc = common.read_count(r, 32)
-        elif o.kind == convention.external_table:
+        elif o.kind == convention.extern_table:
             o.desc = TableType.from_reader(r)
-        elif o.kind == convention.external_mem:
+        elif o.kind == convention.extern_mem:
             o.desc = MemoryType.from_reader(r)
-        elif o.kind == convention.external_global:
+        elif o.kind == convention.extern_global:
             o.desc = GlobalType.from_reader(r)
         else:
             log.panicln('pywasm: malformed')
