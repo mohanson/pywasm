@@ -21,10 +21,10 @@ class Store:
     # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
     # a memory instance in the store, not an offset inside a memory instance.
     def __init__(self):
-        self.funcs = []
-        self.tables = []
-        self.mems = []
-        self.globals = []
+        self.funcs: typing.List[FunctionInstance] = []
+        self.tables: typing.List[TableInstance] = []
+        self.mems: typing.List[MemoryInstance] = []
+        self.globals: typing.List[GlobalInstance] = []
 
 
 class FunctionInstance:
@@ -54,8 +54,9 @@ class HostFunc(FunctionInstance):
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self):
-        pass
+    def __init__(self, functype: structure.FunctionType, hostcode: typing.Callable):
+        self.functype = functype
+        self.hostcode = hostcode
 
 
 class TableInstance:
@@ -70,10 +71,10 @@ class TableInstance:
     #
     # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
     # present.
-    def __init__(self, elemtype: int, elem: typing.List, maximum: int):
+    def __init__(self, elemtype: int, limits: structure.Limits):
         self.elemtype = elemtype
-        self.elem = elem
-        self.maximum = maximum
+        self.limits = limits
+        self.elem = [None for _ in range(limits.minimum)]
 
 
 class MemoryInstance:
@@ -91,9 +92,9 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, minimum: int, maximum: int):
-        self.data = bytearray([0x00 for _ in range(minimum * 64 * 1024)])
-        self.maximum = maximum
+    def __init__(self, limits: structure.Limits):
+        self.limits = limits
+        self.data = bytearray([0x00 for _ in range(limits.minimum * 64 * 1024)])
 
 
 class GlobalInstance:
@@ -223,6 +224,18 @@ class EvaluationContext:
     pass
 
 
+def import_matching_limits(limits1: structure.Limits, limits2: structure.Limits):
+    n1 = limits1.minimum
+    m1 = limits1.maximum
+    n2 = limits2.minimum
+    m2 = limits2.maximum
+    if n1 < n2:
+        return False
+    if m2 is None or (m1 != None and m2 != None and m1 <= m2):
+        return True
+    return False
+
+
 class ModuleInstance:
     # A module instance is the runtime representation of a module. It is created by instantiating a module, and
     # collects runtime representations of all entities that are imported, defined, or exported by the module.
@@ -255,11 +268,25 @@ class ModuleInstance:
             assert e.kind in convention.extern_type
         log.debugln('Assert: number m of imports is equal to the number n of provided external values')
         assert len(module.imports) == len(externvals)
-        # For each external value in externval
+        log.debugln('Assert: externvals matching imports of module')
         for i in range(len(externvals)):
-            a = externvals[i]
-            if a.externval == convention.extern_func:
-                pass
+            e = externvals[i]
+            if e.extern_type == convention.extern_func:
+                a = store.funcs[e.addr]
+                b = self.types[module.imports[i].desc]
+                assert a.functype.args == b.args
+                assert a.functype.rets == b.rets
+            elif e.extern_type == convention.extern_table:
+                a = store.tables[e.addr]
+                b = module.imports[i].desc
+                assert a.elemtype == b.elemtype
+                assert import_matching_limits(b.limits, a.limits)
+            elif e.extern_type == convention.extern_mem:
+                a = store.mems[e.addr]
+            elif e.extern_type == convention.extern_global:
+                a = store.mems[e.addr]
+            else:
+                log.panicln('pywasm: unlinkable')
 
         self.types = module.types
         # [TODO] Imports
@@ -273,14 +300,12 @@ class ModuleInstance:
         for table in module.tables:
             tabletype = table.tabletype
             elemtype = tabletype.elemtype
-            elem = [None for _ in range(tabletype.limits.minimum)]
-            maximum = tabletype.limits.maximum
-            tableinst = TableInstance(elemtype, elem, maximum)
+            tableinst = TableInstance(elemtype, tabletype.limits)
             store.tables.append(tableinst)
             self.tableaddrs.append(len(store.tables) - 1)
         # For each memory module.mems, do:
         for mem in module.mems:
-            meminst = MemoryInstance(mem.memtype.minimum, mem.memtype.maximum)
+            meminst = MemoryInstance(mem.memtype)
             store.mems.append(meminst)
             self.memaddrs.append(len(store.mems) - 1)
         # For each global in module.globals, do:
