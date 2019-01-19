@@ -834,7 +834,7 @@ class Module:
                                 log.debugln(' ' * (prefix - 2) + 'else')
                                 printex(e.immediate_arguments[2], prefix + 2)
                         elif isinstance(e.immediate_arguments, list):
-                            log.debugln(f'{a} {" ".join(e.immediate_arguments)}')
+                            log.debugln(f'{a} {" ".join([str(e) for e in e.immediate_arguments])}')
                         else:
                             log.debugln(f'{a} {e.immediate_arguments}')
                 for i, e in enumerate(code_section.vec):
