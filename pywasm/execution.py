@@ -258,7 +258,7 @@ class ModuleInstance:
         self.globaladdrs: typing.List[int] = []
         self.exports: typing.List[ExportInstance] = []
 
-    def inst(
+    def instantiate(
         self,
         module: structure.Module,
         store: Store,
@@ -304,9 +304,22 @@ class ModuleInstance:
             v = AbstractMachine.exec(auxmod, store, stack, glob.expr)
             vals.append(v)
         assert isinstance(stack.pop(), Frame)
+        # Allocation
+        self.allocate(module, store, externvals, vals)
 
+    def allocate(
+        self,
+        module: structure.Module,
+        store: Store,
+        externvals: typing.List[ExternValue],
+        vals: typing.List[Value],
+    ):
         self.types = module.types
-        # [TODO] Imports
+        # Imports
+        self.funcaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_func])
+        self.tableaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_table])
+        self.memaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_mem])
+        self.globaladdrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_global])
         # For each function func in module.funcs, do:
         for func in module.funcs:
             functype = self.types[func.typeidx]
@@ -326,13 +339,13 @@ class ModuleInstance:
             store.mems.append(meminst)
             self.memaddrs.append(len(store.mems) - 1)
         # For each global in module.globals, do:
-        # for glob in module.globals:
-        #     val = AbstractMachine.init_expr(store, glob.expr)
-        #     if val.valtype != glob.globaltype.valtype:
-        #         log.panicln('pywasm: mismatch valtype')
-        #     globalinst = GlobalInstance(val, glob.globaltype.mut)
-        #     store.globals.append(globalinst)
-        #     self.globaladdrs.append(len(store.globals) - 1)
+        for i, glob in enumerate(module.globals):
+            val = vals[i]
+            if val.valtype != glob.globaltype.valtype:
+                log.panicln('pywasm: mismatch valtype')
+            globalinst = GlobalInstance(val, glob.globaltype.mut)
+            store.globals.append(globalinst)
+            self.globaladdrs.append(len(store.globals) - 1)
         # For each export in module.exports, do:
         for i, export in enumerate(module.exports):
             externval = ExternValue(export.kind, export.desc)
