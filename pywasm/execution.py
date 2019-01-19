@@ -21,7 +21,7 @@ class Store:
     # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
     # a memory instance in the store, not an offset inside a memory instance.
     def __init__(self):
-        self.funs = []
+        self.funcs = []
         self.tables = []
         self.mems = []
         self.globals = []
@@ -35,11 +35,21 @@ class FunctionInstance:
     # funcinst ::= {type functype,module moduleinst,code func}
     #            | {type functype,hostcode hostfunc}
     # hostfunc ::= ...
-    def __init__(self):
-        pass
+    pass
 
 
-class HostFunc:
+class WasmFunc(FunctionInstance):
+    def __init__(self,
+                 functype: structure.FunctionType,
+                 module: 'ModuleInstance',
+                 code: structure.Function
+                 ):
+        self.functype = functype
+        self.module = module
+        self.code = code
+
+
+class HostFunc(FunctionInstance):
     # A host function is a function expressed outside WebAssembly but passed to a module as an import. The definition
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
@@ -188,8 +198,8 @@ class ModuleInstance:
     #     globaladdrs globaladdr∗
     #     exports exportinst∗
     # }
-    def __init__(self,
-                 module: structure.Module,
+    def __init__(self, module: structure.Module,
+                 store: Store,
                  externalvals: typing.List[ExternalValue] = None,
                  vals: typing.List[Value] = None):
         self.types: typing.List[structure.FunctionType] = []
@@ -199,11 +209,18 @@ class ModuleInstance:
         self.globaladdrs: typing.List[int] = []
         self.exports: typing.List[ExportInstance] = []
 
-        self.store = Store()
-        log.debugln("Allocation:")
+        self.types = module.types
+        # For each function func in module.funcs, do:
+        for i, func in enumerate(module.funcs):
+            self.funcaddrs.append(i)
+            functype = self.types[func.typeidx]
+            funcinst = WasmFunc(functype, self, func)
+            store.funcs.append(funcinst)
+        # For each table in module.tables, do:
+        for i, table in enumerate(module.tables):
+            pass
 
 
 class AbstractMachine:
     def __init__(self):
-        self.stack = None
-        self.store = None
+        pass
