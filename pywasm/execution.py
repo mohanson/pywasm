@@ -205,6 +205,9 @@ class Stack:
     def len(self):
         return len(self.data)
 
+    def top(self):
+        return self.data[-1]
+
 
 class AdministrativeInstruction:
     pass
@@ -546,33 +549,22 @@ def invoke(
         if opcode == convention.get_local:
             stack.add(frame.locals[i.immediate_arguments])
             continue
-        # if opcode == convention.SET_LOCAL:
-        #     v = stack.pop()
-        #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     if i >= len(ctx.locals_data):
-        #         ctx.locals_data.extend(
-        #             [wasmi.stack.Entry.from_i32(0) for _ in range(i - len(ctx.locals_data) + 1)]
-        #         )
-        #     ctx.locals_data[i] = v
-        #     continue
-        # if opcode == convention.TEE_LOCAL:
-        #     v = stack.top()
-        #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     ctx.locals_data[i] = v
-        #     continue
-        # if opcode == convention.GET_GLOBAL:
-        #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     stack.add(self.global_data[i])
-        #     continue
-        # if opcode == convention.SET_GLOBAL:
-        #     v = stack.pop()
-        #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     self.global_data[i] = v
-        #     continue
+        if opcode == convention.set_local:
+            if i.immediate_arguments >= len(frame.locals):
+                frame.locals.extend(
+                    [Value.from_i32(0) for _ in range(i.immediate_arguments - len(frame.locals) + 1)]
+                )
+            frame.locals[i.immediate_arguments] = stack.pop()
+            continue
+        if opcode == convention.tee_local:
+            frame.locals[i.immediate_arguments] = stack.top()
+            continue
+        if opcode == convention.get_global:
+            stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
+            continue
+        if opcode == convention.set_global:
+            store.globals[module.globaladdrs[i.immediate_arguments]] = stack.pop()
+            continue
         # if opcode >= convention.I32_LOAD and opcode <= convention.I64_LOAD32_U:
         #     # memory_immediate has two fields, the alignment and the offset.
         #     # The former is simply an optimization hint and can be safely
