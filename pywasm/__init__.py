@@ -24,15 +24,21 @@ class AbstractMachine:
                 return self.store.funcs[e.value.addr]
         return None
 
-    def exec(self, name: str, args: typing.List[execution.Value]):
+    def exec(self, name: str, args: typing.List):
         func = self.glob_func(name)
         if not func:
             log.panicln('pywasm: function not found')
         assert isinstance(func, execution.WasmFunc)
+        for i, e in enumerate(func.functype.args):
+            if e in [convention.i32, convention.i64]:
+                assert isinstance(args[i], int)
+            if e in [convention.f32, convention.f64]:
+                assert isinstance(args[i], float)
+            args[i] = execution.Value(e, args[i])
         stack = execution.Stack()
         frame = execution.Frame(self.minst, args)
         stack.add(frame)
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
         r = execution.invoke(self.minst, self.store, stack, func.code.expr, func.functype.rets)
         assert isinstance(stack.pop(), execution.Frame)
-        return r
+        return [e.n for e in r]
