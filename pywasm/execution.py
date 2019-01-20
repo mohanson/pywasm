@@ -398,23 +398,23 @@ def invoke(
     for i in expr.data:
         log.debugln(i)
         opcode = i.code
-        # if opcode == wasmi.spec.op.UNREACHABLE:
+        # if opcode == convention.UNREACHABLE:
         #     raise wasmi.error.WAException('reached unreachable')
-        # if opcode == wasmi.spec.op.NOP:
+        # if opcode == convention.NOP:
         #     continue
-        # if opcode == wasmi.spec.op.BLOCK:
+        # if opcode == convention.BLOCK:
         #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
         #     b = f_sec.bmap[pc - 1]
         #     pc += n
         #     ctx.ctack.append([b, stack.i])
         #     continue
-        # if opcode == wasmi.spec.op.LOOP:
+        # if opcode == convention.LOOP:
         #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
         #     b = f_sec.bmap[pc - 1]
         #     pc += n
         #     ctx.ctack.append([b, stack.i])
         #     continue
-        # if opcode == wasmi.spec.op.IF:
+        # if opcode == convention.IF:
         #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
         #     b = f_sec.bmap[pc - 1]
         #     pc += n
@@ -428,11 +428,11 @@ def invoke(
         #         continue
         #     pc = b.pos_else
         #     continue
-        # if opcode == wasmi.spec.op.ELSE:
+        # if opcode == convention.ELSE:
         #     b, _ = ctx.ctack[-1]
         #     pc = b.pos_br
         #     continue
-        # if opcode == wasmi.spec.op.END:
+        # if opcode == convention.END:
         #     b, sp = ctx.ctack.pop()
         #     if isinstance(b, wasmi.section.Code):
         #         if not ctx.ctack:
@@ -447,7 +447,7 @@ def invoke(
         #         stack.i = sp
         #         stack.add(v)
         #     continue
-        # if opcode == wasmi.spec.op.BR:
+        # if opcode == convention.BR:
         #     n, c, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     for _ in range(c):
@@ -455,7 +455,7 @@ def invoke(
         #     b, _ = ctx.ctack[-1]
         #     pc = b.pos_br
         #     continue
-        # if opcode == wasmi.spec.op.BR_IF:
+        # if opcode == convention.BR_IF:
         #     n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     cond = stack.pop_i32()
@@ -465,7 +465,7 @@ def invoke(
         #         b, _ = ctx.ctack[-1]
         #         pc = b.pos_br
         #     continue
-        # if opcode == wasmi.spec.op.BR_TABLE:
+        # if opcode == convention.BR_TABLE:
         #     n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     depths = []
@@ -483,7 +483,7 @@ def invoke(
         #     b, _ = ctx.ctack[-1]
         #     pc = b.pos_br
         #     continue
-        # if opcode == wasmi.spec.op.RETURN:
+        # if opcode == convention.RETURN:
         #     while ctx.ctack:
         #         if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
         #             break
@@ -491,7 +491,7 @@ def invoke(
         #     b, _ = ctx.ctack[-1]
         #     pc = len(b.expr.data) - 1
         #     continue
-        # if opcode == wasmi.spec.op.CALL:
+        # if opcode == convention.CALL:
         #     n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     son_f_fun = self.functions[f_idx]
@@ -508,7 +508,7 @@ def invoke(
         #     self.exec_step(f_idx, ctx)
         #     ctx.locals_data = pre_locals_data
         #     continue
-        # if opcode == wasmi.spec.op.CALL_INDIRECT:
+        # if opcode == convention.CALL_INDIRECT:
         #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     n, _, _ = wasmi.common.read_leb(code[pc:], 1)
@@ -531,10 +531,10 @@ def invoke(
         #     self.exec_step(f_idx, ctx)
         #     ctx.locals_data = pre_locals_data
         #     continue
-        # if opcode == wasmi.spec.op.DROP:
+        # if opcode == convention.DROP:
         #     stack.pop()
         #     continue
-        # if opcode == wasmi.spec.op.SELECT:
+        # if opcode == convention.SELECT:
         #     cond = stack.pop_i32()
         #     a = stack.pop()
         #     b = stack.pop()
@@ -546,7 +546,7 @@ def invoke(
         if opcode == convention.get_local:
             stack.add(frame.locals[i.immediate_arguments])
             continue
-        # if opcode == wasmi.spec.op.SET_LOCAL:
+        # if opcode == convention.SET_LOCAL:
         #     v = stack.pop()
         #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
@@ -556,24 +556,24 @@ def invoke(
         #         )
         #     ctx.locals_data[i] = v
         #     continue
-        # if opcode == wasmi.spec.op.TEE_LOCAL:
+        # if opcode == convention.TEE_LOCAL:
         #     v = stack.top()
         #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     ctx.locals_data[i] = v
         #     continue
-        # if opcode == wasmi.spec.op.GET_GLOBAL:
+        # if opcode == convention.GET_GLOBAL:
         #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     stack.add(self.global_data[i])
         #     continue
-        # if opcode == wasmi.spec.op.SET_GLOBAL:
+        # if opcode == convention.SET_GLOBAL:
         #     v = stack.pop()
         #     n, i, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     self.global_data[i] = v
         #     continue
-        # if opcode >= wasmi.spec.op.I32_LOAD and opcode <= wasmi.spec.op.I64_LOAD32_U:
+        # if opcode >= convention.I32_LOAD and opcode <= convention.I64_LOAD32_U:
         #     # memory_immediate has two fields, the alignment and the offset.
         #     # The former is simply an optimization hint and can be safely
         #     # discarded.
@@ -581,104 +581,104 @@ def invoke(
         #     n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     a = stack.pop_i64() + mem_offset
-        #     if a + wasmi.spec.op.info[opcode][2] > len(self.mem):
+        #     if a + convention.info[opcode][2] > len(self.mem):
         #         raise wasmi.error.WAException('out of bounds memory access')
-        #     if opcode == wasmi.spec.op.I32_LOAD:
+        #     if opcode == convention.I32_LOAD:
         #         r = wasmi.num.LittleEndian.i32(self.mem[a:a + 4])
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD:
+        #     if opcode == convention.I64_LOAD:
         #         r = wasmi.num.LittleEndian.i64(self.mem[a:a + 8])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_LOAD:
+        #     if opcode == convention.F32_LOAD:
         #         r = wasmi.num.LittleEndian.f32(self.mem[a:a + 4])
         #         stack.add_f32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F64_LOAD:
+        #     if opcode == convention.F64_LOAD:
         #         r = wasmi.num.LittleEndian.f64(self.mem[a:a + 8])
         #         stack.add_f64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LOAD8_S:
+        #     if opcode == convention.I32_LOAD8_S:
         #         r = wasmi.num.LittleEndian.i8(self.mem[a:a + 1])
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LOAD8_U:
+        #     if opcode == convention.I32_LOAD8_U:
         #         r = wasmi.num.LittleEndian.u8(self.mem[a:a + 1])
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LOAD16_S:
+        #     if opcode == convention.I32_LOAD16_S:
         #         r = wasmi.num.LittleEndian.i16(self.mem[a:a + 2])
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LOAD16_U:
+        #     if opcode == convention.I32_LOAD16_U:
         #         r = wasmi.num.LittleEndian.u16(self.mem[a:a + 2])
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD8_S:
+        #     if opcode == convention.I64_LOAD8_S:
         #         r = wasmi.num.LittleEndian.i8(self.mem[a:a + 1])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD8_U:
+        #     if opcode == convention.I64_LOAD8_U:
         #         r = wasmi.num.LittleEndian.u8(self.mem[a:a + 1])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD16_S:
+        #     if opcode == convention.I64_LOAD16_S:
         #         r = wasmi.num.LittleEndian.i16(self.mem[a:a + 2])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD16_U:
+        #     if opcode == convention.I64_LOAD16_U:
         #         r = wasmi.num.LittleEndian.u16(self.mem[a:a + 2])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD32_S:
+        #     if opcode == convention.I64_LOAD32_S:
         #         r = wasmi.num.LittleEndian.i32(self.mem[a:a + 4])
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LOAD32_U:
+        #     if opcode == convention.I64_LOAD32_U:
         #         r = wasmi.num.LittleEndian.u32(self.mem[a:a + 4])
         #         stack.add_i64(r)
         #         continue
-        # if opcode >= wasmi.spec.op.I32_STORE and opcode <= wasmi.spec.op.I64_STORE32:
+        # if opcode >= convention.I32_STORE and opcode <= convention.I64_STORE32:
         #     v = stack.pop()
         #     pc += 1
         #     n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     a = stack.pop_i64() + mem_offset
-        #     if a + wasmi.spec.op.info[opcode][2] > len(self.mem):
+        #     if a + convention.info[opcode][2] > len(self.mem):
         #         raise wasmi.error.WAException('out of bounds memory access')
-        #     if opcode == wasmi.spec.op.I32_STORE:
+        #     if opcode == convention.I32_STORE:
         #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_i32(v.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_STORE:
+        #     if opcode == convention.I64_STORE:
         #         self.mem[a:a + 8] = wasmi.num.LittleEndian.pack_i64(v.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_STORE:
+        #     if opcode == convention.F32_STORE:
         #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_f32(v.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_STORE:
+        #     if opcode == convention.F64_STORE:
         #         self.mem[a:a + 8] = wasmi.num.LittleEndian.pack_f64(v.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_STORE8:
+        #     if opcode == convention.I32_STORE8:
         #         self.mem[a:a + 1] = wasmi.num.LittleEndian.pack_i8(wasmi.num.int2i8(v.into_i32()))
         #         continue
-        #     if opcode == wasmi.spec.op.I32_STORE16:
+        #     if opcode == convention.I32_STORE16:
         #         self.mem[a:a + 2] = wasmi.num.LittleEndian.pack_i16(wasmi.num.int2i16(v.into_i32()))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_STORE8:
+        #     if opcode == convention.I64_STORE8:
         #         self.mem[a:a + 1] = wasmi.num.LittleEndian.pack_i8(wasmi.num.int2i8(v.into_i64()))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_STORE16:
+        #     if opcode == convention.I64_STORE16:
         #         self.mem[a:a + 2] = wasmi.num.LittleEndian.pack_i16(wasmi.num.int2i16(v.into_i64()))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_STORE32:
+        #     if opcode == convention.I64_STORE32:
         #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_i32(wasmi.num.int2i32(v.into_i64()))
         #         continue
-        # if opcode == wasmi.spec.op.CURRENT_MEMORY:
+        # if opcode == convention.CURRENT_MEMORY:
         #     pc += 1
         #     stack.add_i32(self.mem_len)
         #     continue
-        # if opcode == wasmi.spec.op.GROW_MEMORY:
+        # if opcode == convention.GROW_MEMORY:
         #     pc += 1
         #     cur_len = self.mem_len
         #     n = stack.pop_i32()
@@ -686,155 +686,155 @@ def invoke(
         #     self.mem.extend([0 for _ in range(n * 64 * 1024)])
         #     stack.add_i32(cur_len)
         #     continue
-        # if opcode >= wasmi.spec.op.I32_CONST and opcode <= wasmi.spec.op.F64_CONST:
-        #     if opcode == wasmi.spec.op.I32_CONST:
+        # if opcode >= convention.I32_CONST and opcode <= convention.F64_CONST:
+        #     if opcode == convention.I32_CONST:
         #         n, r, _ = wasmi.common.read_leb(code[pc:], 32, True)
         #         pc += n
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_CONST:
+        #     if opcode == convention.I64_CONST:
         #         n, r, _ = wasmi.common.read_leb(code[pc:], 64, True)
         #         pc += n
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_CONST:
+        #     if opcode == convention.F32_CONST:
         #         r = wasmi.common.read_f32(code[pc:])
         #         pc += 4
         #         stack.add_f32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F64_CONST:
+        #     if opcode == convention.F64_CONST:
         #         r = wasmi.common.read_f64(code[pc:])
         #         pc += 8
         #         stack.add_f64(r)
         #         continue
-        # if opcode == wasmi.spec.op.I32_EQZ:
+        # if opcode == convention.I32_EQZ:
         #     stack.add_i32(stack.pop_i32() == 0)
         #     continue
-        # if opcode >= wasmi.spec.op.I32_EQ and opcode <= wasmi.spec.op.I32_GEU:
+        # if opcode >= convention.I32_EQ and opcode <= convention.I32_GEU:
         #     b = stack.pop()
         #     a = stack.pop()
-        #     if opcode == wasmi.spec.op.I32_EQ:
+        #     if opcode == convention.I32_EQ:
         #         stack.add_i32(a.into_i32() == b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_NE:
+        #     if opcode == convention.I32_NE:
         #         stack.add_i32(a.into_i32() != b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LTS:
+        #     if opcode == convention.I32_LTS:
         #         stack.add_i32(a.into_i32() < b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LTU:
+        #     if opcode == convention.I32_LTU:
         #         stack.add_i32(a.into_u32() < b.into_u32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_GTS:
+        #     if opcode == convention.I32_GTS:
         #         stack.add_i32(a.into_i32() > b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_GTU:
+        #     if opcode == convention.I32_GTU:
         #         stack.add_i32(a.into_u32() > b.into_u32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LES:
+        #     if opcode == convention.I32_LES:
         #         stack.add_i32(a.into_i32() <= b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_LEU:
+        #     if opcode == convention.I32_LEU:
         #         stack.add_i32(a.into_u32() <= b.into_u32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_GES:
+        #     if opcode == convention.I32_GES:
         #         stack.add_i32(a.into_i32() >= b.into_i32())
         #         continue
-        #     if opcode == wasmi.spec.op.I32_GEU:
+        #     if opcode == convention.I32_GEU:
         #         stack.add_i32(a.into_u32() >= b.into_u32())
         #         continue
-        # if opcode == wasmi.spec.op.I64_EQZ:
+        # if opcode == convention.I64_EQZ:
         #     stack.add_i32(stack.pop_i64() == 0)
         #     continue
-        # if opcode >= wasmi.spec.op.I64_EQ and opcode <= wasmi.spec.op.I64_GEU:
+        # if opcode >= convention.I64_EQ and opcode <= convention.I64_GEU:
         #     b = stack.pop()
         #     a = stack.pop()
-        #     if opcode == wasmi.spec.op.I64_EQ:
+        #     if opcode == convention.I64_EQ:
         #         stack.add_i32(a.into_i64() == b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_NE:
+        #     if opcode == convention.I64_NE:
         #         stack.add_i32(a.into_i64() != b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LTS:
+        #     if opcode == convention.I64_LTS:
         #         stack.add_i32(a.into_i64() < b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LTU:
+        #     if opcode == convention.I64_LTU:
         #         stack.add_i32(a.into_u64() < b.into_u64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_GTS:
+        #     if opcode == convention.I64_GTS:
         #         stack.add_i32(a.into_i64() > b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_GTU:
+        #     if opcode == convention.I64_GTU:
         #         stack.add_i32(a.into_u64() > b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LES:
+        #     if opcode == convention.I64_LES:
         #         stack.add_i32(a.into_i64() <= b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_LEU:
+        #     if opcode == convention.I64_LEU:
         #         stack.add_i32(a.into_u64() <= b.into_u64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_GES:
+        #     if opcode == convention.I64_GES:
         #         stack.add_i32(a.into_i64() >= b.into_i64())
         #         continue
-        #     if opcode == wasmi.spec.op.I64_GEU:
+        #     if opcode == convention.I64_GEU:
         #         stack.add_i32(a.into_u64() >= b.into_u64())
         #         continue
-        # if opcode >= wasmi.spec.op.F32_EQ and opcode <= wasmi.spec.op.F64_GE:
+        # if opcode >= convention.F32_EQ and opcode <= convention.F64_GE:
         #     b = stack.pop()
         #     a = stack.pop()
-        #     if opcode == wasmi.spec.op.F32_EQ:
+        #     if opcode == convention.F32_EQ:
         #         stack.add_i32(a.into_f32() == b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_NE:
+        #     if opcode == convention.F32_NE:
         #         stack.add_i32(a.into_f32() != b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_LT:
+        #     if opcode == convention.F32_LT:
         #         stack.add_i32(a.into_f32() < b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_GT:
+        #     if opcode == convention.F32_GT:
         #         stack.add_i32(a.into_f32() > b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_LE:
+        #     if opcode == convention.F32_LE:
         #         stack.add_i32(a.into_f32() <= b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F32_GE:
+        #     if opcode == convention.F32_GE:
         #         stack.add_i32(a.into_f32() >= b.into_f32())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_EQ:
+        #     if opcode == convention.F64_EQ:
         #         stack.add_i32(a.into_f64() == b.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_NE:
+        #     if opcode == convention.F64_NE:
         #         stack.add_i32(a.into_f64() != b.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_LT:
+        #     if opcode == convention.F64_LT:
         #         stack.add_i32(a.into_f64() < b.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_GT:
+        #     if opcode == convention.F64_GT:
         #         stack.add_i32(a.into_f64() > b.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_LE:
+        #     if opcode == convention.F64_LE:
         #         stack.add_i32(a.into_f64() <= b.into_f64())
         #         continue
-        #     if opcode == wasmi.spec.op.F64_GE:
+        #     if opcode == convention.F64_GE:
         #         stack.add_i32(a.into_f64() >= b.into_f64())
         #         continue
-        # if opcode >= wasmi.spec.op.I32_CLZ and opcode <= wasmi.spec.op.I32_POPCNT:
+        # if opcode >= convention.I32_CLZ and opcode <= convention.I32_POPCNT:
         #     v = stack.pop_i32()
-        #     if opcode == wasmi.spec.op.I32_CLZ:
+        #     if opcode == convention.I32_CLZ:
         #         c = 0
         #         while c < 32 and (v & 0x80000000) == 0:
         #             c += 1
         #             v *= 2
         #         stack.add_i32(c)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_CTZ:
+        #     if opcode == convention.I32_CTZ:
         #         c = 0
         #         while c < 32 and (v % 2) == 0:
         #             c += 1
         #             v /= 2
         #         stack.add_i32(c)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_POPCNT:
+        #     if opcode == convention.I32_POPCNT:
         #         c = 0
         #         for i in range(32):
         #             if 0x1 & v:
@@ -848,15 +848,15 @@ def invoke(
             if opcode == convention.i32_add:
                 stack.add(Value.from_i32(num.int2i32(a + b)))
                 continue
-        #     if opcode == wasmi.spec.op.I32_SUB:
+        #     if opcode == convention.I32_SUB:
         #         r = wasmi.num.int2i32(a - b)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_MUL:
+        #     if opcode == convention.I32_MUL:
         #         r = wasmi.num.int2i32(a * b)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_DIVS:
+        #     if opcode == convention.I32_DIVS:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         if a == 0x80000000 and b == -1:
@@ -864,54 +864,54 @@ def invoke(
         #         r = wasmi.common.idiv_s(a, b)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_DIVU:
+        #     if opcode == convention.I32_DIVU:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.num.int2u32(a) // wasmi.num.int2u32(b)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_REMS:
+        #     if opcode == convention.I32_REMS:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.common.irem_s(a, b)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_REMU:
+        #     if opcode == convention.I32_REMU:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.num.int2u32(a) % wasmi.num.int2u32(b)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_AND:
+        #     if opcode == convention.I32_AND:
         #         stack.add_i32(a & b)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_OR:
+        #     if opcode == convention.I32_OR:
         #         stack.add_i32(a | b)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_XOR:
+        #     if opcode == convention.I32_XOR:
         #         stack.add_i32(a ^ b)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_SHL:
+        #     if opcode == convention.I32_SHL:
         #         stack.add_i32(a << (b % 0x20))
         #         continue
-        #     if opcode == wasmi.spec.op.I32_SHRS:
+        #     if opcode == convention.I32_SHRS:
         #         stack.add_i32(a >> (b % 0x20))
         #         continue
-        #     if opcode == wasmi.spec.op.I32_SHRU:
+        #     if opcode == convention.I32_SHRU:
         #         stack.add_i32(wasmi.num.int2u32(a) >> (b % 0x20))
         #         continue
-        #     if opcode == wasmi.spec.op.I32_ROTL:
+        #     if opcode == convention.I32_ROTL:
         #         r = wasmi.common.rotl_u32(a, b)
         #         r = wasmi.num.int2i32(r)
         #         stack.add_i32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I32_ROTR:
+        #     if opcode == convention.I32_ROTR:
         #         r = wasmi.common.rotr_u32(a, b)
         #         r = wasmi.num.int2i32(r)
         #         stack.add_i32(r)
         #         continue
-        # if opcode >= wasmi.spec.op.I64_CLZ and opcode <= wasmi.spec.op.I64_POPCNT:
+        # if opcode >= convention.I64_CLZ and opcode <= convention.I64_POPCNT:
         #     v = stack.pop_i64()
-        #     if opcode == wasmi.spec.op.I64_CLZ:
+        #     if opcode == convention.I64_CLZ:
         #         if v < 0:
         #             stack.add_i32(0)
         #             continue
@@ -921,14 +921,14 @@ def invoke(
         #             v *= 2
         #         stack.add_i64(c)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_CTZ:
+        #     if opcode == convention.I64_CTZ:
         #         c = 0
         #         while c < 64 and (v % 2) == 0:
         #             c += 1
         #             v /= 2
         #         stack.add_i64(c)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_POPCNT:
+        #     if opcode == convention.I64_POPCNT:
         #         c = 0
         #         for i in range(64):
         #             if 0x1 & v:
@@ -936,91 +936,91 @@ def invoke(
         #             v /= 2
         #         stack.add_i64(c)
         #         continue
-        # if opcode >= wasmi.spec.op.I64_ADD and opcode <= wasmi.spec.op.I64_ROTR:
+        # if opcode >= convention.I64_ADD and opcode <= convention.I64_ROTR:
         #     b = stack.pop_i64()
         #     a = stack.pop_i64()
-        #     if opcode == wasmi.spec.op.I64_ADD:
+        #     if opcode == convention.I64_ADD:
         #         r = wasmi.num.int2i64(a + b)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_SUB:
+        #     if opcode == convention.I64_SUB:
         #         r = wasmi.num.int2i64(a - b)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_MUL:
+        #     if opcode == convention.I64_MUL:
         #         r = wasmi.num.int2i64(a * b)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_DIVS:
+        #     if opcode == convention.I64_DIVS:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.common.idiv_s(a, b)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_DIVU:
+        #     if opcode == convention.I64_DIVU:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.num.int2u64(a) // wasmi.num.int2u64(b)
         #         r = wasmi.num.int2i64(r)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_REMS:
+        #     if opcode == convention.I64_REMS:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.common.irem_s(a, b)
         #         stack.add_i64(r)
-        #     if opcode == wasmi.spec.op.I64_REMU:
+        #     if opcode == convention.I64_REMU:
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         r = wasmi.num.int2u64(a) % wasmi.num.int2u64(b)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_AND:
+        #     if opcode == convention.I64_AND:
         #         stack.add_i64(a & b)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_OR:
+        #     if opcode == convention.I64_OR:
         #         stack.add_i64(a | b)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_XOR:
+        #     if opcode == convention.I64_XOR:
         #         stack.add_i64(a ^ b)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_SHL:
+        #     if opcode == convention.I64_SHL:
         #         stack.add_i64(a << (b % 0x40))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_SHRS:
+        #     if opcode == convention.I64_SHRS:
         #         stack.add_i64(a >> (b % 0x40))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_SHRU:
+        #     if opcode == convention.I64_SHRU:
         #         stack.add_i64(wasmi.num.int2u64(a) >> (b % 0x40))
         #         continue
-        #     if opcode == wasmi.spec.op.I64_ROTL:
+        #     if opcode == convention.I64_ROTL:
         #         r = wasmi.common.rotl_u64(a, b)
         #         r = wasmi.num.int2i64(r)
         #         stack.add_i64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.I64_ROTR:
+        #     if opcode == convention.I64_ROTR:
         #         r = wasmi.common.rotr_u64(a, b)
         #         r = wasmi.num.int2i64(r)
         #         stack.add_i64(r)
         #         continue
-        # if opcode >= wasmi.spec.op.F32_ABS and opcode <= wasmi.spec.op.F32_SQRT:
+        # if opcode >= convention.F32_ABS and opcode <= convention.F32_SQRT:
         #     v = stack.pop_f32()
-        #     if opcode == wasmi.spec.op.F32_ABS:
+        #     if opcode == convention.F32_ABS:
         #         stack.add_f32(abs(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_NEG:
+        #     if opcode == convention.F32_NEG:
         #         stack.add_f32(-v)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_CEIL:
+        #     if opcode == convention.F32_CEIL:
         #         stack.add_f32(math.ceil(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_FLOOR:
+        #     if opcode == convention.F32_FLOOR:
         #         stack.add_f32(math.floor(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_TRUNC:
+        #     if opcode == convention.F32_TRUNC:
         #         stack.add_f32(math.trunc(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_NEAREST:
+        #     if opcode == convention.F32_NEAREST:
         #         ceil = math.ceil(v)
         #         if ceil - v >= 0.5:
         #             r = ceil
@@ -1028,51 +1028,51 @@ def invoke(
         #             r = ceil - 1
         #         stack.add_f32(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_SQRT:
+        #     if opcode == convention.F32_SQRT:
         #         stack.add_f32(math.sqrt(v))
         #         continue
-        # if opcode >= wasmi.spec.op.F32_ADD and opcode <= wasmi.spec.op.F32_COPYSIGN:
+        # if opcode >= convention.F32_ADD and opcode <= convention.F32_COPYSIGN:
         #     b = stack.pop_f32()
         #     a = stack.pop_f32()
-        #     if opcode == wasmi.spec.op.F32_ADD:
+        #     if opcode == convention.F32_ADD:
         #         stack.add_f32(a + b)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_SUB:
+        #     if opcode == convention.F32_SUB:
         #         stack.add_f32(a - b)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_MUL:
+        #     if opcode == convention.F32_MUL:
         #         stack.add_f32(a * b)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_DIV:
+        #     if opcode == convention.F32_DIV:
         #         stack.add_f32(a / b)
         #         continue
-        #     if opcode == wasmi.spec.op.F32_MIN:
+        #     if opcode == convention.F32_MIN:
         #         stack.add_f32(min(a, b))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_MAX:
+        #     if opcode == convention.F32_MAX:
         #         stack.add_f32(max(a, b))
         #         continue
-        #     if opcode == wasmi.spec.op.F32_COPYSIGN:
+        #     if opcode == convention.F32_COPYSIGN:
         #         stack.add_f32(math.copysign(a, b))
         #         continue
-        # if opcode >= wasmi.spec.op.F64_ABS and opcode <= wasmi.spec.op.F64_SQRT:
+        # if opcode >= convention.F64_ABS and opcode <= convention.F64_SQRT:
         #     v = stack.pop_f64()
-        #     if opcode == wasmi.spec.op.F64_ABS:
+        #     if opcode == convention.F64_ABS:
         #         stack.add_f64(abs(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F64_NEG:
+        #     if opcode == convention.F64_NEG:
         #         stack.add_f64(-v)
         #         continue
-        #     if opcode == wasmi.spec.op.F64_CEIL:
+        #     if opcode == convention.F64_CEIL:
         #         stack.add_f64(math.ceil(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F64_FLOOR:
+        #     if opcode == convention.F64_FLOOR:
         #         stack.add_f64(math.floor(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F64_TRUNC:
+        #     if opcode == convention.F64_TRUNC:
         #         stack.add_f64(math.trunc(v))
         #         continue
-        #     if opcode == wasmi.spec.op.F64_NEAREST:
+        #     if opcode == convention.F64_NEAREST:
         #         ceil = math.ceil(v)
         #         if ceil - v >= 0.5:
         #             r = ceil
@@ -1080,33 +1080,33 @@ def invoke(
         #             r = ceil - 1
         #         stack.add_f64(r)
         #         continue
-        #     if opcode == wasmi.spec.op.F64_SQRT:
+        #     if opcode == convention.F64_SQRT:
         #         stack.add_f64(math.sqrt(v))
         #         continue
-        # if opcode >= wasmi.spec.op.F64_ADD and opcode <= wasmi.spec.op.F64_COPYSIGN:
-        #     b = stack.pop_f64()
-        #     a = stack.pop_f64()
-        #     if opcode == wasmi.spec.op.F64_ADD:
-        #         stack.add_f64(a + b)
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_SUB:
-        #         stack.add_f64(a - b)
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_MUL:
-        #         stack.add_f64(a * b)
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_DIV:
-        #         stack.add_f64(a / b)
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_MIN:
-        #         stack.add_f64(min(a, b))
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_MAX:
-        #         stack.add_f64(max(a, b))
-        #         continue
-        #     if opcode == wasmi.spec.op.F64_COPYSIGN:
-        #         stack.add_f64(math.copysign(a, b))
-        #         continue
+        if opcode >= convention.f64_add and opcode <= convention.f64_copysign:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f64_add:
+                stack.add(Value.from_f64(a + b))
+                continue
+            if opcode == convention.f64_sub:
+                stack.add(Value.from_f64(a - b))
+                continue
+            if opcode == convention.f64_mul:
+                stack.add(Value.from_f64(a * b))
+                continue
+            if opcode == convention.f64_div:
+                stack.add(Value.from_f64(a / b))
+                continue
+            if opcode == convention.F64_MIN:
+                stack.add(Value.from_f64(min(a, b)))
+                continue
+            if opcode == convention.F64_MAX:
+                stack.add(Value.from_f64(max(a, b)))
+                continue
+            if opcode == convention.F64_COPYSIGN:
+                stack.add(Value.from_f64(math.copysign(a, b)))
+                continue
         if opcode >= convention.i32_wrap_i64 and opcode <= convention.f64_promote_f32:
             a = stack.pop().n
             if opcode in [
