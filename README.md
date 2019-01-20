@@ -10,10 +10,10 @@ Get some helps from [warpy](https://github.com/kanaka/warpy) and [wagon](https:/
 
 # Requirements
 - py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
-- No third party dependences.
-- Python3.6 or newer.
+- No third party dependencies.
+- Python 3.6 or newer.
 
-# Installition
+# Installation
 
 ```sh
 $ git clone https://github.com/mohanson/py-wasmi && python3 setup.py install
