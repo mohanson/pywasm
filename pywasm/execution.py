@@ -140,6 +140,9 @@ class Value:
         self.valtype = valtype
         self.n = n
 
+    def __repr__(self):
+        return str(self.n)
+
     @classmethod
     def from_i32(cls, n):
         return Value(convention.i32, n)
@@ -392,6 +395,7 @@ def invoke(
     if not expr.data:
         log.panicln('pywasm: empty init expr')
     for i in expr.data:
+        log.debugln(i)
         opcode = i.code
         # if opcode == wasmi.spec.op.UNREACHABLE:
         #     raise wasmi.error.WAException('reached unreachable')
