@@ -1003,58 +1003,60 @@ def invoke(
         #         r = wasmi.num.int2i64(r)
         #         stack.add_i64(r)
         #         continue
-        # if opcode >= convention.F32_ABS and opcode <= convention.F32_SQRT:
-        #     v = stack.pop_f32()
-        #     if opcode == convention.F32_ABS:
-        #         stack.add_f32(abs(v))
-        #         continue
-        #     if opcode == convention.F32_NEG:
-        #         stack.add_f32(-v)
-        #         continue
-        #     if opcode == convention.F32_CEIL:
-        #         stack.add_f32(math.ceil(v))
-        #         continue
-        #     if opcode == convention.F32_FLOOR:
-        #         stack.add_f32(math.floor(v))
-        #         continue
-        #     if opcode == convention.F32_TRUNC:
-        #         stack.add_f32(math.trunc(v))
-        #         continue
-        #     if opcode == convention.F32_NEAREST:
-        #         ceil = math.ceil(v)
-        #         if ceil - v >= 0.5:
-        #             r = ceil
-        #         else:
-        #             r = ceil - 1
-        #         stack.add_f32(r)
-        #         continue
-        #     if opcode == convention.F32_SQRT:
-        #         stack.add_f32(math.sqrt(v))
-        #         continue
-        # if opcode >= convention.F32_ADD and opcode <= convention.F32_COPYSIGN:
-        #     b = stack.pop_f32()
-        #     a = stack.pop_f32()
-        #     if opcode == convention.F32_ADD:
-        #         stack.add_f32(a + b)
-        #         continue
-        #     if opcode == convention.F32_SUB:
-        #         stack.add_f32(a - b)
-        #         continue
-        #     if opcode == convention.F32_MUL:
-        #         stack.add_f32(a * b)
-        #         continue
-        #     if opcode == convention.F32_DIV:
-        #         stack.add_f32(a / b)
-        #         continue
-        #     if opcode == convention.F32_MIN:
-        #         stack.add_f32(min(a, b))
-        #         continue
-        #     if opcode == convention.F32_MAX:
-        #         stack.add_f32(max(a, b))
-        #         continue
-        #     if opcode == convention.F32_COPYSIGN:
-        #         stack.add_f32(math.copysign(a, b))
-        #         continue
+        if opcode >= convention.f32_abs and opcode <= convention.f32_sqrt:
+            a = stack.pop().n
+            if opcode == convention.f32_abs:
+                stack.add(Value.from_f32(abs(a)))
+                continue
+            if opcode == convention.f32_neg:
+                stack.add(Value.from_f32(-a))
+                continue
+            if opcode == convention.f32_ceil:
+                stack.add(Value.from_f32(math.ceil(a)))
+                continue
+            if opcode == convention.f32_floor:
+                stack.add(Value.from_f32(math.floor(a)))
+                continue
+            if opcode == convention.f32_trunc:
+                stack.add(Value.from_f32(math.trunc(a)))
+                continue
+            if opcode == convention.f32_nearest:
+                ceil = math.ceil(a)
+                if ceil - a >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                stack.add(Value.from_f32(r))
+                continue
+            if opcode == convention.f32_sqrt:
+                stack.add(Value.from_f32(math.sqrt(a)))
+                continue
+            continue
+        if opcode >= convention.f32_add and opcode <= convention.f32_copysign:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f32_add:
+                stack.add(Value.from_f32(a + b))
+                continue
+            if opcode == convention.f32_sub:
+                stack.add(Value.from_f32(a - b))
+                continue
+            if opcode == convention.f32_mul:
+                stack.add(Value.from_f32(a * b))
+                continue
+            if opcode == convention.f32_div:
+                stack.add(Value.from_f32(a / b))
+                continue
+            if opcode == convention.f32_min:
+                stack.add(Value.from_f32(min(a, b)))
+                continue
+            if opcode == convention.f32_max:
+                stack.add(Value.from_f32(max(a, b)))
+                continue
+            if opcode == convention.f32_copysign:
+                stack.add(Value.from_f32(math.copysign(a, b)))
+                continue
+            continue
         if opcode >= convention.f64_abs and opcode <= convention.f64_sqrt:
             a = stack.pop().n
             if opcode == convention.f64_abs:
