@@ -565,117 +565,99 @@ def invoke(
         if opcode == convention.set_global:
             store.globals[module.globaladdrs[i.immediate_arguments]] = stack.pop()
             continue
-        # if opcode >= convention.I32_LOAD and opcode <= convention.I64_LOAD32_U:
-        #     # memory_immediate has two fields, the alignment and the offset.
-        #     # The former is simply an optimization hint and can be safely
-        #     # discarded.
-        #     pc += 1
-        #     n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     a = stack.pop_i64() + mem_offset
-        #     if a + convention.info[opcode][2] > len(self.mem):
-        #         raise wasmi.error.WAException('out of bounds memory access')
-        #     if opcode == convention.I32_LOAD:
-        #         r = wasmi.num.LittleEndian.i32(self.mem[a:a + 4])
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD:
-        #         r = wasmi.num.LittleEndian.i64(self.mem[a:a + 8])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.F32_LOAD:
-        #         r = wasmi.num.LittleEndian.f32(self.mem[a:a + 4])
-        #         stack.add_f32(r)
-        #         continue
-        #     if opcode == convention.F64_LOAD:
-        #         r = wasmi.num.LittleEndian.f64(self.mem[a:a + 8])
-        #         stack.add_f64(r)
-        #         continue
-        #     if opcode == convention.I32_LOAD8_S:
-        #         r = wasmi.num.LittleEndian.i8(self.mem[a:a + 1])
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_LOAD8_U:
-        #         r = wasmi.num.LittleEndian.u8(self.mem[a:a + 1])
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_LOAD16_S:
-        #         r = wasmi.num.LittleEndian.i16(self.mem[a:a + 2])
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_LOAD16_U:
-        #         r = wasmi.num.LittleEndian.u16(self.mem[a:a + 2])
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD8_S:
-        #         r = wasmi.num.LittleEndian.i8(self.mem[a:a + 1])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD8_U:
-        #         r = wasmi.num.LittleEndian.u8(self.mem[a:a + 1])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD16_S:
-        #         r = wasmi.num.LittleEndian.i16(self.mem[a:a + 2])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD16_U:
-        #         r = wasmi.num.LittleEndian.u16(self.mem[a:a + 2])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD32_S:
-        #         r = wasmi.num.LittleEndian.i32(self.mem[a:a + 4])
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_LOAD32_U:
-        #         r = wasmi.num.LittleEndian.u32(self.mem[a:a + 4])
-        #         stack.add_i64(r)
-        #         continue
+        if opcode >= convention.i32_load and opcode <= convention.i64_load32_u:
+            m = store.mems[module.memaddrs[0]]
+            a = stack.pop().n + i.immediate_arguments[1]
+            if a + convention.info[opcode][2] > len(m.data):
+                raise log.panicln('pywasm: out of bounds memory access')
+            if opcode == convention.i32_load:
+                stack.add(Value.from_i32(num.LittleEndian.i32(m.data[a:a + 4])))
+                continue
+            if opcode == convention.i64_load:
+                stack.add(Value.from_i64(num.LittleEndian.i64(m.data[a:a + 8])))
+                continue
+            if opcode == convention.f32_load:
+                stack.add(Value.from_f32(num.LittleEndian.f32(m.data[a:a + 4])))
+                continue
+            if opcode == convention.f64_load:
+                stack.add(Value.from_f64(num.LittleEndian.f64(m.data[a:a + 8])))
+                continue
+            if opcode == convention.i32_load8_s:
+                stack.add(Value.from_i32(num.LittleEndian.i8(m.data[a:a + 1])))
+                continue
+            if opcode == convention.i32_load8_u:
+                stack.add(Value.from_i32(num.LittleEndian.u8(m.data[a:a + 1])))
+                continue
+            if opcode == convention.i32_load16_s:
+                stack.add(Value.from_i32(num.LittleEndian.i16(m.data[a:a + 2])))
+                continue
+            if opcode == convention.i32_load16_u:
+                stack.add(Value.from_i32(num.LittleEndian.u16(m.data[a:a + 2])))
+                continue
+            if opcode == convention.i64_load8_s:
+                stack.add(Value.from_i64(num.LittleEndian.i8(m.data[a:a + 1])))
+                continue
+            if opcode == convention.i64_load8_u:
+                stack.add(Value.from_i64(num.LittleEndian.u8(m.data[a:a + 1])))
+                continue
+            if opcode == convention.i64_load16_s:
+                stack.add(Value.from_i64(num.LittleEndian.i16(m.data[a:a + 2])))
+                continue
+            if opcode == convention.i64_load16_u:
+                stack.add(Value.from_i64(num.LittleEndian.u16(m.data[a:a + 2])))
+                continue
+            if opcode == convention.i64_load32_s:
+                stack.add(Value.from_i64(num.LittleEndian.i32(m.data[a:a + 4])))
+                continue
+            if opcode == convention.i64_load32_u:
+                stack.add(Value.from_i64(num.LittleEndian.u32(m.data[a:a + 4])))
+                continue
+            continue
         # if opcode >= convention.I32_STORE and opcode <= convention.I64_STORE32:
         #     v = stack.pop()
         #     pc += 1
         #     n, mem_offset, _ = wasmi.common.read_leb(code[pc:], 32)
         #     pc += n
         #     a = stack.pop_i64() + mem_offset
-        #     if a + convention.info[opcode][2] > len(self.mem):
+        #     if a + convention.info[opcode][2] > len(m.data):
         #         raise wasmi.error.WAException('out of bounds memory access')
         #     if opcode == convention.I32_STORE:
-        #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_i32(v.into_i32())
+        #         m.data[a:a + 4] = num.LittleEndian.pack_i32(v.into_i32())
         #         continue
         #     if opcode == convention.I64_STORE:
-        #         self.mem[a:a + 8] = wasmi.num.LittleEndian.pack_i64(v.into_i64())
+        #         m.data[a:a + 8] = num.LittleEndian.pack_i64(v.into_i64())
         #         continue
         #     if opcode == convention.F32_STORE:
-        #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_f32(v.into_f32())
+        #         m.data[a:a + 4] = num.LittleEndian.pack_f32(v.into_f32())
         #         continue
         #     if opcode == convention.F64_STORE:
-        #         self.mem[a:a + 8] = wasmi.num.LittleEndian.pack_f64(v.into_f64())
+        #         m.data[a:a + 8] = num.LittleEndian.pack_f64(v.into_f64())
         #         continue
         #     if opcode == convention.I32_STORE8:
-        #         self.mem[a:a + 1] = wasmi.num.LittleEndian.pack_i8(wasmi.num.int2i8(v.into_i32()))
+        #         m.data[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v.into_i32()))
         #         continue
         #     if opcode == convention.I32_STORE16:
-        #         self.mem[a:a + 2] = wasmi.num.LittleEndian.pack_i16(wasmi.num.int2i16(v.into_i32()))
+        #         m.data[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v.into_i32()))
         #         continue
         #     if opcode == convention.I64_STORE8:
-        #         self.mem[a:a + 1] = wasmi.num.LittleEndian.pack_i8(wasmi.num.int2i8(v.into_i64()))
+        #         m.data[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v.into_i64()))
         #         continue
         #     if opcode == convention.I64_STORE16:
-        #         self.mem[a:a + 2] = wasmi.num.LittleEndian.pack_i16(wasmi.num.int2i16(v.into_i64()))
+        #         m.data[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v.into_i64()))
         #         continue
         #     if opcode == convention.I64_STORE32:
-        #         self.mem[a:a + 4] = wasmi.num.LittleEndian.pack_i32(wasmi.num.int2i32(v.into_i64()))
+        #         m.data[a:a + 4] = num.LittleEndian.pack_i32(num.int2i32(v.into_i64()))
         #         continue
         # if opcode == convention.CURRENT_MEMORY:
         #     pc += 1
-        #     stack.add_i32(self.mem_len)
+        #     stack.add_i32(m.data_len)
         #     continue
         # if opcode == convention.GROW_MEMORY:
         #     pc += 1
-        #     cur_len = self.mem_len
+        #     cur_len = m.data_len
         #     n = stack.pop_i32()
-        #     self.mem_len += n
-        #     self.mem.extend([0 for _ in range(n * 64 * 1024)])
+        #     m.data_len += n
+        #     m.data.extend([0 for _ in range(n * 64 * 1024)])
         #     stack.add_i32(cur_len)
         #     continue
         if opcode >= convention.i32_const and opcode <= convention.f64_const:
