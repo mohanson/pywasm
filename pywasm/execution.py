@@ -392,7 +392,9 @@ def invoke(
         log.panicln('pywasm: empty init expr')
     for i in expr.data:
         opcode = i.code
-        if opcode == convention.i32_const:
+        if opcode not in convention.opcodes:
+            log.panicln('pywasm: invalid opcode in init expr')
+        elif opcode == convention.i32_const:
             stack.add(Value.from_i32(i.immediate_arguments))
         elif opcode == convention.i64_const:
             stack.add(Value.from_i64(i.immediate_arguments))
@@ -404,6 +406,4 @@ def invoke(
             stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
         elif opcode == convention.end:
             break
-        else:
-            log.panicln('pywasm: invalid opcode in init expr')
     return [stack.pop() for _ in rets]
