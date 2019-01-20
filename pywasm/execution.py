@@ -707,45 +707,46 @@ def invoke(
         #         pc += 8
         #         stack.add_f64(r)
         #         continue
-        # if opcode == convention.I32_EQZ:
-        #     stack.add_i32(stack.pop_i32() == 0)
-        #     continue
-        # if opcode >= convention.I32_EQ and opcode <= convention.I32_GEU:
-        #     b = stack.pop()
-        #     a = stack.pop()
-        #     if opcode == convention.I32_EQ:
-        #         stack.add_i32(a.into_i32() == b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_NE:
-        #         stack.add_i32(a.into_i32() != b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_LTS:
-        #         stack.add_i32(a.into_i32() < b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_LTU:
-        #         stack.add_i32(a.into_u32() < b.into_u32())
-        #         continue
-        #     if opcode == convention.I32_GTS:
-        #         stack.add_i32(a.into_i32() > b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_GTU:
-        #         stack.add_i32(a.into_u32() > b.into_u32())
-        #         continue
-        #     if opcode == convention.I32_LES:
-        #         stack.add_i32(a.into_i32() <= b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_LEU:
-        #         stack.add_i32(a.into_u32() <= b.into_u32())
-        #         continue
-        #     if opcode == convention.I32_GES:
-        #         stack.add_i32(a.into_i32() >= b.into_i32())
-        #         continue
-        #     if opcode == convention.I32_GEU:
-        #         stack.add_i32(a.into_u32() >= b.into_u32())
-        #         continue
-        # if opcode == convention.I64_EQZ:
-        #     stack.add_i32(stack.pop_i64() == 0)
-        #     continue
+        if opcode == convention.i32_eqz:
+            stack.add(Value.from_i32(stack.pop().n == 0))
+            continue
+        if opcode >= convention.i32_eq and opcode <= convention.i32_geu:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.i32_eq:
+                stack.add(Value.from_i32(a == b))
+                continue
+            if opcode == convention.i32_ne:
+                stack.add(Value.from_i32(a != b))
+                continue
+            if opcode == convention.i32_lts:
+                stack.add(Value.from_i32(a < b))
+                continue
+            if opcode == convention.i32_ltu:
+                stack.add(Value.from_i32(num.int2u32(a) < num.int2u32(b)))
+                continue
+            if opcode == convention.i32_gts:
+                stack.add(Value.from_i32(a > b))
+                continue
+            if opcode == convention.i32_gtu:
+                stack.add(Value.from_i32(num.int2u32(a) > num.int2u32(b)))
+                continue
+            if opcode == convention.i32_les:
+                stack.add(Value.from_i32(a <= b))
+                continue
+            if opcode == convention.i32_leu:
+                stack.add(Value.from_i32(num.int2u32(a) <= num.int2u32(b)))
+                continue
+            if opcode == convention.i32_ges:
+                stack.add(Value.from_i32(a >= b))
+                continue
+            if opcode == convention.i32_geu:
+                stack.add(Value.from_i32(num.int2u32(a) >= num.int2u32(b)))
+                continue
+            continue
+        if opcode == convention.i64_eqz:
+            stack.add(Value.from_i32(stack.pop().n == 0))
+            continue
         if opcode >= convention.i64_eq and opcode <= convention.i64_geu:
             b = stack.pop().n
             a = stack.pop().n
