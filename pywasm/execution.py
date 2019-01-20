@@ -936,73 +936,62 @@ def invoke(
         #             v /= 2
         #         stack.add_i64(c)
         #         continue
-        # if opcode >= convention.I64_ADD and opcode <= convention.I64_ROTR:
-        #     b = stack.pop_i64()
-        #     a = stack.pop_i64()
-        #     if opcode == convention.I64_ADD:
-        #         r = wasmi.num.int2i64(a + b)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_SUB:
-        #         r = wasmi.num.int2i64(a - b)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_MUL:
-        #         r = wasmi.num.int2i64(a * b)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_DIVS:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.common.idiv_s(a, b)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_DIVU:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.num.int2u64(a) // wasmi.num.int2u64(b)
-        #         r = wasmi.num.int2i64(r)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_REMS:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.common.irem_s(a, b)
-        #         stack.add_i64(r)
-        #     if opcode == convention.I64_REMU:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.num.int2u64(a) % wasmi.num.int2u64(b)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_AND:
-        #         stack.add_i64(a & b)
-        #         continue
-        #     if opcode == convention.I64_OR:
-        #         stack.add_i64(a | b)
-        #         continue
-        #     if opcode == convention.I64_XOR:
-        #         stack.add_i64(a ^ b)
-        #         continue
-        #     if opcode == convention.I64_SHL:
-        #         stack.add_i64(a << (b % 0x40))
-        #         continue
-        #     if opcode == convention.I64_SHRS:
-        #         stack.add_i64(a >> (b % 0x40))
-        #         continue
-        #     if opcode == convention.I64_SHRU:
-        #         stack.add_i64(wasmi.num.int2u64(a) >> (b % 0x40))
-        #         continue
-        #     if opcode == convention.I64_ROTL:
-        #         r = wasmi.common.rotl_u64(a, b)
-        #         r = wasmi.num.int2i64(r)
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.I64_ROTR:
-        #         r = wasmi.common.rotr_u64(a, b)
-        #         r = wasmi.num.int2i64(r)
-        #         stack.add_i64(r)
-        #         continue
+        if opcode >= convention.i64_add and opcode <= convention.i64_rotr:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode in [
+                convention.i64_divs,
+                convention.i64_divu,
+                convention.i64_rems,
+                convention.i64_remu,
+            ]:
+                if b == 0:
+                    raise log.panicln('pywasm: integer divide by zero')
+            if opcode == convention.i64_add:
+                stack.add(Value.from_i64(num.int2i64(a + b)))
+                continue
+            if opcode == convention.i64_sub:
+                stack.add(Value.from_i64(num.int2i64(a - b)))
+                continue
+            if opcode == convention.i64_mul:
+                stack.add(Value.from_i64(num.int2i64(a * b)))
+                continue
+            if opcode == convention.i64_divs:
+                stack.add(Value.from_i64(num.idiv_s(a, b)))
+                continue
+            if opcode == convention.i64_divu:
+                stack.add(Value.from_i64(num.int2i64(num.int2u64(a) // num.int2u64(b))))
+                continue
+            if opcode == convention.i64_rems:
+                stack.add(Value.from_i64(num.irem_s(a, b)))
+            if opcode == convention.i64_remu:
+                stack.add(Value.from_i64(num.int2u64(a) % num.int2u64(b)))
+                continue
+            if opcode == convention.i64_and:
+                stack.add(Value.from_i64(a & b))
+                continue
+            if opcode == convention.i64_or:
+                stack.add(Value.from_i64(a | b))
+                continue
+            if opcode == convention.i64_xor:
+                stack.add(Value.from_i64(a ^ b))
+                continue
+            if opcode == convention.i64_shl:
+                stack.add(Value.from_i64(a << (b % 0x40)))
+                continue
+            if opcode == convention.i64_shrs:
+                stack.add(Value.from_i64(a >> (b % 0x40)))
+                continue
+            if opcode == convention.i64_shru:
+                stack.add(Value.from_i64(num.int2u64(a) >> (b % 0x40)))
+                continue
+            if opcode == convention.i64_rotl:
+                stack.add(Value.from_i64(num.int2i64(num.rotl_u64(a, b))))
+                continue
+            if opcode == convention.i64_rotr:
+                stack.add(Value.from_i64(num.int2i64(num.rotr_u64(a, b))))
+                continue
+            continue
         if opcode >= convention.f32_abs and opcode <= convention.f32_sqrt:
             a = stack.pop().n
             if opcode == convention.f32_abs:
