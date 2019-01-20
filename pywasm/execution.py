@@ -909,33 +909,34 @@ def invoke(
         #         r = wasmi.num.int2i32(r)
         #         stack.add_i32(r)
         #         continue
-        # if opcode >= convention.I64_CLZ and opcode <= convention.I64_POPCNT:
-        #     v = stack.pop_i64()
-        #     if opcode == convention.I64_CLZ:
-        #         if v < 0:
-        #             stack.add_i32(0)
-        #             continue
-        #         c = 1
-        #         while c < 63 and (v & 0x4000000000000000) == 0:
-        #             c += 1
-        #             v *= 2
-        #         stack.add_i64(c)
-        #         continue
-        #     if opcode == convention.I64_CTZ:
-        #         c = 0
-        #         while c < 64 and (v % 2) == 0:
-        #             c += 1
-        #             v /= 2
-        #         stack.add_i64(c)
-        #         continue
-        #     if opcode == convention.I64_POPCNT:
-        #         c = 0
-        #         for i in range(64):
-        #             if 0x1 & v:
-        #                 c += 1
-        #             v /= 2
-        #         stack.add_i64(c)
-        #         continue
+        if opcode >= convention.i64_clz and opcode <= convention.i64_popcnt:
+            a = stack.pop().n
+            if opcode == convention.i64_clz:
+                if a < 0:
+                    stack.add(Value.from_i32(0))
+                    continue
+                c = 1
+                while c < 63 and (a & 0x4000000000000000) == 0:
+                    c += 1
+                    a *= 2
+                stack.add(Value.from_i64(c))
+                continue
+            if opcode == convention.i64_ctz:
+                c = 0
+                while c < 64 and (a % 2) == 0:
+                    c += 1
+                    a /= 2
+                stack.add(Value.from_i64(c))
+                continue
+            if opcode == convention.i64_popcnt:
+                c = 0
+                for i in range(64):
+                    if 0x1 & a:
+                        c += 1
+                    a /= 2
+                stack.add(Value.from_i64(c))
+                continue
+            continue
         if opcode >= convention.i64_add and opcode <= convention.i64_rotr:
             b = stack.pop().n
             a = stack.pop().n
