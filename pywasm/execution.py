@@ -2,6 +2,7 @@ import typing
 
 from pywasm import convention
 from pywasm import log
+from pywasm import num
 from pywasm import structure
 
 
@@ -273,6 +274,7 @@ class ModuleInstance:
         # Assert: externvals matching imports of module
         for i in range(len(externvals)):
             e = externvals[i]
+            assert e.extern_type in convention.extern_type
             if e.extern_type == convention.extern_func:
                 a = store.funcs[e.addr]
                 b = self.types[module.imports[i].desc]
@@ -291,8 +293,6 @@ class ModuleInstance:
                 a = store.globals[e.addr]
                 b = module.imports[i].desc
                 assert a.value.valtype == b.valtype
-            else:
-                log.panicln('pywasm: unlinkable')
         # Let vals be the vector of global initialization values determined by module and externvaln
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
@@ -306,6 +306,24 @@ class ModuleInstance:
         assert isinstance(stack.pop(), Frame)
         # Allocation
         self.allocate(module, store, externvals, vals)
+
+        frame = Frame(self, [])
+        stack.add(frame)
+        # For each element segment in module.elem, do:
+        for e in module.elem:
+            offset = AbstractMachine.exec(self, store, stack, e.expr)
+            assert offset.valtype == convention.i32
+            t = store.tables[self.tableaddrs[e.tableidx]]
+            for i, e in enumerate(e.init):
+                t.elem[offset + i] = e
+        # For each data segment in module.data, do:
+        for e in module.data:
+            offset = AbstractMachine.exec(self, store, stack, e.expr)
+            assert offset.valtype == convention.i32
+            m = store.mems[self.memaddrs[e.memidx]]
+            end = offset + len(e.init)
+            assert end <= len(m.data)
+            m.data[offset: offset + len(e.init)] = e.init
 
     def allocate(
         self,
