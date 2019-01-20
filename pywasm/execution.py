@@ -779,69 +779,71 @@ def invoke(
         #     if opcode == convention.I64_GEU:
         #         stack.add_i32(a.into_u64() >= b.into_u64())
         #         continue
-        # if opcode >= convention.F32_EQ and opcode <= convention.F64_GE:
-        #     b = stack.pop()
-        #     a = stack.pop()
-        #     if opcode == convention.F32_EQ:
-        #         stack.add_i32(a.into_f32() == b.into_f32())
-        #         continue
-        #     if opcode == convention.F32_NE:
-        #         stack.add_i32(a.into_f32() != b.into_f32())
-        #         continue
-        #     if opcode == convention.F32_LT:
-        #         stack.add_i32(a.into_f32() < b.into_f32())
-        #         continue
-        #     if opcode == convention.F32_GT:
-        #         stack.add_i32(a.into_f32() > b.into_f32())
-        #         continue
-        #     if opcode == convention.F32_LE:
-        #         stack.add_i32(a.into_f32() <= b.into_f32())
-        #         continue
-        #     if opcode == convention.F32_GE:
-        #         stack.add_i32(a.into_f32() >= b.into_f32())
-        #         continue
-        #     if opcode == convention.F64_EQ:
-        #         stack.add_i32(a.into_f64() == b.into_f64())
-        #         continue
-        #     if opcode == convention.F64_NE:
-        #         stack.add_i32(a.into_f64() != b.into_f64())
-        #         continue
-        #     if opcode == convention.F64_LT:
-        #         stack.add_i32(a.into_f64() < b.into_f64())
-        #         continue
-        #     if opcode == convention.F64_GT:
-        #         stack.add_i32(a.into_f64() > b.into_f64())
-        #         continue
-        #     if opcode == convention.F64_LE:
-        #         stack.add_i32(a.into_f64() <= b.into_f64())
-        #         continue
-        #     if opcode == convention.F64_GE:
-        #         stack.add_i32(a.into_f64() >= b.into_f64())
-        #         continue
-        # if opcode >= convention.I32_CLZ and opcode <= convention.I32_POPCNT:
-        #     v = stack.pop_i32()
-        #     if opcode == convention.I32_CLZ:
-        #         c = 0
-        #         while c < 32 and (v & 0x80000000) == 0:
-        #             c += 1
-        #             v *= 2
-        #         stack.add_i32(c)
-        #         continue
-        #     if opcode == convention.I32_CTZ:
-        #         c = 0
-        #         while c < 32 and (v % 2) == 0:
-        #             c += 1
-        #             v /= 2
-        #         stack.add_i32(c)
-        #         continue
-        #     if opcode == convention.I32_POPCNT:
-        #         c = 0
-        #         for i in range(32):
-        #             if 0x1 & v:
-        #                 c += 1
-        #             v /= 2
-        #         stack.add_i32(c)
-        #         continue
+        if opcode >= convention.f32_eq and opcode <= convention.f64_ge:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f32_eq:
+                stack.add(Value.from_i32(a == b))
+                continue
+            if opcode == convention.f32_ne:
+                stack.add(Value.from_i32(a != b))
+                continue
+            if opcode == convention.f32_lt:
+                stack.add(Value.from_i32(a < b))
+                continue
+            if opcode == convention.f32_gt:
+                stack.add(Value.from_i32(a > b))
+                continue
+            if opcode == convention.f32_le:
+                stack.add(Value.from_i32(a <= b))
+                continue
+            if opcode == convention.f32_ge:
+                stack.add(Value.from_i32(a >= b))
+                continue
+            if opcode == convention.f64_eq:
+                stack.add(Value.from_i32(a == b))
+                continue
+            if opcode == convention.f64_ne:
+                stack.add(Value.from_i32(a != b))
+                continue
+            if opcode == convention.f64_lt:
+                stack.add(Value.from_i32(a < b))
+                continue
+            if opcode == convention.f64_gt:
+                stack.add(Value.from_i32(a > b))
+                continue
+            if opcode == convention.f64_le:
+                stack.add(Value.from_i32(a <= b))
+                continue
+            if opcode == convention.f64_ge:
+                stack.add(Value.from_i32(a >= b))
+                continue
+            continue
+        if opcode >= convention.i32_clz and opcode <= convention.i32_popcnt:
+            a = stack.pop().n
+            if opcode == convention.i32_clz:
+                c = 0
+                while c < 32 and (a & 0x80000000) == 0:
+                    c += 1
+                    a *= 2
+                stack.add(Value.from_i32(c))
+                continue
+            if opcode == convention.i32_ctz:
+                c = 0
+                while c < 32 and (a % 2) == 0:
+                    c += 1
+                    a /= 2
+                stack.add(Value.from_i32(c))
+                continue
+            if opcode == convention.i32_popcnt:
+                c = 0
+                for i in range(32):
+                    if 0x1 & a:
+                        c += 1
+                    a /= 2
+                stack.add(Value.from_i32(c))
+                continue
+            continue
         if opcode >= convention.i32_add and opcode <= convention.i32_rotr:
             b = stack.pop().n
             a = stack.pop().n
