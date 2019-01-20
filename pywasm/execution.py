@@ -1168,46 +1168,36 @@ def invoke(
                     log.panicln('pywasm: integer overflow')
                 stack.add(Value.from_i64(int(a)))
                 continue
-            # if opcode == wasmi.spec.op.F32_CONVERT_SI32:
-            #     v = v.into_i32()
-            #     stack.add_f32(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F32_CONVERT_UI32:
-            #     v = v.into_u32()
-            #     stack.add_f32(r)
-            #     continue
-            # if opcode == wasmi.spec.op.F32_CONVERT_SI64:
-            #     v = v.into_i64()
-            #     stack.add_f32(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F32_CONVERT_UI64:
-            #     v = v.into_u64()
-            #     stack.add_f32(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F32_DEMOTE_F64:
-            #     v = v.into_f64()
-            #     stack.add_f32(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F64_CONVERT_SI32:
-            #     v = v.into_i32()
-            #     stack.add_f64(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F64_CONVERT_UI32:
-            #     v = v.into_u32()
-            #     stack.add_f64(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F64_CONVERT_SI64:
-            #     v = v.into_i64()
-            #     stack.add_f64(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F64_CONVERT_UI64:
-            #     v = v.into_u64()
-            #     stack.add_f64(v)
-            #     continue
-            # if opcode == wasmi.spec.op.F64_PROMOTE_F32:
-            #     v = v.into_f32()
-            #     stack.add_f64(v)
-            #     continue
+            if opcode == convention.f32_convert_si32:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f32_convert_ui32:
+                stack.add(Value.from_f32(num.int2u32(a)))
+                continue
+            if opcode == convention.f32_convert_si64:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f32_convert_ui64:
+                stack.add(Value.from_f32(num.int2u64(a)))
+                continue
+            if opcode == convention.f32_demote_f64:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f64_convert_si32:
+                stack.add(Value.from_f64(a))
+                continue
+            if opcode == convention.f64_convert_ui32:
+                stack.add(Value.from_f64(num.int2u32(a)))
+                continue
+            if opcode == convention.f64_convert_si64:
+                stack.add(Value.from_f64(a))
+                continue
+            if opcode == convention.f64_convert_ui64:
+                stack.add(Value.from_f64(num.int2u64(a)))
+                continue
+            if opcode == convention.f64_promote_f32:
+                stack.add(Value.from_f64(a))
+                continue
             continue
         if opcode >= convention.i32_reinterpret_f32 and opcode <= convention.f64_reinterpret_i64:
             a = stack.pop().n
