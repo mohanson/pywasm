@@ -1055,34 +1055,35 @@ def invoke(
         #     if opcode == convention.F32_COPYSIGN:
         #         stack.add_f32(math.copysign(a, b))
         #         continue
-        # if opcode >= convention.F64_ABS and opcode <= convention.F64_SQRT:
-        #     v = stack.pop_f64()
-        #     if opcode == convention.F64_ABS:
-        #         stack.add_f64(abs(v))
-        #         continue
-        #     if opcode == convention.F64_NEG:
-        #         stack.add_f64(-v)
-        #         continue
-        #     if opcode == convention.F64_CEIL:
-        #         stack.add_f64(math.ceil(v))
-        #         continue
-        #     if opcode == convention.F64_FLOOR:
-        #         stack.add_f64(math.floor(v))
-        #         continue
-        #     if opcode == convention.F64_TRUNC:
-        #         stack.add_f64(math.trunc(v))
-        #         continue
-        #     if opcode == convention.F64_NEAREST:
-        #         ceil = math.ceil(v)
-        #         if ceil - v >= 0.5:
-        #             r = ceil
-        #         else:
-        #             r = ceil - 1
-        #         stack.add_f64(r)
-        #         continue
-        #     if opcode == convention.F64_SQRT:
-        #         stack.add_f64(math.sqrt(v))
-        #         continue
+        if opcode >= convention.f64_abs and opcode <= convention.f64_sqrt:
+            a = stack.pop().n
+            if opcode == convention.f64_abs:
+                stack.add(Value.from_f64(abs(a)))
+                continue
+            if opcode == convention.f64_neg:
+                stack.add(Value.from_f64(-a))
+                continue
+            if opcode == convention.f64_ceil:
+                stack.add(Value.from_f64(math.ceil(a)))
+                continue
+            if opcode == convention.f64_floor:
+                stack.add(Value.from_f64(math.floor(a)))
+                continue
+            if opcode == convention.f64_trunc:
+                stack.add(Value.from_f64(math.trunc(a)))
+                continue
+            if opcode == convention.f64_nearest:
+                ceil = math.ceil(a)
+                if ceil - a >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                stack.add(Value.from_f64(r))
+                continue
+            if opcode == convention.f64_sqrt:
+                stack.add(Value.from_f64(math.sqrt(a)))
+                continue
+            continue
         if opcode >= convention.f64_add and opcode <= convention.f64_copysign:
             b = stack.pop().n
             a = stack.pop().n
@@ -1098,15 +1099,16 @@ def invoke(
             if opcode == convention.f64_div:
                 stack.add(Value.from_f64(a / b))
                 continue
-            if opcode == convention.F64_MIN:
+            if opcode == convention.f64_min:
                 stack.add(Value.from_f64(min(a, b)))
                 continue
-            if opcode == convention.F64_MAX:
+            if opcode == convention.f64_max:
                 stack.add(Value.from_f64(max(a, b)))
                 continue
-            if opcode == convention.F64_COPYSIGN:
+            if opcode == convention.f64_copysign:
                 stack.add(Value.from_f64(math.copysign(a, b)))
                 continue
+            continue
         if opcode >= convention.i32_wrap_i64 and opcode <= convention.f64_promote_f32:
             a = stack.pop().n
             if opcode in [
