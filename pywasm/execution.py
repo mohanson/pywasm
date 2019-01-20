@@ -312,42 +312,34 @@ class ModuleInstance:
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
         stack = Stack()
         frame = Frame(auxmod, [])
-        stack.add(frame)
         vals = []
         for glob in module.globals:
-            v = invoke(auxmod, store, stack, glob.expr, [convention.i32])[0]
+            v = invoke(store, frame, stack, glob.expr, [convention.i32])[0]
             vals.append(v)
-        # Assert: due to validation, the frame F is now on the top of the stack.
-        assert isinstance(stack.pop(), Frame)
         # Allocation
         self.allocate(module, store, externvals, vals)
 
         frame = Frame(self, [])
-        stack.add(frame)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(self, store, stack, e.expr, [convention.i32])
+            offset = invoke(store, frame, stack, e.expr, [convention.i32])
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(self, store, stack, e.expr, [convention.i32])
+            offset = invoke(store, frame, stack, e.expr, [convention.i32])
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset + len(e.init)
             assert end <= len(m.data)
             m.data[offset: offset + len(e.init)] = e.init
-        # Assert: due to validation, the frame F is now on the top of the stack.
-        assert isinstance(stack.pop(), Frame)
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             frame = Frame(self, [])
-            stack.add(frame)
             func = store.funcs[self.funcaddrs[module.start]]
-            invoke(self, store, stack, func.code.expr, [convention.i32])
-            assert isinstance(stack.pop(), Frame)
+            invoke(store, frame, stack, func.code.expr, [convention.i32])
 
     def allocate(
         self,
@@ -396,13 +388,14 @@ class ModuleInstance:
 
 
 def invoke(
-    module: ModuleInstance,
     store: Store,
+    frame: Frame,
     stack: Stack,
     expr: structure.Expression,
     rets: typing.List[int],
 ):
-    frame: Frame = stack.data[-1]
+    module = frame.module
+    stack.add(frame)
     if not expr.data:
         log.panicln('pywasm: empty init expr')
     for i in expr.data:
@@ -1176,4 +1169,7 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-    return [stack.pop() for _ in rets]
+
+    r = [stack.pop() for _ in rets]
+    assert isinstance(stack.pop(), Frame)
+    return r
