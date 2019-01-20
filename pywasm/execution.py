@@ -301,7 +301,7 @@ class ModuleInstance:
         stack.add(frame)
         vals = []
         for glob in module.globals:
-            v = AbstractMachine.exec(auxmod, store, stack, glob.expr)
+            v = invoke(auxmod, store, stack, glob.expr)
             vals.append(v)
         # Assert: due to validation, the frame F is now on the top of the stack.
         assert isinstance(stack.pop(), Frame)
@@ -312,14 +312,14 @@ class ModuleInstance:
         stack.add(frame)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = AbstractMachine.exec(self, store, stack, e.expr)
+            offset = invoke(self, store, stack, e.expr)
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = AbstractMachine.exec(self, store, stack, e.expr)
+            offset = invoke(self, store, stack, e.expr)
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset + len(e.init)
@@ -332,7 +332,7 @@ class ModuleInstance:
             frame = Frame(self, [])
             stack.add(frame)
             func = store.funcs[self.funcaddrs[module.start]]
-            AbstractMachine.exec(self, store, stack, func.code.expr)
+            invoke(self, store, stack, func.code.expr)
             assert isinstance(stack.pop(), Frame)
 
     def allocate(
@@ -381,42 +381,28 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
-class AbstractMachine:
-
-    @classmethod
-    def exec(
-        cls,
-        module: ModuleInstance,
-        store: Store,
-        stack: Stack,
-        expr: structure.Expression,
-    ):
-        return cls.init_expr(module, store, stack, expr)
-
-    @classmethod
-    def init_expr(
-        cls,
-        module: ModuleInstance,
-        store: Store,
-        stack: Stack,
-        expr: structure.Expression,
-    ):
-        if not expr.data:
-            log.panicln('pywasm: empty init expr')
-        for i in expr.data:
-            opcode = i.code
-            if opcode == convention.i32_const:
-                stack.add(Value.from_i32(i.immediate_arguments))
-            elif opcode == convention.i64_const:
-                stack.add(Value.from_i64(i.immediate_arguments))
-            elif opcode == convention.f32_const:
-                stack.add(Value.from_f32(i.immediate_arguments))
-            elif opcode == convention.f64_const:
-                stack.add(Value.from_f64(i.immediate_arguments))
-            elif opcode == convention.get_global:
-                stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
-            elif opcode == convention.end:
-                break
-            else:
-                log.panicln('pywasm: invalid opcode in init expr')
-        return stack.pop()
+def invoke(
+    module: ModuleInstance,
+    store: Store,
+    stack: Stack,
+    expr: structure.Expression,
+):
+    if not expr.data:
+        log.panicln('pywasm: empty init expr')
+    for i in expr.data:
+        opcode = i.code
+        if opcode == convention.i32_const:
+            stack.add(Value.from_i32(i.immediate_arguments))
+        elif opcode == convention.i64_const:
+            stack.add(Value.from_i64(i.immediate_arguments))
+        elif opcode == convention.f32_const:
+            stack.add(Value.from_f32(i.immediate_arguments))
+        elif opcode == convention.f64_const:
+            stack.add(Value.from_f64(i.immediate_arguments))
+        elif opcode == convention.get_global:
+            stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
+        elif opcode == convention.end:
+            break
+        else:
+            log.panicln('pywasm: invalid opcode in init expr')
+    return stack.pop()
