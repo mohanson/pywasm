@@ -301,7 +301,7 @@ class ModuleInstance:
         stack.add(frame)
         vals = []
         for glob in module.globals:
-            v = invoke(auxmod, store, stack, glob.expr)
+            v = invoke(auxmod, store, stack, glob.expr, [convention.i32])[0]
             vals.append(v)
         # Assert: due to validation, the frame F is now on the top of the stack.
         assert isinstance(stack.pop(), Frame)
@@ -312,14 +312,14 @@ class ModuleInstance:
         stack.add(frame)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(self, store, stack, e.expr)
+            offset = invoke(self, store, stack, e.expr, [convention.i32])
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(self, store, stack, e.expr)
+            offset = invoke(self, store, stack, e.expr, [convention.i32])
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset + len(e.init)
@@ -332,7 +332,7 @@ class ModuleInstance:
             frame = Frame(self, [])
             stack.add(frame)
             func = store.funcs[self.funcaddrs[module.start]]
-            invoke(self, store, stack, func.code.expr)
+            invoke(self, store, stack, func.code.expr, [convention.i32])
             assert isinstance(stack.pop(), Frame)
 
     def allocate(
@@ -386,6 +386,7 @@ def invoke(
     store: Store,
     stack: Stack,
     expr: structure.Expression,
+    rets: typing.List[int],
 ):
     if not expr.data:
         log.panicln('pywasm: empty init expr')
@@ -405,4 +406,4 @@ def invoke(
             break
         else:
             log.panicln('pywasm: invalid opcode in init expr')
-    return stack.pop()
+    return [stack.pop() for _ in rets]
