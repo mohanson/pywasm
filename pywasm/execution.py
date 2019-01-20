@@ -408,139 +408,141 @@ def invoke(
     for i in expr.data:
         log.debugln(i)
         opcode = i.code
-        # if opcode == convention.UNREACHABLE:
-        #     raise wasmi.error.WAException('reached unreachable')
-        # if opcode == convention.NOP:
-        #     continue
-        # if opcode == convention.BLOCK:
-        #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     b = f_sec.bmap[pc - 1]
-        #     pc += n
-        #     ctx.ctack.append([b, stack.i])
-        #     continue
-        # if opcode == convention.LOOP:
-        #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     b = f_sec.bmap[pc - 1]
-        #     pc += n
-        #     ctx.ctack.append([b, stack.i])
-        #     continue
-        # if opcode == convention.IF:
-        #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     b = f_sec.bmap[pc - 1]
-        #     pc += n
-        #     ctx.ctack.append([b, stack.i])
-        #     cond = stack.pop_i32()
-        #     if cond:
-        #         continue
-        #     if b.pos_else == 0:
-        #         ctx.ctack.pop()
-        #         pc = b.pos_br + 1
-        #         continue
-        #     pc = b.pos_else
-        #     continue
-        # if opcode == convention.ELSE:
-        #     b, _ = ctx.ctack[-1]
-        #     pc = b.pos_br
-        #     continue
-        # if opcode == convention.END:
-        #     b, sp = ctx.ctack.pop()
-        #     if isinstance(b, wasmi.section.Code):
-        #         if not ctx.ctack:
-        #             if f_sig.rets:
-        #                 if f_sig.rets[0] != stack.top().valtype:
-        #                     raise wasmi.error.WAException('signature mismatch in call_indirect')
-        #                 return stack.pop().n
-        #             return None
-        #         return
-        #     if sp < stack.i:
-        #         v = stack.pop()
-        #         stack.i = sp
-        #         stack.add(v)
-        #     continue
-        # if opcode == convention.BR:
-        #     n, c, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     for _ in range(c):
-        #         ctx.ctack.pop()
-        #     b, _ = ctx.ctack[-1]
-        #     pc = b.pos_br
-        #     continue
-        # if opcode == convention.BR_IF:
-        #     n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     cond = stack.pop_i32()
-        #     if cond:
-        #         for _ in range(br_depth):
-        #             ctx.ctack.pop()
-        #         b, _ = ctx.ctack[-1]
-        #         pc = b.pos_br
-        #     continue
-        # if opcode == convention.BR_TABLE:
-        #     n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     depths = []
-        #     for c in range(lcount):
-        #         n, ldepth, _ = wasmi.common.read_leb(code[pc:], 32)
-        #         pc += n
-        #         depths.append(ldepth)
-        #     n, ddepth, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     didx = stack.pop_i32()
-        #     if didx >= 0 and didx < len(depths):
-        #         ddepth = depths[didx]
-        #     for _ in range(ddepth):
-        #         ctx.ctack.pop()
-        #     b, _ = ctx.ctack[-1]
-        #     pc = b.pos_br
-        #     continue
-        # if opcode == convention.RETURN:
-        #     while ctx.ctack:
-        #         if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
-        #             break
-        #         ctx.ctack.pop()
-        #     b, _ = ctx.ctack[-1]
-        #     pc = len(b.expr.data) - 1
-        #     continue
-        # if opcode == convention.CALL:
-        #     n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     son_f_fun = self.functions[f_idx]
-        #     son_f_sig = son_f_fun.signature
-        #     if son_f_fun.envb:
-        #         name = son_f_fun.module + '.' + son_f_fun.name
-        #         func = self.env.import_func[name]
-        #         r = func(self.mem, [stack.pop() for _ in son_f_sig.args][::-1])
-        #         e = wasmi.stack.Entry(son_f_sig.rets[0], r)
-        #         stack.add(e)
-        #         continue
-        #     pre_locals_data = ctx.locals_data
-        #     ctx.locals_data = [stack.pop() for _ in son_f_sig.args][::-1]
-        #     self.exec_step(f_idx, ctx)
-        #     ctx.locals_data = pre_locals_data
-        #     continue
-        # if opcode == convention.CALL_INDIRECT:
-        #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-        #     pc += n
-        #     n, _, _ = wasmi.common.read_leb(code[pc:], 1)
-        #     pc += n
-        #     t_idx = stack.pop_i32()
-        #     if not 0 <= t_idx < len(self.table[wasmi.spec.valtype.FUNCREF]):
-        #         raise wasmi.error.WAException('undefined element index')
-        #     f_idx = self.table[wasmi.spec.valtype.FUNCREF][t_idx]
-        #     son_f_fun = self.functions[f_idx]
-        #     son_f_sig = son_f_fun.signature
-        #     a = list(son_f_sig.args)
-        #     b = [stack.pop() for _ in son_f_sig.args][::-1]
-        #     for i in range(len(a)):
-        #         ia = a[i]
-        #         ib = b[i]
-        #         if not ib or ia != ib.valtype:
-        #             raise wasmi.error.WAException('signature mismatch in call_indirect')
-        #     pre_locals_data = ctx.locals_data
-        #     ctx.locals_data = b
-        #     self.exec_step(f_idx, ctx)
-        #     ctx.locals_data = pre_locals_data
-        #     continue
+        if opcode >= convention.unreachable and opcode <= convention.call_indirect:
+            if opcode == convention.unreachable:
+                log.panicln('pywasm: reached unreachable')
+            if opcode == convention.nop:
+                continue
+            # if opcode == convention.BLOCK:
+            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     b = f_sec.bmap[pc - 1]
+            #     pc += n
+            #     ctx.ctack.append([b, stack.i])
+            #     continue
+            # if opcode == convention.LOOP:
+            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     b = f_sec.bmap[pc - 1]
+            #     pc += n
+            #     ctx.ctack.append([b, stack.i])
+            #     continue
+            # if opcode == convention.IF:
+            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     b = f_sec.bmap[pc - 1]
+            #     pc += n
+            #     ctx.ctack.append([b, stack.i])
+            #     cond = stack.pop_i32()
+            #     if cond:
+            #         continue
+            #     if b.pos_else == 0:
+            #         ctx.ctack.pop()
+            #         pc = b.pos_br + 1
+            #         continue
+            #     pc = b.pos_else
+            #     continue
+            # if opcode == convention.ELSE:
+            #     b, _ = ctx.ctack[-1]
+            #     pc = b.pos_br
+            #     continue
+            # if opcode == convention.END:
+            #     b, sp = ctx.ctack.pop()
+            #     if isinstance(b, wasmi.section.Code):
+            #         if not ctx.ctack:
+            #             if f_sig.rets:
+            #                 if f_sig.rets[0] != stack.top().valtype:
+            #                     raise wasmi.error.WAException('signature mismatch in call_indirect')
+            #                 return stack.pop().n
+            #             return None
+            #         return
+            #     if sp < stack.i:
+            #         v = stack.pop()
+            #         stack.i = sp
+            #         stack.add(v)
+            #     continue
+            # if opcode == convention.BR:
+            #     n, c, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     for _ in range(c):
+            #         ctx.ctack.pop()
+            #     b, _ = ctx.ctack[-1]
+            #     pc = b.pos_br
+            #     continue
+            # if opcode == convention.BR_IF:
+            #     n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     cond = stack.pop_i32()
+            #     if cond:
+            #         for _ in range(br_depth):
+            #             ctx.ctack.pop()
+            #         b, _ = ctx.ctack[-1]
+            #         pc = b.pos_br
+            #     continue
+            # if opcode == convention.BR_TABLE:
+            #     n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     depths = []
+            #     for c in range(lcount):
+            #         n, ldepth, _ = wasmi.common.read_leb(code[pc:], 32)
+            #         pc += n
+            #         depths.append(ldepth)
+            #     n, ddepth, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     didx = stack.pop_i32()
+            #     if didx >= 0 and didx < len(depths):
+            #         ddepth = depths[didx]
+            #     for _ in range(ddepth):
+            #         ctx.ctack.pop()
+            #     b, _ = ctx.ctack[-1]
+            #     pc = b.pos_br
+            #     continue
+            # if opcode == convention.RETURN:
+            #     while ctx.ctack:
+            #         if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
+            #             break
+            #         ctx.ctack.pop()
+            #     b, _ = ctx.ctack[-1]
+            #     pc = len(b.expr.data) - 1
+            #     continue
+            # if opcode == convention.CALL:
+            #     n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     son_f_fun = self.functions[f_idx]
+            #     son_f_sig = son_f_fun.signature
+            #     if son_f_fun.envb:
+            #         name = son_f_fun.module + '.' + son_f_fun.name
+            #         func = self.env.import_func[name]
+            #         r = func(self.mem, [stack.pop() for _ in son_f_sig.args][::-1])
+            #         e = wasmi.stack.Entry(son_f_sig.rets[0], r)
+            #         stack.add(e)
+            #         continue
+            #     pre_locals_data = ctx.locals_data
+            #     ctx.locals_data = [stack.pop() for _ in son_f_sig.args][::-1]
+            #     self.exec_step(f_idx, ctx)
+            #     ctx.locals_data = pre_locals_data
+            #     continue
+            # if opcode == convention.CALL_INDIRECT:
+            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
+            #     pc += n
+            #     n, _, _ = wasmi.common.read_leb(code[pc:], 1)
+            #     pc += n
+            #     t_idx = stack.pop_i32()
+            #     if not 0 <= t_idx < len(self.table[wasmi.spec.valtype.FUNCREF]):
+            #         raise wasmi.error.WAException('undefined element index')
+            #     f_idx = self.table[wasmi.spec.valtype.FUNCREF][t_idx]
+            #     son_f_fun = self.functions[f_idx]
+            #     son_f_sig = son_f_fun.signature
+            #     a = list(son_f_sig.args)
+            #     b = [stack.pop() for _ in son_f_sig.args][::-1]
+            #     for i in range(len(a)):
+            #         ia = a[i]
+            #         ib = b[i]
+            #         if not ib or ia != ib.valtype:
+            #             raise wasmi.error.WAException('signature mismatch in call_indirect')
+            #     pre_locals_data = ctx.locals_data
+            #     ctx.locals_data = b
+            #     self.exec_step(f_idx, ctx)
+            #     ctx.locals_data = pre_locals_data
+            #     continue
+            continue
         if opcode == convention.drop:
             stack.pop()
             continue
