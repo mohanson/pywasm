@@ -845,70 +845,62 @@ def invoke(
         if opcode >= convention.i32_add and opcode <= convention.i32_rotr:
             b = stack.pop().n
             a = stack.pop().n
+            if opcode in [
+                convention.i32_divs,
+                convention.i32_divu,
+                convention.i32_rems,
+                convention.i32_remu,
+            ]:
+                if b == 0:
+                    log.panicln('pywasm: integer divide by zero')
             if opcode == convention.i32_add:
                 stack.add(Value.from_i32(num.int2i32(a + b)))
                 continue
-        #     if opcode == convention.I32_SUB:
-        #         r = wasmi.num.int2i32(a - b)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_MUL:
-        #         r = wasmi.num.int2i32(a * b)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_DIVS:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         if a == 0x80000000 and b == -1:
-        #             log.panicln('pywasm: integer overflow')
-        #         r = wasmi.common.idiv_s(a, b)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_DIVU:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.num.int2u32(a) // wasmi.num.int2u32(b)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_REMS:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.common.irem_s(a, b)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_REMU:
-        #         if b == 0:
-        #             raise wasmi.error.WAException('integer divide by zero')
-        #         r = wasmi.num.int2u32(a) % wasmi.num.int2u32(b)
-        #         continue
-        #     if opcode == convention.I32_AND:
-        #         stack.add_i32(a & b)
-        #         continue
-        #     if opcode == convention.I32_OR:
-        #         stack.add_i32(a | b)
-        #         continue
-        #     if opcode == convention.I32_XOR:
-        #         stack.add_i32(a ^ b)
-        #         continue
-        #     if opcode == convention.I32_SHL:
-        #         stack.add_i32(a << (b % 0x20))
-        #         continue
-        #     if opcode == convention.I32_SHRS:
-        #         stack.add_i32(a >> (b % 0x20))
-        #         continue
-        #     if opcode == convention.I32_SHRU:
-        #         stack.add_i32(wasmi.num.int2u32(a) >> (b % 0x20))
-        #         continue
-        #     if opcode == convention.I32_ROTL:
-        #         r = wasmi.common.rotl_u32(a, b)
-        #         r = wasmi.num.int2i32(r)
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I32_ROTR:
-        #         r = wasmi.common.rotr_u32(a, b)
-        #         r = wasmi.num.int2i32(r)
-        #         stack.add_i32(r)
-        #         continue
+            if opcode == convention.i32_sub:
+                stack.add(Value.from_i32(num.int2i32(a - b)))
+                continue
+            if opcode == convention.i32_mul:
+                stack.add(Value.from_i32(num.int2i32(a * b)))
+                continue
+            if opcode == convention.i32_divs:
+                if a == 0x80000000 and b == -1:
+                    log.panicln('pywasm: integer overflow')
+                stack.add(Value.from_i32(num.idiv_s(a, b)))
+                continue
+            if opcode == convention.i32_divu:
+                stack.add(Value.from_i32(num.int2i32(num.int2u32(a) // num.int2u32(b))))
+                continue
+            if opcode == convention.i32_rems:
+                stack.add(Value.from_i32(num.irem_s(a, b)))
+                continue
+            if opcode == convention.i32_remu:
+                stack.add(Value.from_i32(num.int2i32(num.int2u32(a) % num.int2u32(b))))
+                continue
+            if opcode == convention.i32_and:
+                stack.add(Value.from_i32(a & b))
+                continue
+            if opcode == convention.i32_or:
+                stack.add(Value.from_i32(a | b))
+                continue
+            if opcode == convention.i32_xor:
+                stack.add(Value.from_i32(a ^ b))
+                continue
+            if opcode == convention.i32_shl:
+                stack.add(Value.from_i32(a << (b % 0x20)))
+                continue
+            if opcode == convention.i32_shrs:
+                stack.add(Value.from_i32(a >> (b % 0x20)))
+                continue
+            if opcode == convention.i32_shru:
+                stack.add(Value.from_i32(num.int2u32(a) >> (b % 0x20)))
+                continue
+            if opcode == convention.i32_rotl:
+                stack.add(Value.from_i32(num.int2i32(num.rotl_u32(a, b))))
+                continue
+            if opcode == convention.i32_rotr:
+                stack.add(Value.from_i32(num.int2i32(num.rotr_u32(a, b))))
+                continue
+            continue
         if opcode >= convention.i64_clz and opcode <= convention.i64_popcnt:
             a = stack.pop().n
             if opcode == convention.i64_clz:
