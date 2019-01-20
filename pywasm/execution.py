@@ -531,18 +531,18 @@ def invoke(
         #     self.exec_step(f_idx, ctx)
         #     ctx.locals_data = pre_locals_data
         #     continue
-        # if opcode == convention.DROP:
-        #     stack.pop()
-        #     continue
-        # if opcode == convention.SELECT:
-        #     cond = stack.pop_i32()
-        #     a = stack.pop()
-        #     b = stack.pop()
-        #     if cond:
-        #         stack.add(b)
-        #     else:
-        #         stack.add(a)
-        #     continue
+        if opcode == convention.drop:
+            stack.pop()
+            continue
+        if opcode == convention.select:
+            cond = stack.pop().n
+            a = stack.pop()
+            b = stack.pop()
+            if cond:
+                stack.add(b)
+            else:
+                stack.add(a)
+            continue
         if opcode == convention.get_local:
             stack.add(frame.locals[i.immediate_arguments])
             continue
