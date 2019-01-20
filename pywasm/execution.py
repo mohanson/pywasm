@@ -303,6 +303,7 @@ class ModuleInstance:
         for glob in module.globals:
             v = AbstractMachine.exec(auxmod, store, stack, glob.expr)
             vals.append(v)
+        # Assert: due to validation, the frame F is now on the top of the stack.
         assert isinstance(stack.pop(), Frame)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -324,6 +325,15 @@ class ModuleInstance:
             end = offset + len(e.init)
             assert end <= len(m.data)
             m.data[offset: offset + len(e.init)] = e.init
+        # Assert: due to validation, the frame F is now on the top of the stack.
+        assert isinstance(stack.pop(), Frame)
+        # If the start function module.start is not empty, invoke the function instance
+        if module.start is not None:
+            frame = Frame(self, [])
+            stack.add(frame)
+            func = store.funcs[self.funcaddrs[module.start]]
+            AbstractMachine.exec(self, store, stack, func.code.expr)
+            assert isinstance(stack.pop(), Frame)
 
     def allocate(
         self,
