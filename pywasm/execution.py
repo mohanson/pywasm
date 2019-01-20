@@ -512,7 +512,10 @@ def invoke(
             #     self.exec_step(f_idx, ctx)
             #     ctx.locals_data = pre_locals_data
             #     continue
-            # if opcode == convention.CALL_INDIRECT:
+            if opcode == convention.call_indirect:
+                if i.immediate_arguments[1] != 0x00:
+                    log.println("pywasm: zero byte malformed in call_indirect")
+                continue
             #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
             #     pc += n
             #     n, _, _ = wasmi.common.read_leb(code[pc:], 1)

@@ -165,53 +165,15 @@ class Instruction:
             o.immediate_arguments = num.LittleEndian.f32(r.read(4))
         elif code_size == 'f64':
             o.immediate_arguments = num.LittleEndian.f64(r.read(8))
+        elif code_size == 'u32,u8':
+            o.immediate_arguments = [common.read_count(r, 32), common.read_count(r, 8)]
         elif code_size == 'u32,u32':
             o.immediate_arguments = [common.read_count(r, 32) for _ in range(2)]
-        elif code_size == 'complex':
-            if code in [convention.block, convention.loop, convention.if_]:
-                rt = ord(r.read(1))
-                instar = []
-                if code == convention.if_:
-                    instar_else = []
-                    while True:
-                        i = Instruction.from_reader(r)
-                        instar.append(i)
-                        if i.code in [convention.else_, convention.end]:
-                            break
-                    if instar[-1].code == convention.else_:
-                        while True:
-                            i = Instruction.from_reader(r)
-                            instar_else.append(i)
-                            if i.code == convention.end:
-                                break
-                    o.immediate_arguments = [rt, instar, instar_else]
-                else:
-                    while True:
-                        i = Instruction.from_reader(r)
-                        instar.append(i)
-                        if i.code == convention.end:
-                            break
-                    o.immediate_arguments = [rt, instar]
-            elif code in [convention.br, convention.br_if]:
-                # seems unnecessary to be handled separately
-                pass
-            elif code == convention.br_table:
-                n = common.read_count(r, 32)
-                a = [common.read_count(r, 32) for _ in range(n)]
-                b = common.read_count(r, 32)
-                o.immediate_arguments = [a, b]
-            elif code == convention.call:
-                funcidx = common.read_count(r, 32)
-                o.immediate_arguments = funcidx
-            elif code == convention.call_indirect:
-                typeidx = common.read_count(r, 32)
-                # In future versions of WebAssembly, the zero byte occurring in the encoding of the call_indirect
-                # instruction may be used to index additional tables.
-                if r.read(1) != 0x00:
-                    log.println("pywasm: zero byte malformed in call_indirect")
-                o.immediate_arguments = typeidx
-            else:
-                log.panicln('pywasm: invalid code size')
+        elif o.code == convention.br_table:
+            n = common.read_count(r, 32)
+            a = [common.read_count(r, 32) for _ in range(n)]
+            b = common.read_count(r, 32)
+            o.immediate_arguments = [a, b]
         else:
             log.panicln('pywasm: invalid code size')
         return o
@@ -226,6 +188,32 @@ class Expression:
     # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
     def __init__(self):
         self.data: typing.List[Instruction] = []
+        self.composition = {}
+
+    @classmethod
+    def compose(cls, data: typing.List[Instruction]):
+        composition = {}
+        stack = []
+        for i, instr in enumerate(data):
+            code = instr.code
+            if code in [convention.block, convention.loop, convention.if_]:
+                stack.append([i])
+                continue
+            if code == convention.else_:
+                stack[-1].append(i)
+                continue
+            if code == convention.end:
+                if i == len(data) - 1:
+                    break
+                block = stack.pop()
+                block.append(i)
+                composition[block[0]] = block
+                continue
+        if data[-1].code != convention.end:
+            log.println('pywasm: function block did not end with 0xb')
+        if stack:
+            log.println('pywasm: function ended in middle of block')
+        return composition
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -242,6 +230,7 @@ class Expression:
                 d -= 1
             if d == 0:
                 break
+        o.composition = cls.compose(o.data)
         return o
 
 
@@ -822,17 +811,16 @@ class Module:
                 code_section = CodeSection.from_reader(io.BytesIO(data))
 
                 def printex(instrs: typing.List[Instruction], prefix=0):
-                    preblc = ' ' * prefix
                     for e in instrs:
-                        a = f'           | {preblc}{convention.opcodes[e.code][0]}'
-                        if e.immediate_arguments is None:
+                        a = f'           | {" " * prefix}{convention.opcodes[e.code][0]}'
+                        if e.code in [convention.block, convention.loop, convention.if_]:
+                            log.debugln(f'{a} {convention.blocktype[e.immediate_arguments][0]}')
+                            prefix += 2
+                        elif e.code == convention.end:
                             log.debugln(f'{a}')
-                        elif e.code in [convention.block, convention.loop, convention.if_]:
+                            prefix -= 2
+                        elif e.immediate_arguments is None:
                             log.debugln(f'{a}')
-                            printex(e.immediate_arguments[1], prefix + 2)
-                            if e.code == convention.if_ and len(e.immediate_arguments) == 3:
-                                log.debugln(' ' * (prefix - 2) + 'else')
-                                printex(e.immediate_arguments[2], prefix + 2)
                         elif isinstance(e.immediate_arguments, list):
                             log.debugln(f'{a} {" ".join([str(e) for e in e.immediate_arguments])}')
                         else:
