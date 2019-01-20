@@ -860,7 +860,7 @@ def invoke(
         #         if b == 0:
         #             raise wasmi.error.WAException('integer divide by zero')
         #         if a == 0x80000000 and b == -1:
-        #             raise wasmi.error.WAException('integer overflow')
+        #             log.panicln('pywasm: integer overflow')
         #         r = wasmi.common.idiv_s(a, b)
         #         stack.add_i32(r)
         #         continue
@@ -1112,37 +1112,22 @@ def invoke(
             if opcode == convention.i32_wrap_i64:
                 stack.add(Value.from_i32(num.int2i32(a)))
                 continue
-            if opcode == convention.i32_trunc_sf32:
+            if opcode in [
+                convention.i32_trunc_sf32,
+                convention.i32_trunc_uf32,
+                convention.i32_trunc_sf64,
+                convention.i32_trunc_uf64,
+            ]:
                 if math.isnan(a):
                     log.panicln('pywasm: invalid conversion to integer')
-                if a > 2**31 - 1 or a < -2**32:
-                    log.panicln('pywasm: integer overflow')
-                stack.add(int(a))
+                if opcode in [convention.i32_trunc_sf32, convention.i32_trunc_sf64]:
+                    if a > 2**31 - 1 or a < -2**32:
+                        log.panicln('pywasm: integer overflow')
+                if opcode in [convention.i32_trunc_uf32, convention.i32_trunc_uf64]:
+                    if a > 2**32 - 1 or a < -1:
+                        log.panicln('pywasm: integer overflow')
+                stack.add(Value.from_i32(int(a)))
                 continue
-            # if opcode == wasmi.spec.op.I32_TRUNC_UF32:
-            #     v = v.into_f32()
-            #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
-            #     if v > 2 ** 32 - 1 or v < -1:
-            #         raise wasmi.error.WAException('integer overflow')
-            #     stack.add_i32(int(v))
-            #     continue
-            # if opcode == wasmi.spec.op.I32_TRUNC_SF64:
-            #     v = v.into_f64()
-            #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
-            #     if v > 2**31 - 1 or v < -2**31:
-            #         raise wasmi.error.WAException('integer overflow')
-            #     stack.add_i32(int(v))
-            #     continue
-            # if opcode == wasmi.spec.op.I32_TRUNC_UF64:
-            #     v = v.into_f64()
-            #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
-            #     if v > 2**32 - 1 or v < -1:
-            #         raise wasmi.error.WAException('integer overflow')
-            #     stack.add_i32(int(v))
-            #     continue
             # if opcode == wasmi.spec.op.I64_EXTEND_SI32:
             #     v = v.into_i32()
             #     stack.add_i64(v)
@@ -1154,31 +1139,31 @@ def invoke(
             # if opcode == wasmi.spec.op.I64_TRUNC_SF32:
             #     v = v.into_f32()
             #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
+            #         log.panicln('pywasm: invalid conversion to integer')
             #     if v > 2**63 - 1 or v < -2**63:
-            #         raise wasmi.error.WAException('integer overflow')
+            #         log.panicln('pywasm: integer overflow')
             #     stack.add_i64(int(v))
             #     continue
             # if opcode == wasmi.spec.op.I64_TRUNC_UF32:
             #     v = v.into_f32()
             #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
+            #         log.panicln('pywasm: invalid conversion to integer')
             #     if v > 2**63 - 1 or v < -1:
-            #         raise wasmi.error.WAException('integer overflow')
+            #         log.panicln('pywasm: integer overflow')
             #     stack.add_i64(int(v))
             #     continue
             # if opcode == wasmi.spec.op.I64_TRUNC_SF64:
             #     v = v.into_f64()
             #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
+            #         log.panicln('pywasm: invalid conversion to integer')
             #     stack.add_i64(int(v))
             #     continue
             # if opcode == wasmi.spec.op.I64_TRUNC_UF64:
             #     v = v.into_f64()
             #     if math.isnan(v):
-            #         raise wasmi.error.WAException("invalid conversion to integer")
+            #         log.panicln('pywasm: invalid conversion to integer')
             #     if v < -1:
-            #         raise wasmi.error.WAException('integer overflow')
+            #         log.panicln('pywasm: integer overflow')
             #     stack.add_i64(int(v))
             #     continue
             # if opcode == wasmi.spec.op.F32_CONVERT_SI32:
