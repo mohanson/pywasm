@@ -686,27 +686,20 @@ def invoke(
         #     self.mem.extend([0 for _ in range(n * 64 * 1024)])
         #     stack.add_i32(cur_len)
         #     continue
-        # if opcode >= convention.I32_CONST and opcode <= convention.F64_CONST:
-        #     if opcode == convention.I32_CONST:
-        #         n, r, _ = wasmi.common.read_leb(code[pc:], 32, True)
-        #         pc += n
-        #         stack.add_i32(r)
-        #         continue
-        #     if opcode == convention.I64_CONST:
-        #         n, r, _ = wasmi.common.read_leb(code[pc:], 64, True)
-        #         pc += n
-        #         stack.add_i64(r)
-        #         continue
-        #     if opcode == convention.F32_CONST:
-        #         r = wasmi.common.read_f32(code[pc:])
-        #         pc += 4
-        #         stack.add_f32(r)
-        #         continue
-        #     if opcode == convention.F64_CONST:
-        #         r = wasmi.common.read_f64(code[pc:])
-        #         pc += 8
-        #         stack.add_f64(r)
-        #         continue
+        if opcode >= convention.i32_const and opcode <= convention.f64_const:
+            if opcode == convention.i32_const:
+                stack.add(Value.from_i32(i.immediate_arguments))
+                continue
+            if opcode == convention.i64_const:
+                stack.add(Value.from_i64(i.immediate_arguments))
+                continue
+            if opcode == convention.f32_const:
+                stack.add(Value.from_f32(i.immediate_arguments))
+                continue
+            if opcode == convention.f64_const:
+                stack.add(Value.from_f64(i.immediate_arguments))
+                continue
+            continue
         if opcode == convention.i32_eqz:
             stack.add(Value.from_i32(stack.pop().n == 0))
             continue
