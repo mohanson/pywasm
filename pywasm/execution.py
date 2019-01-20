@@ -176,7 +176,9 @@ class Label:
     #
     # Intuitively, instr∗ is the continuation to execute when the branch is taken, in place of the original control
     # construct.
-    pass
+    def __init__(self, arity: int, continuation: int):
+        self.arity = arity
+        self.continuation = continuation
 
 
 class Frame:
@@ -398,7 +400,9 @@ def invoke(
     stack.add(frame)
     if not expr.data:
         log.panicln('pywasm: empty init expr')
-    for i in expr.data:
+    pc = 0
+    while True:
+        i = expr.data[pc]
         log.debugln(i)
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
@@ -406,18 +410,12 @@ def invoke(
                 log.panicln('pywasm: reached unreachable')
             if opcode == convention.nop:
                 continue
-            # if opcode == convention.BLOCK:
-            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     b = f_sec.bmap[pc - 1]
-            #     pc += n
-            #     ctx.ctack.append([b, stack.i])
-            #     continue
-            # if opcode == convention.LOOP:
-            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     b = f_sec.bmap[pc - 1]
-            #     pc += n
-            #     ctx.ctack.append([b, stack.i])
-            #     continue
+            if opcode == convention.block:
+                stack.add(Label(1, expr.composition[pc][-1]))
+                continue
+            if opcode == convention.loop:
+                stack.add(Label(0, expr.composition[pc][0] + 1))
+                continue
             # if opcode == convention.IF:
             #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
             #     b = f_sec.bmap[pc - 1]
@@ -1172,7 +1170,7 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-
+        pc += 1
     r = [stack.pop() for _ in rets]
     assert isinstance(stack.pop(), Frame)
     return r
