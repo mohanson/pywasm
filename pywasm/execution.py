@@ -180,6 +180,9 @@ class Label:
         self.arity = arity
         self.continuation = continuation
 
+    def __repr__(self):
+        return 'L'
+
 
 class Frame:
     # Activation frames carry the return arity of the respective function, hold the values of its locals (including
@@ -193,6 +196,9 @@ class Frame:
         self.locals = locs
         self.arity = arity
         self.continuation = continuation
+
+    def __repr__(self):
+        return 'F'
 
 
 class Stack:
@@ -392,12 +398,12 @@ class ModuleInstance:
 
 
 def endblk(stack: Stack):
-    vals = []
+    v = []
     while True:
         e = stack.pop()
-        if isinstance(e, (Label, Frame)):
-            return e, vals[::-1][:e.arity]
-        vals.append(e)
+        if isinstance(e, Label):
+            return e, v[::-1][:e.arity]
+        v.append(e)
 
 
 def invoke(
@@ -414,7 +420,7 @@ def invoke(
     while True:
         pc += 1
         i = expr.data[pc]
-        log.debugln(i)
+        log.debugln(i, stack.data)
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
@@ -423,14 +429,14 @@ def invoke(
                 continue
             if opcode == convention.block:
                 arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1] - 1))
+                stack.add(Label(arity, expr.composition[pc][-1]))
                 continue
             if opcode == convention.loop:
-                stack.add(Label(0, expr.composition[pc][0]))
+                stack.add(Label(0, expr.composition[pc][0] + 1))
                 continue
             if opcode == convention.if_:
                 arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1] - 1))
+                stack.add(Label(arity, expr.composition[pc][-1]))
                 if stack.pop().n != 0:
                     pc = expr.composition[pc][0]
                     continue
@@ -462,7 +468,7 @@ def invoke(
                 for _ in range(l + 1):
                     e, a = endblk(stack)
                     v.extend(a)
-                    pc = e.continuation
+                    pc = e.continuation - 1
                 for e in v:
                     stack.add(e)
                 continue
@@ -475,7 +481,7 @@ def invoke(
                 for _ in range(l + 1):
                     e, a = endblk(stack)
                     v.extend(a)
-                    pc = e.continuation
+                    pc = e.continuation - 1
                 for e in v:
                     stack.add(e)
                 continue
@@ -686,34 +692,34 @@ def invoke(
             b = stack.pop().n
             a = stack.pop().n
             if opcode == convention.i32_eq:
-                stack.add(Value.from_i32(a == b))
+                stack.add(Value.from_i32(int(a == b)))
                 continue
             if opcode == convention.i32_ne:
-                stack.add(Value.from_i32(a != b))
+                stack.add(Value.from_i32(int(a != b)))
                 continue
             if opcode == convention.i32_lts:
-                stack.add(Value.from_i32(a < b))
+                stack.add(Value.from_i32(int(a < b)))
                 continue
             if opcode == convention.i32_ltu:
-                stack.add(Value.from_i32(num.int2u32(a) < num.int2u32(b)))
+                stack.add(Value.from_i32(int(num.int2u32(a) < num.int2u32(b))))
                 continue
             if opcode == convention.i32_gts:
-                stack.add(Value.from_i32(a > b))
+                stack.add(Value.from_i32(int(a > b)))
                 continue
             if opcode == convention.i32_gtu:
-                stack.add(Value.from_i32(num.int2u32(a) > num.int2u32(b)))
+                stack.add(Value.from_i32(int(num.int2u32(a) > num.int2u32(b))))
                 continue
             if opcode == convention.i32_les:
-                stack.add(Value.from_i32(a <= b))
+                stack.add(Value.from_i32(int(a <= b)))
                 continue
             if opcode == convention.i32_leu:
-                stack.add(Value.from_i32(num.int2u32(a) <= num.int2u32(b)))
+                stack.add(Value.from_i32(int(num.int2u32(a) <= num.int2u32(b))))
                 continue
             if opcode == convention.i32_ges:
-                stack.add(Value.from_i32(a >= b))
+                stack.add(Value.from_i32(int(a >= b)))
                 continue
             if opcode == convention.i32_geu:
-                stack.add(Value.from_i32(num.int2u32(a) >= num.int2u32(b)))
+                stack.add(Value.from_i32(int(num.int2u32(a) >= num.int2u32(b))))
                 continue
             continue
         if opcode == convention.i64_eqz:
@@ -723,74 +729,74 @@ def invoke(
             b = stack.pop().n
             a = stack.pop().n
             if opcode == convention.i64_eq:
-                stack.add(Value.from_i32(a == b))
+                stack.add(Value.from_i32(int(a == b)))
                 continue
             if opcode == convention.i64_ne:
-                stack.add(Value.from_i32(a != b))
+                stack.add(Value.from_i32(int(a != b)))
                 continue
             if opcode == convention.i64_lts:
-                stack.add(Value.from_i32(a < b))
+                stack.add(Value.from_i32(int(a < b)))
                 continue
             if opcode == convention.i64_ltu:
-                stack.add(Value.from_i32(num.int2u64(a) < num.int2u64(b)))
+                stack.add(Value.from_i32(int(num.int2u64(a) < num.int2u64(b))))
                 continue
             if opcode == convention.i64_gts:
-                stack.add(Value.from_i32(a > b))
+                stack.add(Value.from_i32(int(a > b)))
                 continue
             if opcode == convention.i64_gtu:
-                stack.add(Value.from_i32(num.int2u64(a) > num.int2u64(b)))
+                stack.add(Value.from_i32(int(num.int2u64(a) > num.int2u64(b))))
                 continue
             if opcode == convention.i64_les:
-                stack.add(Value.from_i32(a <= b))
+                stack.add(Value.from_i32(int(a <= b)))
                 continue
             if opcode == convention.i64_leu:
-                stack.add(Value.from_i32(num.int2u64(a) <= num.int2u64(b)))
+                stack.add(Value.from_i32(int(num.int2u64(a) <= num.int2u64(b))))
                 continue
             if opcode == convention.i64_ges:
-                stack.add(Value.from_i32(a >= b))
+                stack.add(Value.from_i32(int(a >= b)))
                 continue
             if opcode == convention.i64_geu:
-                stack.add(Value.from_i32(num.int2u64(a) >= num.int2u64(b)))
+                stack.add(Value.from_i32(int(num.int2u64(a) >= num.int2u64(b))))
                 continue
             continue
         if opcode >= convention.f32_eq and opcode <= convention.f64_ge:
             b = stack.pop().n
             a = stack.pop().n
             if opcode == convention.f32_eq:
-                stack.add(Value.from_i32(a == b))
+                stack.add(Value.from_i32(int(a == b)))
                 continue
             if opcode == convention.f32_ne:
-                stack.add(Value.from_i32(a != b))
+                stack.add(Value.from_i32(int(a != b)))
                 continue
             if opcode == convention.f32_lt:
-                stack.add(Value.from_i32(a < b))
+                stack.add(Value.from_i32(int(a < b)))
                 continue
             if opcode == convention.f32_gt:
-                stack.add(Value.from_i32(a > b))
+                stack.add(Value.from_i32(int(a > b)))
                 continue
             if opcode == convention.f32_le:
-                stack.add(Value.from_i32(a <= b))
+                stack.add(Value.from_i32(int(a <= b)))
                 continue
             if opcode == convention.f32_ge:
-                stack.add(Value.from_i32(a >= b))
+                stack.add(Value.from_i32(int(a >= b)))
                 continue
             if opcode == convention.f64_eq:
-                stack.add(Value.from_i32(a == b))
+                stack.add(Value.from_i32(int(a == b)))
                 continue
             if opcode == convention.f64_ne:
-                stack.add(Value.from_i32(a != b))
+                stack.add(Value.from_i32(int(a != b)))
                 continue
             if opcode == convention.f64_lt:
-                stack.add(Value.from_i32(a < b))
+                stack.add(Value.from_i32(int(a < b)))
                 continue
             if opcode == convention.f64_gt:
-                stack.add(Value.from_i32(a > b))
+                stack.add(Value.from_i32(int(a > b)))
                 continue
             if opcode == convention.f64_le:
-                stack.add(Value.from_i32(a <= b))
+                stack.add(Value.from_i32(int(a <= b)))
                 continue
             if opcode == convention.f64_ge:
-                stack.add(Value.from_i32(a >= b))
+                stack.add(Value.from_i32(int(a >= b)))
                 continue
             continue
         if opcode >= convention.i32_clz and opcode <= convention.i32_popcnt:
