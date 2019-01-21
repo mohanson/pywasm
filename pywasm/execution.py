@@ -228,24 +228,13 @@ class Stack:
     def top(self):
         return self.data[-1]
 
-    # def _br(self):
-    #     v = []
-    #     while True:
-    #         e = self.pop()
-    #         if isinstance(e, Value):
-    #             v.append(e)
-    #             continue
-    #         break
-    #     return e, v[::-1][:e.arity]
-
-    # def brn(self, n: int):
-    #     v = []
-    #     for _ in range(n):
-    #         e, a = self._br()
-    #         v.extend(a)
-    #     for e in v:
-    #         self.add(e)
-    #     return e
+    def status(self):
+        for i in range(len(self.data)):
+            i = -1 - i
+            if isinstance(self.data[i], Label):
+                return Label
+            if isinstance(self.data[i], Frame):
+                return Frame
 
 
 class AdministrativeInstruction:
@@ -432,6 +421,8 @@ def invoke(
     pc = -1
     while True:
         pc += 1
+        if pc >= len(expr.data):
+            break
         i = expr.data[pc]
         log.debugln(f'{str(i):<18} {stack}')
         opcode = i.code
@@ -441,8 +432,8 @@ def invoke(
             if opcode == convention.nop:
                 continue
             if opcode == convention.block:
-                # arity = 0 if i.immediate_arguments == convention.empty else 1
-                # stack.add(Label(arity, expr.composition[pc][-1]))
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1] + 1))
                 continue
             if opcode == convention.loop:
                 # stack.add(Label(0, expr.composition[pc][0] + 1))
@@ -1150,3 +1141,5 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
+
+    return [stack.pop() for _ in range(frame.arity)]
