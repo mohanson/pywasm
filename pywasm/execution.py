@@ -453,16 +453,18 @@ def invoke(
                 for e in v:
                     stack.add(e)
                 continue
-            # if opcode == convention.BR_IF:
-            #     n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     cond = stack.pop_i32()
-            #     if cond:
-            #         for _ in range(br_depth):
-            #             ctx.ctack.pop()
-            #         b, _ = ctx.ctack[-1]
-            #         pc = b.pos_br
-            #     continue
+            if opcode == convention.br_if:
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                if stack.pop().n == 0:
+                    continue
+                v = []
+                for _ in range(l + 1):
+                    pc, a = endblk(stack)
+                    v.extend(a)
+                for e in v:
+                    stack.add(e)
+                continue
             # if opcode == convention.BR_TABLE:
             #     n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
             #     pc += n
