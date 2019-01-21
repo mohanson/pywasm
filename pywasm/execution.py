@@ -437,7 +437,7 @@ def invoke(
                 continue
             if opcode == convention.loop:
                 # stack.add(Label(0, expr.composition[pc][0] + 1))
-                continue
+                raise NotImplementedError
             if opcode == convention.if_:
                 # arity = 0 if i.immediate_arguments == convention.empty else 1
                 # stack.add(Label(arity, expr.composition[pc][-1]))
@@ -447,26 +447,36 @@ def invoke(
                 #     pc = expr.composition[pc][1]
                 #     continue
                 # pc = expr.composition[pc][-1] - 1
-                continue
+                raise NotImplementedError
             if opcode == convention.else_:
-                continue
+                raise NotImplementedError
             if opcode == convention.end:
-                # if pc == len(expr.data) - 1:
-                #     return [stack.pop() for _ in range(frame.arity)][::-1]
-                # stack.brn(1)
+                # label{instr∗} val* end -> val*
+                if stack.status() == Label:
+                    for i in range(stack.data):
+                        i = -1 - i
+                        if isinstance(stack.data[i], Label):
+                            del stack.data[i]
+                            break
+                    continue
+                # frame{F} val* end -> val*
+                v = [stack.pop() for _ in range(frame.arity)]
+                assert isinstance(stack.pop(), Frame)
+                for e in v[::-1]:
+                    stack.add(e)
                 continue
             if opcode == convention.br:
                 # l = i.immediate_arguments
                 # assert stack.len() >= l + 1
                 # pc = stack.brn(l + 1).continuation - 1
-                continue
+                raise NotImplementedError
             if opcode == convention.br_if:
                 # l = i.immediate_arguments
                 # assert stack.len() >= l + 1
                 # if stack.pop().n == 0:
                 #     continue
                 # pc = stack.brn(l + 1).continuation - 1
-                continue
+                raise NotImplementedError
             if opcode == convention.br_table:
                 # a = i.immediate_arguments[0]
                 # b = i.immediate_arguments[1]
@@ -474,7 +484,7 @@ def invoke(
                 # if c >= 0 and c < len(a):
                 #     b = a[c]
                 # pc = stack.brn(b + 1).continuation - 1
-                continue
+                raise NotImplementedError
             if opcode == convention.return_:
                 # assert stack.len() >= frame.arity
                 # r = [stack.pop() for _ in range(frame.arity)][::-1]
@@ -486,14 +496,14 @@ def invoke(
                 #     break
                 # for e in r:
                 #     stack.add(e)
-                continue
+                raise NotImplementedError
             if opcode == convention.call:
                 # a = store.funcs[module.funcaddrs[i.immediate_arguments]]
                 # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
                 # if isinstance(a, WasmFunc):
                 #     for e in invoke(store, f, stack, a.code.expr):
                 #         stack.add(e)
-                continue
+                raise NotImplementedError
             if opcode == convention.call_indirect:
                 # if i.immediate_arguments[1] != 0x00:
                 #     log.println("pywasm: zero byte malformed in call_indirect")
@@ -506,7 +516,7 @@ def invoke(
                 # if isinstance(a, WasmFunc):
                 #     for e in invoke(store, f, stack, a.code.expr):
                 #         stack.add(e)
-                continue
+                raise NotImplementedError
             continue
         if opcode == convention.drop:
             stack.pop()
