@@ -471,12 +471,25 @@ def invoke(
                 # pc = stack.brn(l + 1).continuation - 1
                 raise NotImplementedError
             if opcode == convention.br_if:
-                # l = i.immediate_arguments
-                # assert stack.len() >= l + 1
-                # if stack.pop().n == 0:
-                #     continue
-                # pc = stack.brn(l + 1).continuation - 1
-                raise NotImplementedError
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                if stack.pop().n == 0:
+                    continue
+                # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                continue
             if opcode == convention.br_table:
                 # a = i.immediate_arguments[0]
                 # b = i.immediate_arguments[1]
@@ -486,17 +499,14 @@ def invoke(
                 # pc = stack.brn(b + 1).continuation - 1
                 raise NotImplementedError
             if opcode == convention.return_:
-                # assert stack.len() >= frame.arity
-                # r = [stack.pop() for _ in range(frame.arity)][::-1]
-                # while True:
-                #     e = stack.pop()
-                #     if not isinstance(e, Frame):
-                #         continue
-                #     pc = len(expr.data) - 2
-                #     break
-                # for e in r:
-                #     stack.add(e)
-                raise NotImplementedError
+                v = [stack.pop() for _ in range(frame.arity)][::-1]
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Frame):
+                        break
+                for e in v:
+                    stack.add(e)
+                break
             if opcode == convention.call:
                 # a = store.funcs[module.funcaddrs[i.immediate_arguments]]
                 # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
