@@ -451,12 +451,11 @@ def invoke(
                 arity = 0 if i.immediate_arguments == convention.empty else 1
                 stack.add(Label(arity, expr.composition[pc][-1]))
                 if stack.pop().n != 0:
-                    pc = expr.composition[pc][0]
                     continue
                 if len(expr.composition[pc]) > 2:
                     pc = expr.composition[pc][1]
                     continue
-                pc = expr.composition[pc][-1]
+                pc = expr.composition[pc][-1] - 1
                 continue
             if opcode == convention.else_:
                 continue
