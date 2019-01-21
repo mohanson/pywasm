@@ -504,6 +504,7 @@ def invoke(
                     e = stack.pop()
                     if not isinstance(e, Frame):
                         continue
+                    pc = len(expr.data) - 2
                     break
                 for e in r:
                     stack.add(e)
