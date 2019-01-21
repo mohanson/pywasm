@@ -354,14 +354,14 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(store, frame, stack, e.expr)
+            offset = invoke(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(store, frame, stack, e.expr)
+            offset = invoke(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset + len(e.init)
