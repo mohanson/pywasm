@@ -389,6 +389,15 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
+def endblk(stack: Stack) -> (int, typing.List[Value]):
+    vals = []
+    while True:
+        e = stack.pop()
+        if isinstance(e, Label):
+            return e.arity, vals[::-1][:e.arity]
+        vals.append(e)
+
+
 def invoke(
     store: Store,
     frame: Frame,
@@ -431,24 +440,19 @@ def invoke(
             if opcode == convention.end:
                 if pc == len(expr.data) - 1:
                     break
-                vals = []
-                while True:
-                    e = stack.pop()
-                    if isinstance(e, Label):
-                        for f in vals[:e.arity]:
-                            stack.add(f)
-                        break
-                    else:
-                        vals.append(e)
+                for e in endblk(stack)[1]:
+                    stack.add(e)
                 break
-            # if opcode == convention.BR:
-            #     n, c, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     for _ in range(c):
-            #         ctx.ctack.pop()
-            #     b, _ = ctx.ctack[-1]
-            #     pc = b.pos_br
-            #     continue
+            if opcode == convention.br:
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                v = []
+                for _ in range(l + 1):
+                    pc, a = endblk(stack)
+                    v.extend(a)
+                for e in v:
+                    stack.add(e)
+                continue
             # if opcode == convention.BR_IF:
             #     n, br_depth, _ = wasmi.common.read_leb(code[pc:], 32)
             #     pc += n
