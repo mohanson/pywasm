@@ -188,9 +188,10 @@ class Frame:
     #
     # activation ::= framen{frame}
     # frame ::= {locals val∗, module moduleinst}
-    def __init__(self, module: 'ModuleInstance', locs: typing.List[Value]):
+    def __init__(self, module: 'ModuleInstance', locs: typing.List[Value], arity: int):
         self.module = module
         self.locals = locs
+        self.arity = arity
 
 
 class Stack:
@@ -313,7 +314,7 @@ class ModuleInstance:
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
         stack = Stack()
-        frame = Frame(auxmod, [])
+        frame = Frame(auxmod, [], 1)
         vals = []
         for glob in module.globals:
             v = invoke(store, frame, stack, glob.expr, [convention.i32])[0]
@@ -321,7 +322,7 @@ class ModuleInstance:
         # Allocation
         self.allocate(module, store, externvals, vals)
 
-        frame = Frame(self, [])
+        frame = Frame(self, [], 1)
         # For each element segment in module.elem, do:
         for e in module.elem:
             offset = invoke(store, frame, stack, e.expr, [convention.i32])
@@ -339,7 +340,7 @@ class ModuleInstance:
             m.data[offset: offset + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
-            frame = Frame(self, [])
+            frame = Frame(self, [], 0)
             func = store.funcs[self.funcaddrs[module.start]]
             invoke(store, frame, stack, func.code.expr, [convention.i32])
 
@@ -389,12 +390,12 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
-def endblk(stack: Stack) -> (int, typing.List[Value]):
+def endblk(stack: Stack):
     vals = []
     while True:
         e = stack.pop()
-        if isinstance(e, Label):
-            return e.arity, vals[::-1][:e.arity]
+        if isinstance(e, (Label, Frame)):
+            return e, vals[::-1][:e.arity]
         vals.append(e)
 
 
@@ -448,8 +449,9 @@ def invoke(
                 assert stack.len() >= l + 1
                 v = []
                 for _ in range(l + 1):
-                    pc, a = endblk(stack)
+                    e, a = endblk(stack)
                     v.extend(a)
+                    pc = e.continuation
                 for e in v:
                     stack.add(e)
                 continue
@@ -460,8 +462,9 @@ def invoke(
                     continue
                 v = []
                 for _ in range(l + 1):
-                    pc, a = endblk(stack)
+                    e, a = endblk(stack)
                     v.extend(a)
+                    pc = e.continuation
                 for e in v:
                     stack.add(e)
                 continue
@@ -483,14 +486,12 @@ def invoke(
             #     b, _ = ctx.ctack[-1]
             #     pc = b.pos_br
             #     continue
-            # if opcode == convention.RETURN:
-            #     while ctx.ctack:
-            #         if isinstance(ctx.ctack[-1][0], wasmi.section.Code):
-            #             break
-            #         ctx.ctack.pop()
-            #     b, _ = ctx.ctack[-1]
-            #     pc = len(b.expr.data) - 1
-            #     continue
+            if opcode == convention.return_:
+                assert stack.len() >= frame.arity
+                f, a = endblk(stack)
+                for e in a:
+                    stack.add(e)
+                continue
             # if opcode == convention.CALL:
             #     n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
             #     pc += n
@@ -1168,6 +1169,6 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-    r = [stack.pop() for _ in rets]
+    r = [stack.pop() for _ in range(frame.arity)]
     assert isinstance(stack.pop(), Frame)
     return r

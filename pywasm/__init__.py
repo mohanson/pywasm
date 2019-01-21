@@ -36,7 +36,7 @@ class AbstractMachine:
                 assert isinstance(args[i], float)
             args[i] = execution.Value(e, args[i])
         stack = execution.Stack()
-        frame = execution.Frame(self.minst, args)
+        frame = execution.Frame(self.minst, args, len(func.functype.rets))
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
         r = execution.invoke(self.store, frame, stack, func.code.expr, func.functype.rets)
         return [e.n for e in r]
