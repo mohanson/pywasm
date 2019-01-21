@@ -228,6 +228,25 @@ class Stack:
     def top(self):
         return self.data[-1]
 
+    def _br(self):
+        v = []
+        while True:
+            e = self.pop()
+            if isinstance(e, Value):
+                v.append(e)
+                continue
+            break
+        return e, v[::-1][:e.arity]
+
+    def brn(self, n: int):
+        v = []
+        for _ in range(n):
+            e, a = self._br()
+            v.extend(a)
+        for e in v:
+            self.add(e)
+        return e
+
 
 class AdministrativeInstruction:
     pass
@@ -400,15 +419,6 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
-def endblk(stack: Stack):
-    v = []
-    while True:
-        e = stack.pop()
-        if isinstance(e, Label):
-            return e, v[::-1][:e.arity]
-        v.append(e)
-
-
 def invoke(
     store: Store,
     frame: Frame,
@@ -453,40 +463,19 @@ def invoke(
             if opcode == convention.end:
                 if pc == len(expr.data) - 1:
                     return [stack.pop() for _ in range(frame.arity)][::-1]
-                v = []
-                while True:
-                    e = stack.pop()
-                    if isinstance(e, Value):
-                        v.append(e)
-                        continue
-                    v = v[::-1][:e.arity]
-                    break
-                for e in v:
-                    stack.add(e)
+                stack.brn(1)
                 continue
             if opcode == convention.br:
                 l = i.immediate_arguments
                 assert stack.len() >= l + 1
-                v = []
-                for _ in range(l + 1):
-                    e, a = endblk(stack)
-                    v.extend(a)
-                    pc = e.continuation - 1
-                for e in v:
-                    stack.add(e)
+                pc = stack.brn(l + 1).continuation - 1
                 continue
             if opcode == convention.br_if:
                 l = i.immediate_arguments
                 assert stack.len() >= l + 1
                 if stack.pop().n == 0:
                     continue
-                v = []
-                for _ in range(l + 1):
-                    e, a = endblk(stack)
-                    v.extend(a)
-                    pc = e.continuation - 1
-                for e in v:
-                    stack.add(e)
+                pc = stack.brn(l + 1).continuation - 1
                 continue
             if opcode == convention.br_table:
                 a = i.immediate_arguments[0]
@@ -494,12 +483,7 @@ def invoke(
                 c = stack.pop().n
                 if c >= 0 and c < len(a):
                     b = a[c]
-                for _ in range(b + 1):
-                    e, a = endblk(stack)
-                    v.extend(a)
-                    pc = e.continuation - 1
-                for e in v:
-                    stack.add(e)
+                pc = stack.brn(b + 1).continuation - 1
                 continue
             if opcode == convention.return_:
                 assert stack.len() >= frame.arity
