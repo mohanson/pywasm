@@ -347,15 +347,15 @@ class ModuleInstance:
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
-                t.elem[offset + i] = e
+                t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
             offset = invoke(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
-            end = offset + len(e.init)
+            end = offset.n + len(e.init)
             assert end <= len(m.data)
-            m.data[offset: offset + len(e.init)] = e.init
+            m.data[offset.n: offset.n + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             frame = Frame(self, [], 0, -1)
@@ -569,7 +569,7 @@ def invoke(
             m = store.mems[module.memaddrs[0]]
             if opcode >= convention.i32_load and opcode <= convention.i64_load32_u:
                 a = stack.pop().n + i.immediate_arguments[1]
-                if a + convention.info[opcode][2] > len(m.data):
+                if a + convention.opcodes[opcode][2] > len(m.data):
                     raise log.panicln('pywasm: out of bounds memory access')
                 if opcode == convention.i32_load:
                     stack.add(Value.from_i32(num.LittleEndian.i32(m.data[a:a + 4])))

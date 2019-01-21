@@ -46,9 +46,9 @@ class Limits:
     #
     # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
     #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
-    def __init__(self):
-        self.minimum: int
-        self.maximum: int
+    def __init__(self, minimum: int, maximum: int):
+        self.minimum = minimum
+        self.maximum = maximum
 
     def __repr__(self):
         if self.maximum:
@@ -57,11 +57,10 @@ class Limits:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        o = Limits()
         flag = ord(r.read(1))
-        o.minimum = common.read_count(r)
-        o.maximum = common.read_count(r) if flag else None
-        return o
+        minimum = common.read_count(r)
+        maximum = common.read_count(r) if flag else None
+        return Limits(minimum, maximum)
 
 
 class MemoryType:

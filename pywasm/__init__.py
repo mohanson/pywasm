@@ -11,12 +11,22 @@ def on_debug():
 
 
 class AbstractMachine:
-    def __init__(self, module: structure.Module, imps: typing.Dict):
+    def __init__(self, module: structure.Module, imps: typing.Dict = None):
         self.module = module
         self.store = execution.Store()
-        _ = imps
         self.minst = execution.ModuleInstance()
+        imps = {} if imps is None else imps
+        externvals = []
+        for e in self.module.imports:
+            name = f'{e.module}.{e.name}'
+            if name not in imps:
+                log.panicln(f'pywasm: global import {name} not found')
+            externvals.append(imps[name])
         self.minst.instantiate(self.module, self.store, [])
+
+    @classmethod
+    def open(cls, name: str):
+        return AbstractMachine(structure.Module.open(name))
 
     def glob_func(self, name: str):
         for e in self.minst.exports:
