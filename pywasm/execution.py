@@ -424,7 +424,7 @@ def invoke(
         if pc >= len(expr.data):
             break
         i = expr.data[pc]
-        log.debugln(f'{str(i):<18} {stack}')
+        log.debugln(f'{pc} {str(i):<18} {stack}')
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
@@ -489,6 +489,7 @@ def invoke(
                             break
                 for e in v:
                     stack.add(e)
+                pc = L.continuation - 1
                 continue
             if opcode == convention.br_table:
                 # a = i.immediate_arguments[0]
