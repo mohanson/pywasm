@@ -228,24 +228,24 @@ class Stack:
     def top(self):
         return self.data[-1]
 
-    def _br(self):
-        v = []
-        while True:
-            e = self.pop()
-            if isinstance(e, Value):
-                v.append(e)
-                continue
-            break
-        return e, v[::-1][:e.arity]
+    # def _br(self):
+    #     v = []
+    #     while True:
+    #         e = self.pop()
+    #         if isinstance(e, Value):
+    #             v.append(e)
+    #             continue
+    #         break
+    #     return e, v[::-1][:e.arity]
 
-    def brn(self, n: int):
-        v = []
-        for _ in range(n):
-            e, a = self._br()
-            v.extend(a)
-        for e in v:
-            self.add(e)
-        return e
+    # def brn(self, n: int):
+    #     v = []
+    #     for _ in range(n):
+    #         e, a = self._br()
+    #         v.extend(a)
+    #     for e in v:
+    #         self.add(e)
+    #     return e
 
 
 class AdministrativeInstruction:
@@ -441,80 +441,80 @@ def invoke(
             if opcode == convention.nop:
                 continue
             if opcode == convention.block:
-                arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1]))
+                # arity = 0 if i.immediate_arguments == convention.empty else 1
+                # stack.add(Label(arity, expr.composition[pc][-1]))
                 continue
             if opcode == convention.loop:
-                stack.add(Label(0, expr.composition[pc][0] + 1))
+                # stack.add(Label(0, expr.composition[pc][0] + 1))
                 continue
             if opcode == convention.if_:
-                arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1]))
-                if stack.pop().n != 0:
-                    continue
-                if len(expr.composition[pc]) > 2:
-                    pc = expr.composition[pc][1]
-                    continue
-                pc = expr.composition[pc][-1] - 1
+                # arity = 0 if i.immediate_arguments == convention.empty else 1
+                # stack.add(Label(arity, expr.composition[pc][-1]))
+                # if stack.pop().n != 0:
+                #     continue
+                # if len(expr.composition[pc]) > 2:
+                #     pc = expr.composition[pc][1]
+                #     continue
+                # pc = expr.composition[pc][-1] - 1
                 continue
             if opcode == convention.else_:
                 continue
             if opcode == convention.end:
-                if pc == len(expr.data) - 1:
-                    return [stack.pop() for _ in range(frame.arity)][::-1]
-                stack.brn(1)
+                # if pc == len(expr.data) - 1:
+                #     return [stack.pop() for _ in range(frame.arity)][::-1]
+                # stack.brn(1)
                 continue
             if opcode == convention.br:
-                l = i.immediate_arguments
-                assert stack.len() >= l + 1
-                pc = stack.brn(l + 1).continuation - 1
+                # l = i.immediate_arguments
+                # assert stack.len() >= l + 1
+                # pc = stack.brn(l + 1).continuation - 1
                 continue
             if opcode == convention.br_if:
-                l = i.immediate_arguments
-                assert stack.len() >= l + 1
-                if stack.pop().n == 0:
-                    continue
-                pc = stack.brn(l + 1).continuation - 1
+                # l = i.immediate_arguments
+                # assert stack.len() >= l + 1
+                # if stack.pop().n == 0:
+                #     continue
+                # pc = stack.brn(l + 1).continuation - 1
                 continue
             if opcode == convention.br_table:
-                a = i.immediate_arguments[0]
-                b = i.immediate_arguments[1]
-                c = stack.pop().n
-                if c >= 0 and c < len(a):
-                    b = a[c]
-                pc = stack.brn(b + 1).continuation - 1
+                # a = i.immediate_arguments[0]
+                # b = i.immediate_arguments[1]
+                # c = stack.pop().n
+                # if c >= 0 and c < len(a):
+                #     b = a[c]
+                # pc = stack.brn(b + 1).continuation - 1
                 continue
             if opcode == convention.return_:
-                assert stack.len() >= frame.arity
-                r = [stack.pop() for _ in range(frame.arity)][::-1]
-                while True:
-                    e = stack.pop()
-                    if not isinstance(e, Frame):
-                        continue
-                    pc = len(expr.data) - 2
-                    break
-                for e in r:
-                    stack.add(e)
+                # assert stack.len() >= frame.arity
+                # r = [stack.pop() for _ in range(frame.arity)][::-1]
+                # while True:
+                #     e = stack.pop()
+                #     if not isinstance(e, Frame):
+                #         continue
+                #     pc = len(expr.data) - 2
+                #     break
+                # for e in r:
+                #     stack.add(e)
                 continue
             if opcode == convention.call:
-                a = store.funcs[module.funcaddrs[i.immediate_arguments]]
-                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
-                if isinstance(a, WasmFunc):
-                    for e in invoke(store, f, stack, a.code.expr):
-                        stack.add(e)
+                # a = store.funcs[module.funcaddrs[i.immediate_arguments]]
+                # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
+                # if isinstance(a, WasmFunc):
+                #     for e in invoke(store, f, stack, a.code.expr):
+                #         stack.add(e)
                 continue
             if opcode == convention.call_indirect:
-                if i.immediate_arguments[1] != 0x00:
-                    log.println("pywasm: zero byte malformed in call_indirect")
-                idx = stack.pop().n
-                tab = store.tables[module.tableaddrs[idx]]
-                if not 0 <= idx < len(tab.elem):
-                    log.panicln('pywasm: undefined element index')
-                a = store.funcs[module.funcaddrs[tab[idx]]]
-                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
-                if isinstance(a, WasmFunc):
-                    for e in invoke(store, f, stack, a.code.expr):
-                        stack.add(e)
+                # if i.immediate_arguments[1] != 0x00:
+                #     log.println("pywasm: zero byte malformed in call_indirect")
+                # idx = stack.pop().n
+                # tab = store.tables[module.tableaddrs[idx]]
+                # if not 0 <= idx < len(tab.elem):
+                #     log.panicln('pywasm: undefined element index')
+                # a = store.funcs[module.funcaddrs[tab[idx]]]
+                # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
+                # if isinstance(a, WasmFunc):
+                #     for e in invoke(store, f, stack, a.code.expr):
+                #         stack.add(e)
                 continue
             continue
         if opcode == convention.drop:
