@@ -412,29 +412,22 @@ def invoke(
             if opcode == convention.nop:
                 continue
             if opcode == convention.block:
-                stack.add(Label(1, expr.composition[pc][-1]))
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1]))
                 continue
             if opcode == convention.loop:
                 stack.add(Label(0, expr.composition[pc][0] + 1))
                 continue
-            # if opcode == convention.IF:
-            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     b = f_sec.bmap[pc - 1]
-            #     pc += n
-            #     ctx.ctack.append([b, stack.i])
-            #     cond = stack.pop_i32()
-            #     if cond:
-            #         continue
-            #     if b.pos_else == 0:
-            #         ctx.ctack.pop()
-            #         pc = b.pos_br + 1
-            #         continue
-            #     pc = b.pos_else
-            #     continue
-            # if opcode == convention.ELSE:
-            #     b, _ = ctx.ctack[-1]
-            #     pc = b.pos_br
-            #     continue
+            if opcode == convention.if_:
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1]))
+                if stack.pop().n != 0:
+                    pc = expr.composition[pc][0] + 1
+                    continue
+                pc = expr.composition[pc][1] + 1
+                continue
+            if opcode == convention.else_:
+                continue
             if opcode == convention.end:
                 if pc == len(expr.data) - 1:
                     break
