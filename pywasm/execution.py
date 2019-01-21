@@ -485,24 +485,19 @@ def invoke(
                 for e in v:
                     stack.add(e)
                 continue
-            # if opcode == convention.BR_TABLE:
-            #     n, lcount, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     depths = []
-            #     for c in range(lcount):
-            #         n, ldepth, _ = wasmi.common.read_leb(code[pc:], 32)
-            #         pc += n
-            #         depths.append(ldepth)
-            #     n, ddepth, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     didx = stack.pop_i32()
-            #     if didx >= 0 and didx < len(depths):
-            #         ddepth = depths[didx]
-            #     for _ in range(ddepth):
-            #         ctx.ctack.pop()
-            #     b, _ = ctx.ctack[-1]
-            #     pc = b.pos_br
-            #     continue
+            if opcode == convention.br_table:
+                a = i.immediate_arguments[0]
+                b = i.immediate_arguments[1]
+                c = stack.pop().n
+                if c >= 0 and c < len(a):
+                    b = a[c]
+                for _ in range(b + 1):
+                    e, a = endblk(stack)
+                    v.extend(a)
+                    pc = e.continuation - 1
+                for e in v:
+                    stack.add(e)
+                continue
             if opcode == convention.return_:
                 assert stack.len() >= frame.arity
                 r = [stack.pop() for _ in range(frame.arity)][::-1]
