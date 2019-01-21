@@ -509,11 +509,16 @@ def invoke(
                     stack.add(e)
                 break
             if opcode == convention.call:
-                # a = store.funcs[module.funcaddrs[i.immediate_arguments]]
-                # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
-                # if isinstance(a, WasmFunc):
-                #     for e in invoke(store, f, stack, a.code.expr):
-                #         stack.add(e)
+                a = store.funcs[module.funcaddrs[i.immediate_arguments]]
+                f = Frame(
+                    module,
+                    [stack.pop() for _ in a.functype.args][::-1],
+                    len(a.functype.rets),
+                    len(a.code.expr.data)
+                )
+                if isinstance(a, WasmFunc):
+                    invoke(store, f, stack, a.code.expr)
+                    continue
                 raise NotImplementedError
             if opcode == convention.call_indirect:
                 # if i.immediate_arguments[1] != 0x00:
@@ -1163,4 +1168,4 @@ def invoke(
                 continue
             continue
 
-    return [stack.pop() for _ in range(frame.arity)]
+    return stack.data[-frame.arity:]
