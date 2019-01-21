@@ -4,8 +4,8 @@ import os
 import pywasm
 
 switch = {
-    'address.wasm': 1,
-    'block.wasm': 0,
+    'address.wasm': 0,
+    'block.wasm': 1,
     'br.wasm': 0,
     'break-drop.wasm': 0,
     'br_if.wasm': 0,
@@ -62,6 +62,9 @@ def test_spec():
             function = test['function']
             args = [parse_val(e) for e in test['args']]
             if 'return' in test:
+                if test['return'] is None:
+                    assert vm.exec(function, args) == []
+                    continue
                 rets = parse_val(test['return'])
                 assert vm.exec(function, args)[0].n == rets
                 continue

@@ -453,7 +453,7 @@ def invoke(
             if opcode == convention.end:
                 # label{instr∗} val* end -> val*
                 if stack.status() == Label:
-                    for i in range(stack.data):
+                    for i in range(len(stack.data)):
                         i = -1 - i
                         if isinstance(stack.data[i], Label):
                             del stack.data[i]
@@ -466,16 +466,30 @@ def invoke(
                     stack.add(e)
                 continue
             if opcode == convention.br:
-                # l = i.immediate_arguments
-                # assert stack.len() >= l + 1
-                # pc = stack.brn(l + 1).continuation - 1
-                raise NotImplementedError
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                pc = L.continuation - 1
+                continue
             if opcode == convention.br_if:
                 l = i.immediate_arguments
                 assert stack.len() >= l + 1
                 if stack.pop().n == 0:
                     continue
-                # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+                # Same as br
                 L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
                 n = L.arity
                 v = [stack.pop() for _ in range(n)][::-1]
