@@ -101,7 +101,7 @@ class MemoryInstance:
 
     def grow(self, n: int):
         if self.limits.maximum and self.size + n > self.limits.maximum:
-            log.panicln('pywasm: out of memory limit')
+            raise Exception('pywasm: out of memory limit')
         self.data.extend([0 for _ in range(n * 64 * 1024)])
         self.size += n
 
@@ -397,7 +397,7 @@ class ModuleInstance:
         for i, glob in enumerate(module.globals):
             val = vals[i]
             if val.valtype != glob.globaltype.valtype:
-                log.panicln('pywasm: mismatch valtype')
+                raise Exception('pywasm: mismatch valtype')
             globalinst = GlobalInstance(val, glob.globaltype.mut)
             store.globals.append(globalinst)
             self.globaladdrs.append(len(store.globals) - 1)
@@ -417,7 +417,7 @@ def invoke(
     module = frame.module
     stack.add(frame)
     if not expr.data:
-        log.panicln('pywasm: empty init expr')
+        raise Exception('pywasm: empty init expr')
     pc = -1
     while True:
         pc += 1
@@ -428,7 +428,7 @@ def invoke(
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
-                log.panicln('pywasm: reached unreachable')
+                raise Exception('pywasm: reached unreachable')
             if opcode == convention.nop:
                 continue
             if opcode == convention.block:
@@ -526,7 +526,7 @@ def invoke(
                 # idx = stack.pop().n
                 # tab = store.tables[module.tableaddrs[idx]]
                 # if not 0 <= idx < len(tab.elem):
-                #     log.panicln('pywasm: undefined element index')
+                #     raise Exception('pywasm: undefined element index')
                 # a = store.funcs[module.funcaddrs[tab[idx]]]
                 # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
                 # if isinstance(a, WasmFunc):
@@ -570,7 +570,7 @@ def invoke(
             if opcode >= convention.i32_load and opcode <= convention.i64_load32_u:
                 a = stack.pop().n + i.immediate_arguments[1]
                 if a + convention.opcodes[opcode][2] > len(m.data):
-                    raise log.panicln('pywasm: out of bounds memory access')
+                    raise Exception('pywasm: out of bounds memory access')
                 if opcode == convention.i32_load:
                     stack.add(Value.from_i32(num.LittleEndian.i32(m.data[a:a + 4])))
                     continue
@@ -618,7 +618,7 @@ def invoke(
                 v = stack.pop().n
                 a = stack.pop().n + i.immediate_arguments[1]
                 if a + convention.info[opcode][2] > len(m.data):
-                    raise log.panicln('pywasm: out of bounds memory access')
+                    raise Exception('pywasm: out of bounds memory access')
                 if opcode == convention.i32_store:
                     m.data[a:a + 4] = num.LittleEndian.pack_i32(v)
                     continue
@@ -819,7 +819,7 @@ def invoke(
                 convention.i32_remu,
             ]:
                 if b == 0:
-                    log.panicln('pywasm: integer divide by zero')
+                    raise Exception('pywasm: integer divide by zero')
             if opcode == convention.i32_add:
                 stack.add(Value.from_i32(num.int2i32(a + b)))
                 continue
@@ -831,7 +831,7 @@ def invoke(
                 continue
             if opcode == convention.i32_divs:
                 if a == 0x80000000 and b == -1:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i32(num.idiv_s(a, b)))
                 continue
             if opcode == convention.i32_divu:
@@ -906,7 +906,7 @@ def invoke(
                 convention.i64_remu,
             ]:
                 if b == 0:
-                    raise log.panicln('pywasm: integer divide by zero')
+                    raise Exception('pywasm: integer divide by zero')
             if opcode == convention.i64_add:
                 stack.add(Value.from_i64(num.int2i64(a + b)))
                 continue
@@ -1073,28 +1073,28 @@ def invoke(
                 convention.i64_trunc_uf64,
             ]:
                 if math.isnan(a):
-                    log.panicln('pywasm: invalid conversion to integer')
+                    raise Exception('pywasm: invalid conversion to integer')
             if opcode == convention.i32_wrap_i64:
                 stack.add(Value.from_i32(num.int2i32(a)))
                 continue
             if opcode == convention.i32_trunc_sf32:
                 if a > 2**31 - 1 or a < -2**32:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i32(int(a)))
                 continue
             if opcode == convention.i32_trunc_uf32:
                 if a > 2**32 - 1 or a < -1:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i32(int(a)))
                 continue
             if opcode == convention.i32_trunc_sf64:
                 if a > 2**31 - 1 or a < -2**32:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i32(int(a)))
                 continue
             if opcode == convention.i32_trunc_uf64:
                 if a > 2**32 - 1 or a < -1:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i32(int(a)))
                 continue
             if opcode == convention.i64_extend_si32:
@@ -1105,12 +1105,12 @@ def invoke(
                 continue
             if opcode == convention.i64_trunc_sf32:
                 if a > 2**63 - 1 or a < -2**63:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i64(int(a)))
                 continue
             if opcode == convention.i64_trunc_uf32:
                 if a > 2**63 - 1 or a < -1:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i64(int(a)))
                 continue
             if opcode == convention.i64_trunc_sf64:
@@ -1118,7 +1118,7 @@ def invoke(
                 continue
             if opcode == convention.i64_trunc_uf64:
                 if a < -1:
-                    log.panicln('pywasm: integer overflow')
+                    raise Exception('pywasm: integer overflow')
                 stack.add(Value.from_i64(int(a)))
                 continue
             if opcode == convention.f32_convert_si32:

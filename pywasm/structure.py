@@ -174,7 +174,7 @@ class Instruction:
             b = common.read_count(r, 32)
             o.immediate_arguments = [a, b]
         else:
-            log.panicln('pywasm: invalid code size')
+            raise Exception('pywasm: invalid code size')
         return o
 
 
@@ -497,7 +497,7 @@ class Import:
         elif o.kind == convention.extern_global:
             o.desc = GlobalType.from_reader(r)
         else:
-            log.panicln('pywasm: malformed')
+            raise Exception('pywasm: malformed')
         return o
 
 
@@ -745,9 +745,9 @@ class Module:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> 'Module':
         if list(r.read(4)) != [0x00, 0x61, 0x73, 0x6d]:
-            log.panicln('pywasm: invalid magic number')
+            raise Exception('pywasm: invalid magic number')
         if list(r.read(4)) != [0x01, 0x00, 0x00, 0x00]:
-            log.panicln('pywasm: invalid version')
+            raise Exception('pywasm: invalid version')
         mod = Module()
         log.debugln('Sections:')
         log.debugln()
@@ -759,7 +759,7 @@ class Module:
             n = common.read_count(r, 32)
             data = r.read(n)
             if len(data) != n:
-                log.panicln('pywasm: invalid section size')
+                raise Exception('pywasm: invalid section size')
             if section_id == convention.custom_section:
                 custom_section = CustomSection.from_reader(io.BytesIO(data))
                 log.debugln(f'{convention.section[section_id][0]:>9} {custom_section.name}')
@@ -838,6 +838,6 @@ class Module:
                     log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
                 mod.data = data_section.vec
             else:
-                log.panicln('pywasm: invalid section id')
+                raise Exception('pywasm: invalid section id')
         log.debugln('')
         return mod

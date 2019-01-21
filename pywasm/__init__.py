@@ -20,7 +20,7 @@ class AbstractMachine:
         for e in self.module.imports:
             name = f'{e.module}.{e.name}'
             if name not in imps:
-                log.panicln(f'pywasm: global import {name} not found')
+                raise Exception(f'pywasm: global import {name} not found')
             externvals.append(imps[name])
         self.minst.instantiate(self.module, self.store, [])
 
@@ -37,7 +37,7 @@ class AbstractMachine:
     def exec(self, name: str, args: typing.List):
         func = self.glob_func(name)
         if not func:
-            log.panicln('pywasm: function not found')
+            raise Exception('pywasm: function not found')
         assert isinstance(func, execution.WasmFunc)
         for i, e in enumerate(func.functype.args):
             if e in [convention.i32, convention.i64]:

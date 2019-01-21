@@ -1,11 +1,42 @@
 import json
-import math
 import os
 
 import pywasm
 
+switch = {
+    'address.wasm': 1,
+    'block.wasm': 0,
+    'br.wasm': 0,
+    'break-drop.wasm': 0,
+    'br_if.wasm': 0,
+    'br_table.wasm': 0,
+    'call_indirect.wasm': 0,
+    'endianness.wasm': 0,
+    'fac.wasm': 0,
+    'forward.wasm': 0,
+    'get_local.wasm': 0,
+    'globals.wasm': 0,
+    'i32.wasm': 0,
+    'if.wasm': 0,
+    'loop.wasm': 0,
+    'memory_redundancy.wasm': 0,
+    'modules.json': 0,
+    'names.wasm': 0,
+    'nop.wasm': 0,
+    'resizing.wasm': 0,
+    'return.wasm': 0,
+    'select.wasm': 0,
+    'switch.wasm': 0,
+    'tee_local.wasm': 0,
+    'traps_int_div.wasm': 0,
+    'traps_int_rem.wasm': 0,
+    'traps_mem.wasm': 0,
+    'unreachable.wasm': 0,
+    'unwind.wasm': 0,
+}
 
-def parse_vype(s: str):
+
+def parse_val(s: str):
     t, v = s.split(':')
     if t in ['i32', 'i64']:
         if v.startswith('0x'):
@@ -23,40 +54,27 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        # vm = pywasm.AbstractMachine.open(os.path.join('./tests/spec/', file))
+        if switch[file] == 0:
+            continue
+        vm = pywasm.AbstractMachine.open(os.path.join('./tests/spec/', file))
         for test in case['tests']:
+            print(f'{file} {test}')
             function = test['function']
-            args = [parse_vype(e) for e in test['args']]
+            args = [parse_val(e) for e in test['args']]
             if 'return' in test:
-                rets = [parse_vype(e) for e in test['return']]
-                print(f'{file} {function} {args} {rets}')
+                rets = parse_val(test['return'])
+                assert vm.exec(function, args)[0].n == rets
+                continue
             if 'trap' in test:
                 trap = test['trap']
-                print(f'{file} {function} {args} {trap}')
-
-
-            # if 'trap' in test:
-            #     trap = test['trap']
-            #     try:
-            #         vm.exec(function, args)
-            #     except Exception as e:
-            #         print(f'{file} {function} {args}: {trap} == {e.message}', end='')
-            #         assert e.message == trap.split(':')[1].strip()
-            #         print(' (ok)')
-            #     else:
-            #         assert False
-            #     continue
-            # rets = None
-            # if test.get('return', False):
-            #     rets = parse_vype(test['return'])
-            # r = vm.exec(function, args)
-            # print(f'{file} {function} {args}: {rets} == {r}', end='')
-            # if isinstance(r, float):
-            #     assert abs(r - rets) < 0.005 or (math.isnan(r) and math.isnan(rets))
-            #     print(' (ok)')
-            #     continue
-            # assert r == rets
-            # print(' (ok)')
+                try:
+                    vm.exec(function, args)
+                except Exception as e:
+                    assert str(e).split(':')[1] == trap.split(':')[1]
+                else:
+                    assert False
+                continue
+            raise NotImplementedError
 
 
 test_spec()
