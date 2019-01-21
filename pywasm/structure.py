@@ -814,7 +814,7 @@ class Module:
                     for e in instrs:
                         a = f'           | {" " * prefix}{convention.opcodes[e.code][0]}'
                         if e.code in [convention.block, convention.loop, convention.if_]:
-                            log.debugln(f'{a} {convention.blocktype[e.immediate_arguments][0]}')
+                            log.debugln(f'{a} {e.immediate_arguments}')
                             prefix += 2
                         elif e.code == convention.end:
                             log.debugln(f'{a}')

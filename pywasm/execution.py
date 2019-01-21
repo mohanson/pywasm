@@ -181,7 +181,7 @@ class Label:
         self.continuation = continuation
 
     def __repr__(self):
-        return 'L'
+        return '|'
 
 
 class Frame:
@@ -198,7 +198,7 @@ class Frame:
         self.continuation = continuation
 
     def __repr__(self):
-        return 'F'
+        return '*'
 
 
 class Stack:
@@ -212,6 +212,9 @@ class Stack:
     # by abstract syntax as follows.
     def __init__(self):
         self.data = []
+
+    def __repr__(self):
+        return self.data.__repr__()
 
     def add(self, e):
         self.data.append(e)
@@ -420,7 +423,7 @@ def invoke(
     while True:
         pc += 1
         i = expr.data[pc]
-        log.debugln(i, stack.data)
+        log.debugln(f'{str(i):<18} {stack}')
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
