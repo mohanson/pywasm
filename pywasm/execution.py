@@ -317,7 +317,7 @@ class ModuleInstance:
         frame = Frame(auxmod, [], 1)
         vals = []
         for glob in module.globals:
-            v = invoke(store, frame, stack, glob.expr, [convention.i32])[0]
+            v = invoke(store, frame, stack, glob.expr)[0]
             vals.append(v)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -325,14 +325,14 @@ class ModuleInstance:
         frame = Frame(self, [], 1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(store, frame, stack, e.expr, [convention.i32])
+            offset = invoke(store, frame, stack, e.expr)
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(store, frame, stack, e.expr, [convention.i32])
+            offset = invoke(store, frame, stack, e.expr)
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset + len(e.init)
@@ -342,7 +342,7 @@ class ModuleInstance:
         if module.start is not None:
             frame = Frame(self, [], 0)
             func = store.funcs[self.funcaddrs[module.start]]
-            invoke(store, frame, stack, func.code.expr, [convention.i32])
+            invoke(store, frame, stack, func.code.expr)
 
     def allocate(
         self,
@@ -404,7 +404,6 @@ def invoke(
     frame: Frame,
     stack: Stack,
     expr: structure.Expression,
-    rets: typing.List[int],
 ):
     module = frame.module
     stack.add(frame)
@@ -492,23 +491,13 @@ def invoke(
                 for e in a:
                     stack.add(e)
                 continue
-            # if opcode == convention.CALL:
-            #     n, f_idx, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     son_f_fun = self.functions[f_idx]
-            #     son_f_sig = son_f_fun.signature
-            #     if son_f_fun.envb:
-            #         name = son_f_fun.module + '.' + son_f_fun.name
-            #         func = self.env.import_func[name]
-            #         r = func(self.mem, [stack.pop() for _ in son_f_sig.args][::-1])
-            #         e = wasmi.stack.Entry(son_f_sig.rets[0], r)
-            #         stack.add(e)
-            #         continue
-            #     pre_locals_data = ctx.locals_data
-            #     ctx.locals_data = [stack.pop() for _ in son_f_sig.args][::-1]
-            #     self.exec_step(f_idx, ctx)
-            #     ctx.locals_data = pre_locals_data
-            #     continue
+            if opcode == convention.call:
+                a = store.funcs[module.funcaddrs[i.immediate_arguments]]
+                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets))
+                if isinstance(a, WasmFunc):
+                    for e in invoke(store, f, stack, a.code.expr):
+                        stack.add(e)
+                continue
             if opcode == convention.call_indirect:
                 if i.immediate_arguments[1] != 0x00:
                     log.println("pywasm: zero byte malformed in call_indirect")
@@ -1169,6 +1158,6 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-    r = [stack.pop() for _ in range(frame.arity)]
+    r = [stack.pop() for _ in range(frame.arity)][::-1]
     assert isinstance(stack.pop(), Frame)
     return r

@@ -38,5 +38,5 @@ class AbstractMachine:
         stack = execution.Stack()
         frame = execution.Frame(self.minst, args, len(func.functype.rets))
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
-        r = execution.invoke(self.store, frame, stack, func.code.expr, func.functype.rets)
+        r = execution.invoke(self.store, frame, stack, func.code.expr)
         return [e.n for e in r]
