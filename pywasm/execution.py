@@ -456,7 +456,7 @@ def invoke(
                 if len(expr.composition[pc]) > 2:
                     pc = expr.composition[pc][1]
                     continue
-                pc = expr.composition[pc][1] - 1
+                pc = expr.composition[pc][-1]
                 continue
             if opcode == convention.else_:
                 continue
