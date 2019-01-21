@@ -188,10 +188,11 @@ class Frame:
     #
     # activation ::= framen{frame}
     # frame ::= {locals val∗, module moduleinst}
-    def __init__(self, module: 'ModuleInstance', locs: typing.List[Value], arity: int):
+    def __init__(self, module: 'ModuleInstance', locs: typing.List[Value], arity: int, continuation: int):
         self.module = module
         self.locals = locs
         self.arity = arity
+        self.continuation = continuation
 
 
 class Stack:
@@ -314,7 +315,7 @@ class ModuleInstance:
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
         stack = Stack()
-        frame = Frame(auxmod, [], 1)
+        frame = Frame(auxmod, [], 1, -1)
         vals = []
         for glob in module.globals:
             v = invoke(store, frame, stack, glob.expr)[0]
@@ -322,7 +323,7 @@ class ModuleInstance:
         # Allocation
         self.allocate(module, store, externvals, vals)
 
-        frame = Frame(self, [], 1)
+        frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
             offset = invoke(store, frame, stack, e.expr)
@@ -340,7 +341,7 @@ class ModuleInstance:
             m.data[offset: offset + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
-            frame = Frame(self, [], 0)
+            frame = Frame(self, [], 0, -1)
             func = store.funcs[self.funcaddrs[module.start]]
             invoke(store, frame, stack, func.code.expr)
 
@@ -433,21 +434,25 @@ def invoke(
                 if stack.pop().n != 0:
                     pc = expr.composition[pc][0]
                     continue
+                if len(expr.composition[pc]) > 2:
+                    pc = expr.composition[pc][1]
+                    continue
                 pc = expr.composition[pc][1] - 1
                 continue
             if opcode == convention.else_:
                 continue
             if opcode == convention.end:
-                r = [stack.pop() for _ in range(frame.arity)][::-1]
+                if pc == len(expr.data) - 1:
+                    return [stack.pop() for _ in range(frame.arity)][::-1]
+                v = []
                 while True:
                     e = stack.pop()
                     if isinstance(e, Value):
+                        v.append(e)
                         continue
+                    v = v[::-1][:e.arity]
                     break
-                if pc == len(expr.data) - 1:
-                    assert isinstance(stack.pop(), Frame)
-                    return r
-                for e in r:
+                for e in v:
                     stack.add(e)
                 continue
             if opcode == convention.br:
@@ -494,13 +499,18 @@ def invoke(
             #     continue
             if opcode == convention.return_:
                 assert stack.len() >= frame.arity
-                f, a = endblk(stack)
-                for e in a:
+                r = [stack.pop() for _ in range(frame.arity)][::-1]
+                while True:
+                    e = stack.pop()
+                    if not isinstance(e, Frame):
+                        continue
+                    break
+                for e in r:
                     stack.add(e)
                 continue
             if opcode == convention.call:
                 a = store.funcs[module.funcaddrs[i.immediate_arguments]]
-                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets))
+                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
                 if isinstance(a, WasmFunc):
                     for e in invoke(store, f, stack, a.code.expr):
                         stack.add(e)
