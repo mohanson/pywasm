@@ -400,8 +400,9 @@ def invoke(
     stack.add(frame)
     if not expr.data:
         log.panicln('pywasm: empty init expr')
-    pc = 0
+    pc = -1
     while True:
+        pc += 1
         i = expr.data[pc]
         log.debugln(i)
         opcode = i.code
@@ -434,21 +435,19 @@ def invoke(
             #     b, _ = ctx.ctack[-1]
             #     pc = b.pos_br
             #     continue
-            # if opcode == convention.END:
-            #     b, sp = ctx.ctack.pop()
-            #     if isinstance(b, wasmi.section.Code):
-            #         if not ctx.ctack:
-            #             if f_sig.rets:
-            #                 if f_sig.rets[0] != stack.top().valtype:
-            #                     raise wasmi.error.WAException('signature mismatch in call_indirect')
-            #                 return stack.pop().n
-            #             return None
-            #         return
-            #     if sp < stack.i:
-            #         v = stack.pop()
-            #         stack.i = sp
-            #         stack.add(v)
-            #     continue
+            if opcode == convention.end:
+                if pc == len(expr.data) - 1:
+                    break
+                vals = []
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        for f in vals[:e.arity]:
+                            stack.add(f)
+                        break
+                    else:
+                        vals.append(e)
+                break
             # if opcode == convention.BR:
             #     n, c, _ = wasmi.common.read_leb(code[pc:], 32)
             #     pc += n
@@ -1170,7 +1169,6 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-        pc += 1
     r = [stack.pop() for _ in rets]
     assert isinstance(stack.pop(), Frame)
     return r
