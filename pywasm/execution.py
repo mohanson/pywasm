@@ -507,29 +507,16 @@ def invoke(
             if opcode == convention.call_indirect:
                 if i.immediate_arguments[1] != 0x00:
                     log.println("pywasm: zero byte malformed in call_indirect")
+                idx = stack.pop().n
+                tab = store.tables[module.tableaddrs[idx]]
+                if not 0 <= idx < len(tab.elem):
+                    log.panicln('pywasm: undefined element index')
+                a = store.funcs[module.funcaddrs[tab[idx]]]
+                f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
+                if isinstance(a, WasmFunc):
+                    for e in invoke(store, f, stack, a.code.expr):
+                        stack.add(e)
                 continue
-            #     n, _, _ = wasmi.common.read_leb(code[pc:], 32)
-            #     pc += n
-            #     n, _, _ = wasmi.common.read_leb(code[pc:], 1)
-            #     pc += n
-            #     t_idx = stack.pop_i32()
-            #     if not 0 <= t_idx < len(self.table[wasmi.spec.valtype.FUNCREF]):
-            #         raise wasmi.error.WAException('undefined element index')
-            #     f_idx = self.table[wasmi.spec.valtype.FUNCREF][t_idx]
-            #     son_f_fun = self.functions[f_idx]
-            #     son_f_sig = son_f_fun.signature
-            #     a = list(son_f_sig.args)
-            #     b = [stack.pop() for _ in son_f_sig.args][::-1]
-            #     for i in range(len(a)):
-            #         ia = a[i]
-            #         ib = b[i]
-            #         if not ib or ia != ib.valtype:
-            #             raise wasmi.error.WAException('signature mismatch in call_indirect')
-            #     pre_locals_data = ctx.locals_data
-            #     ctx.locals_data = b
-            #     self.exec_step(f_idx, ctx)
-            #     ctx.locals_data = pre_locals_data
-            #     continue
             continue
         if opcode == convention.drop:
             stack.pop()
