@@ -422,27 +422,34 @@ def invoke(
                 continue
             if opcode == convention.block:
                 arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1]))
+                stack.add(Label(arity, expr.composition[pc][-1] - 1))
                 continue
             if opcode == convention.loop:
-                stack.add(Label(0, expr.composition[pc][0] + 1))
+                stack.add(Label(0, expr.composition[pc][0]))
                 continue
             if opcode == convention.if_:
                 arity = 0 if i.immediate_arguments == convention.empty else 1
-                stack.add(Label(arity, expr.composition[pc][-1]))
+                stack.add(Label(arity, expr.composition[pc][-1] - 1))
                 if stack.pop().n != 0:
-                    pc = expr.composition[pc][0] + 1
+                    pc = expr.composition[pc][0]
                     continue
-                pc = expr.composition[pc][1] + 1
+                pc = expr.composition[pc][1] - 1
                 continue
             if opcode == convention.else_:
                 continue
             if opcode == convention.end:
-                if pc == len(expr.data) - 1:
+                r = [stack.pop() for _ in range(frame.arity)][::-1]
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Value):
+                        continue
                     break
-                for e in endblk(stack)[1]:
+                if pc == len(expr.data) - 1:
+                    assert isinstance(stack.pop(), Frame)
+                    return r
+                for e in r:
                     stack.add(e)
-                break
+                continue
             if opcode == convention.br:
                 l = i.immediate_arguments
                 assert stack.len() >= l + 1
@@ -1158,6 +1165,3 @@ def invoke(
                 stack.add(Value.from_f64(num.i642f64(a)))
                 continue
             continue
-    r = [stack.pop() for _ in range(frame.arity)][::-1]
-    assert isinstance(stack.pop(), Frame)
-    return r
