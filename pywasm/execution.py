@@ -439,6 +439,22 @@ def call(
         return stack.data[-frame.arity:]
     return []
 
+def spec_br(l: int, stack: Stack) -> int:
+    # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+    L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+    n = L.arity
+    v = [stack.pop() for _ in range(n)][::-1]
+
+    s = 0
+    while True:
+        e = stack.pop()
+        if isinstance(e, Label):
+            s += 1
+            if s == l + 1:
+                break
+    for e in v:
+        stack.add(e)
+    return L.continuation - 1
 
 def exec_expr(
     store: Store,
@@ -505,42 +521,12 @@ def exec_expr(
                     stack.add(e)
                 continue
             if opcode == convention.br:
-                l = i.immediate_arguments
-                # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
-                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
-                n = L.arity
-                v = [stack.pop() for _ in range(n)][::-1]
-
-                s = 0
-                while True:
-                    e = stack.pop()
-                    if isinstance(e, Label):
-                        s += 1
-                        if s == l + 1:
-                            break
-                for e in v:
-                    stack.add(e)
-                pc = L.continuation - 1
+                pc = spec_br(i.immediate_arguments, stack)
                 continue
             if opcode == convention.br_if:
                 if stack.pop().n == 0:
                     continue
-                l = i.immediate_arguments
-                # Same as br
-                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
-                n = L.arity
-                v = [stack.pop() for _ in range(n)][::-1]
-
-                s = 0
-                while True:
-                    e = stack.pop()
-                    if isinstance(e, Label):
-                        s += 1
-                        if s == l + 1:
-                            break
-                for e in v:
-                    stack.add(e)
-                pc = L.continuation - 1
+                pc = spec_br(i.immediate_arguments, stack)
                 continue
             if opcode == convention.br_table:
                 a = i.immediate_arguments[0]
@@ -548,21 +534,7 @@ def exec_expr(
                 c = stack.pop().n
                 if c >= 0 and c < len(a):
                     l = a[c]
-                # Same as br
-                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
-                n = L.arity
-                v = [stack.pop() for _ in range(n)][::-1]
-
-                s = 0
-                while True:
-                    e = stack.pop()
-                    if isinstance(e, Label):
-                        s += 1
-                        if s == l + 1:
-                            break
-                for e in v:
-                    stack.add(e)
-                pc = L.continuation - 1
+                pc = spec_br(l, stack)
                 continue
             if opcode == convention.return_:
                 v = [stack.pop() for _ in range(frame.arity)][::-1]
