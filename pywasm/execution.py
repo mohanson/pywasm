@@ -436,18 +436,18 @@ def invoke(
                 stack.add(Label(arity, expr.composition[pc][-1] + 1))
                 continue
             if opcode == convention.loop:
-                # stack.add(Label(0, expr.composition[pc][0] + 1))
-                raise NotImplementedError
+                stack.add(Label(0, expr.composition[pc][0] + 1))
+                continue
             if opcode == convention.if_:
-                # arity = 0 if i.immediate_arguments == convention.empty else 1
-                # stack.add(Label(arity, expr.composition[pc][-1]))
-                # if stack.pop().n != 0:
-                #     continue
-                # if len(expr.composition[pc]) > 2:
-                #     pc = expr.composition[pc][1]
-                #     continue
-                # pc = expr.composition[pc][-1] - 1
-                raise NotImplementedError
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1] + 1))
+                if stack.pop().n != 0:
+                    continue
+                if len(expr.composition[pc]) > 2:
+                    pc = expr.composition[pc][1]
+                    continue
+                pc = expr.composition[pc][-1] - 1
+                continue
             if opcode == convention.else_:
                 raise NotImplementedError
             if opcode == convention.end:
@@ -506,13 +506,27 @@ def invoke(
                 pc = L.continuation - 1
                 continue
             if opcode == convention.br_table:
-                # a = i.immediate_arguments[0]
-                # b = i.immediate_arguments[1]
-                # c = stack.pop().n
-                # if c >= 0 and c < len(a):
-                #     b = a[c]
-                # pc = stack.brn(b + 1).continuation - 1
-                raise NotImplementedError
+                a = i.immediate_arguments[0]
+                l = i.immediate_arguments[1]
+                c = stack.pop().n
+                if c >= 0 and c < len(a):
+                    l = a[c]
+                # Same as br
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                pc = L.continuation - 1
+                continue
             if opcode == convention.return_:
                 v = [stack.pop() for _ in range(frame.arity)][::-1]
                 while True:

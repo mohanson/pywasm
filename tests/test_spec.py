@@ -4,9 +4,9 @@ import os
 import pywasm
 
 switch = {
-    'address.wasm': 0,
+    'address.wasm': 1,
     'block.wasm': 1,
-    'br.wasm': 0,
+    'br.wasm': 1,
     'break-drop.wasm': 0,
     'br_if.wasm': 0,
     'br_table.wasm': 0,
