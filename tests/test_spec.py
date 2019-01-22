@@ -17,7 +17,7 @@ switch = {
     'fac.wasm': 1,
     'forward.wasm': 1,
     'get_local.wasm': 1,
-    'globals.wasm': 0,
+    'globals.wasm': 1,
     'if.wasm': 1,
     'loop.wasm': 1,
     'memory_redundancy.wasm': 1,
@@ -61,7 +61,7 @@ def test_spec():
         data = json.load(f)
     for case in data:
         file = case['file']
-        if switch[file] == 0:
+        if file not in switch or switch[file] == 0:
             continue
         vm = pywasm.AbstractMachine.open(os.path.join('./tests/spec/', file))
         for test in case['tests']:

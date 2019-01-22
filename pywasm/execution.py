@@ -594,10 +594,10 @@ def exec_expr(
             frame.locals[i.immediate_arguments] = stack.top()
             continue
         if opcode == convention.get_global:
-            stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
+            stack.add(store.globals[module.globaladdrs[i.immediate_arguments]].value)
             continue
         if opcode == convention.set_global:
-            store.globals[module.globaladdrs[i.immediate_arguments]] = stack.pop()
+            store.globals[module.globaladdrs[i.immediate_arguments]] = GlobalInstance(stack.pop(), True)
             continue
         if opcode >= convention.i32_load and opcode <= convention.grow_memory:
             m = store.mems[module.memaddrs[0]]
