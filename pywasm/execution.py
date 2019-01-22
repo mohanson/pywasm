@@ -465,7 +465,7 @@ def exec_expr(
                 stack.add(Label(arity, expr.composition[pc][-1] + 1))
                 continue
             if opcode == convention.loop:
-                stack.add(Label(0, expr.composition[pc][0] + 1))
+                stack.add(Label(0, expr.composition[pc][0]))
                 continue
             if opcode == convention.if_:
                 c = stack.pop().n
@@ -504,7 +504,6 @@ def exec_expr(
                 continue
             if opcode == convention.br:
                 l = i.immediate_arguments
-                assert stack.len() >= l + 1
                 # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
                 L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
                 n = L.arity
@@ -522,10 +521,9 @@ def exec_expr(
                 pc = L.continuation - 1
                 continue
             if opcode == convention.br_if:
-                l = i.immediate_arguments
-                assert stack.len() >= l + 1
                 if stack.pop().n == 0:
                     continue
+                l = i.immediate_arguments
                 # Same as br
                 L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
                 n = L.arity
@@ -736,7 +734,7 @@ def exec_expr(
                 continue
             continue
         if opcode == convention.i32_eqz:
-            stack.add(Value.from_i32(stack.pop().n == 0))
+            stack.add(Value.from_i32(int(stack.pop().n == 0)))
             continue
         if opcode >= convention.i32_eq and opcode <= convention.i32_geu:
             b = stack.pop().n
@@ -773,7 +771,7 @@ def exec_expr(
                 continue
             continue
         if opcode == convention.i64_eqz:
-            stack.add(Value.from_i32(stack.pop().n == 0))
+            stack.add(Value.from_i32(int(stack.pop().n == 0)))
             continue
         if opcode >= convention.i64_eq and opcode <= convention.i64_geu:
             b = stack.pop().n

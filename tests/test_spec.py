@@ -18,7 +18,7 @@ switch = {
     'get_local.wasm': 0,
     'globals.wasm': 0,
     'if.wasm': 1,
-    'loop.wasm': 0,
+    'loop.wasm': 1,
     'memory_redundancy.wasm': 0,
     'modules.json': 0,
     'names.wasm': 0,
