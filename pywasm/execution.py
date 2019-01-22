@@ -433,11 +433,9 @@ def call(
     stack.add(Label(len(f.functype.rets), len(code)))
     # An expression is evaluated relative to a current frame pointing to its containing module instance.
     exec_expr(store, frame, stack, f.code.expr)
-    vals = [stack.pop() for _ in range(frame.arity)][::-1]
-    assert isinstance(stack.pop(), Frame)
-    for e in vals:
-        stack.add(e)
-    return vals
+    if frame.arity > 0:
+        return stack.data[-frame.arity:]
+    return []
 
 
 def exec_expr(
