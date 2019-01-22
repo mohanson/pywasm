@@ -1,27 +1,15 @@
-# py-wasmi: A WebAssembly interpreter written in pure Python.
+# pywasm: A WebAssembly interpreter written in pure Python.
 
-[![Build Status](https://travis-ci.org/mohanson/py-wasmi.svg?branch=master)](https://travis-ci.org/mohanson/py-wasmi)
+[![Build Status](https://travis-ci.org/mohanson/pywasm.svg?branch=master)](https://travis-ci.org/mohanson/pywasm)
 
-A WebAssembly interpreter written in pure Python.
+A WebAssembly interpreter written in pure Python. JIT used.
 
-WASM version: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/)
+Current specification wasm version is: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/). Just like Firefox or Chrome does.
 
-Get some helps from [warpy](https://github.com/kanaka/warpy) and [wagon](https://github.com/go-interpreter/wagon). Thanks open source authors.
-
-# Requirements
-- py-wasmi has been tested and is known to run on Linux/Ubuntu, macOS and Windows(10). It will likely work fine on most OS.
-- No third party dependences.
-- Python3.6 or newer.
-
-# Installition
+# Installation
 
 ```sh
-$ git clone https://github.com/mohanson/py-wasmi && python3 setup.py install
-# or
-$ pip3 install wasmi
-
-# run tests. py-wasmi has 100% passed all cases from official spec
-python3 tests/test_spec.py
+$ pip3 install pywasm
 ```
 
 # Example
@@ -29,7 +17,7 @@ python3 tests/test_spec.py
 A few small examples have been provided in the `examples` directory, you can try these examples quickly just:
 
 ```sh
-$ cd py-wasmi
+$ cd pywasm
 $ python3 examples add 40 2      => (i32.add) 42
 $ python3 examples fib 10        => (10th of fibonacci) 55
 ```
@@ -48,20 +36,37 @@ int fib(int n) {
 Generate `fib.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
 
 ```py
-import wasmi
+import pywasm
 
-path = './examples/fib.wasm'
-mod = wasmi.Module.open(path)
-vm = wasmi.Vm(mod)
+vm = pywasm.VirtualMachine.open('./examples/fib.wasm')
 r = vm.exec('fib', [10])
 print(r) # 55
 ```
 
 # FAQ
 
-Q: How is the py-wasmi performance? <br>
-A: Fine. But if you have strict requirements on speed, please use others such as `wasm-interp`.
+Q: How is the pywasm performance? <br>
+A: Fine. Almost the same as ocaml.
+
+# Thanks
+
+- [wagon](https://github.com/go-interpreter/wagon), The author is very kind
+- [warpy](https://github.com/kanaka/warpy)
 
 # License
 
-[WTFPL](https://choosealicense.com/licenses/wtfpl/)
+```
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                    Version 2, December 2004
+
+ Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+```

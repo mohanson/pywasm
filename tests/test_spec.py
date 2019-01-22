@@ -63,18 +63,18 @@ def test_spec():
         file = case['file']
         if file not in switch or switch[file] == 0:
             continue
-        vm = pywasm.AbstractMachine.open(os.path.join('./tests/spec/', file))
+        vm = pywasm.VirtualMachine.open(os.path.join('./tests/spec/', file))
         for test in case['tests']:
             print(f'{file} {test}')
             function = test['function']
             args = [parse_val(e) for e in test['args']]
             if 'return' in test:
                 if test['return'] is None:
-                    assert vm.exec(function, args) == []
+                    assert vm.exec(function, args) == None
                     continue
                 ret = parse_val(test['return'])
                 # execution
-                out = vm.exec(function, args)[0].n
+                out = vm.exec(function, args).n
                 # assert
                 if isinstance(ret, float):
                     if math.isnan(ret):

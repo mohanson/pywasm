@@ -10,7 +10,7 @@ def on_debug():
     log.lvl = 1
 
 
-class AbstractMachine:
+class VirtualMachine:
     def __init__(self, module: structure.Module, imps: typing.Dict = None):
         self.module = module
         self.store = execution.Store()
@@ -26,7 +26,7 @@ class AbstractMachine:
 
     @classmethod
     def open(cls, name: str):
-        return AbstractMachine(structure.Module.open(name))
+        return VirtualMachine(structure.Module.open(name))
 
     def func_addr(self, name: str):
         for e in self.minst.exports:
