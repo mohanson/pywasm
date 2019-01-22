@@ -155,9 +155,9 @@ class Instruction:
         elif code_size == 'u32':
             immediate_arguments = common.read_count(r, 32)
         elif code_size == 'i32':
-            immediate_arguments = common.read_count(r, 32, signed=True)
+            immediate_arguments = num.int2i32(common.read_count(r, 32, signed=True))
         elif code_size == 'i64':
-            immediate_arguments = common.read_count(r, 64, signed=True)
+            immediate_arguments = num.int2i64(common.read_count(r, 64, signed=True))
         elif code_size == 'f32':
             immediate_arguments = num.LittleEndian.f32(r.read(4))
         elif code_size == 'f64':

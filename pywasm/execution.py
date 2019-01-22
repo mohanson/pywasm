@@ -455,7 +455,7 @@ def exec_expr(
         if pc >= len(expr.data):
             break
         i = expr.data[pc]
-        log.debugln(f'{pc} {str(i):<18} {stack}')
+        log.debugln(f'{str(i):<18} {stack}')
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
