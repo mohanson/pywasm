@@ -1,12 +1,15 @@
 import datetime
 import sys
 
-switch = False
+lvl = 0
+
+
+def debugln(*args):
+    if lvl:
+        println(*args)
 
 
 def println(*args):
-    if not switch:
-        return
     pre = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
     print(pre, *args)
 

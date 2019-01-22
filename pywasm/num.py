@@ -1,3 +1,5 @@
+import io
+import math
 import struct
 
 u8 = i8 = u16 = i16 = u32 = i32 = u64 = i64 = int
@@ -228,3 +230,58 @@ class BigEndian:
     @staticmethod
     def pack_f64(n: f64):
         return struct.pack('>d', n)
+
+
+def leb(reader, maxbits=32, signed=False):
+    if isinstance(reader, (bytes, bytearray)):
+        reader = io.BytesIO(reader)
+    r = 0
+    s = 0
+    b = 0
+    i = 0
+    a = bytearray()
+    while True:
+        byte = ord(reader.read(1))
+        i += 1
+        a.append(byte)
+        r |= ((byte & 0x7f) << s)
+        s += 7
+        if (byte & 0x80) == 0:
+            break
+        b += 1
+        assert b <= math.ceil(maxbits / 7.0)
+    if signed and (s < maxbits) and (byte & 0x40):
+        r |= - (1 << s)
+    return (i, r, a)
+
+
+def rotl_u32(x: int, k: int):
+    x = int2u32(x)
+    k = int2u32(k)
+    n = 32
+    s = k & (n - 1)
+    return x << s | x >> (n - s)
+
+
+def rotl_u64(x: int, k: int):
+    x = int2u64(x)
+    k = int2u64(k)
+    n = 64
+    s = k & (n - 1)
+    return x << s | x >> (n - s)
+
+
+def rotr_u32(x: int, k: int):
+    return rotl_u32(x, -k)
+
+
+def rotr_u64(x: int, k: int):
+    return rotl_u64(x, -k)
+
+
+def idiv_s(a, b):
+    return a // b if a * b > 0 else (a + (-a % b)) // b
+
+
+def irem_s(a, b):
+    return a % b if a * b > 0 else -(-a % b)

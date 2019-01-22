@@ -2030,7 +2030,7 @@
         "function": "dispatch"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:0",
           "i64:2"
@@ -2038,7 +2038,7 @@
         "function": "dispatch"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:15",
           "i64:2"
@@ -2098,14 +2098,14 @@
         "function": "dispatch-structural"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:11"
         ],
         "function": "dispatch-structural"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:22"
         ],
@@ -4283,7 +4283,7 @@
         "function": "zero_everything"
       },
       {
-        "return": "f32:0",
+        "return": "f32:0x1.18p-144",
         "args": [],
         "function": "test_dead_store"
       },
@@ -4380,9 +4380,9 @@
         "function": "i32_load"
       },
       {
-        "return": "i32:-1414717974",
+        "return": "i32:0xABAD1DEA",
         "args": [
-          "i32:-1414717974"
+          "i32:0xABAD1DEA"
         ],
         "function": "i32_load"
       },
@@ -4520,9 +4520,9 @@
         "function": "i64_load"
       },
       {
-        "return": "i64:0xABADCAFEDEAD1D",
+        "return": "i64:0xABADCAFEDEAD1DEA",
         "args": [
-          "i64:0xABADCAFEDEAD1D"
+          "i64:0xABADCAFEDEAD1DEA"
         ],
         "function": "i64_load"
       },
@@ -4548,6 +4548,13 @@
         "function": "f32_load"
       },
       {
+        "return": "f32:0x1.fffffep+127",
+        "args": [
+          "f32:0x1.fffffep+127"
+        ],
+        "function": "f32_load"
+      },
+      {
         "return": "f64:-1",
         "args": [
           "f64:-1"
@@ -4565,6 +4572,13 @@
         "return": "f64:424242.424242",
         "args": [
           "f64:424242.424242"
+        ],
+        "function": "f64_load"
+      },
+      {
+        "return": "f64:0x1.fffffffffffffp+1023",
+        "args": [
+          "f64:0x1.fffffffffffffp+1023"
         ],
         "function": "f64_load"
       },
@@ -4618,9 +4632,9 @@
         "function": "i32_store"
       },
       {
-        "return": "i32:-559035650",
+        "return": "i32:0xDEADCAFE",
         "args": [
-          "i32:-559035650"
+          "i32:0xDEADCAFE"
         ],
         "function": "i32_store"
       },
@@ -4702,9 +4716,9 @@
         "function": "i64_store"
       },
       {
-        "return": "i64:-6075977126246539798",
+        "return": "i64:0xABADCAFEDEAD1DEA",
         "args": [
-          "i64:-6075977126246539798"
+          "i64:0xABADCAFEDEAD1DEA"
         ],
         "function": "i64_store"
       },
@@ -4730,6 +4744,13 @@
         "function": "f32_store"
       },
       {
+        "return": "f32:0x1.fffffep+127",
+        "args": [
+          "f32:0x1.fffffep+127"
+        ],
+        "function": "f32_store"
+      },
+      {
         "return": "f64:-1",
         "args": [
           "f64:-1"
@@ -4747,6 +4768,13 @@
         "return": "f64:424242.424242",
         "args": [
           "f64:424242.424242"
+        ],
+        "function": "f64_store"
+      },
+      {
+        "return": "f64:0x1.fffffffffffffp+1023",
+        "args": [
+          "f64:0x1.fffffffffffffp+1023"
         ],
         "function": "f64_store"
       }

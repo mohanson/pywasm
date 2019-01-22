@@ -2,11 +2,10 @@ import os
 import sys
 
 sys.path.append(os.getcwd())
-import wasmi
+import pywasm
 
 name = sys.argv[1]
 path = os.path.join('examples', f'{name}.wasm')
-mod = wasmi.Module.open(path)
-wvm = wasmi.Vm(mod)
+wvm = pywasm.VirtualMachine.open(path)
 r = wvm.exec(name, [int(i) for i in sys.argv[2:]])
 print(r)
