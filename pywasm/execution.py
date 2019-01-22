@@ -680,7 +680,7 @@ def exec_expr(
             if opcode >= convention.i32_store and opcode <= convention.i64_store32:
                 v = stack.pop().n
                 a = stack.pop().n + i.immediate_arguments[1]
-                if a + convention.info[opcode][2] > len(m.data):
+                if a + convention.opcodes[opcode][2] > len(m.data):
                     raise Exception('pywasm: out of bounds memory access')
                 if opcode == convention.i32_store:
                     m.data[a:a + 4] = num.LittleEndian.pack_i32(v)
@@ -916,7 +916,7 @@ def exec_expr(
                 stack.add(Value.from_i32(a ^ b))
                 continue
             if opcode == convention.i32_shl:
-                stack.add(Value.from_i32(a << (b % 0x20)))
+                stack.add(Value.from_i32(num.int2i32(a << (b % 0x20))))
                 continue
             if opcode == convention.i32_shrs:
                 stack.add(Value.from_i32(a >> (b % 0x20)))
@@ -1000,7 +1000,7 @@ def exec_expr(
                 stack.add(Value.from_i64(a ^ b))
                 continue
             if opcode == convention.i64_shl:
-                stack.add(Value.from_i64(a << (b % 0x40)))
+                stack.add(Value.from_i64(num.int2i64(a << (b % 0x40))))
                 continue
             if opcode == convention.i64_shrs:
                 stack.add(Value.from_i64(a >> (b % 0x40)))

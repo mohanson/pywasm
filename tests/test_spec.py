@@ -3,6 +3,7 @@ import math
 import os
 
 import pywasm
+from pywasm import num
 
 switch = {
     'address.wasm': 1,
@@ -12,7 +13,7 @@ switch = {
     'br_if.wasm': 1,
     'br_table.wasm': 0,
     'call_indirect.wasm': 0,
-    'endianness.wasm': 0,
+    'endianness.wasm': 1,
     'fac.wasm': 0,
     'forward.wasm': 0,
     'get_local.wasm': 0,
@@ -38,13 +39,21 @@ switch = {
 
 def parse_val(s: str):
     t, v = s.split(':')
-    if t in ['i32', 'i64']:
-        if v.startswith('0x'):
-            return int(v, 16)
-        return int(v)
-    if t in ['f32', 'f64']:
-        if v.startswith('0x'):
-            return float.fromhex(v)
+    if t == 'i32' and v.startswith('0x'):
+        return num.int2i32(int(v, 16))
+    if t == 'i32':
+        return num.int2i32(int(v))
+    if t == 'i64' and v.startswith('0x'):
+        return num.int2i64(int(v, 16))
+    if t == 'i64':
+        return num.int2i64(int(v))
+    if t == 'f32' and v.startswith('0x'):
+        return float.fromhex(v)
+    if t == 'f32':
+        return float(v)
+    if t == 'f64' and v.startswith('0x'):
+        return float.fromhex(v)
+    if t == 'f64':
         return float(v)
     raise NotImplementedError
 
