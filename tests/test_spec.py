@@ -17,16 +17,15 @@ switch = {
     'forward.wasm': 0,
     'get_local.wasm': 0,
     'globals.wasm': 0,
-    'i32.wasm': 0,
-    'if.wasm': 0,
+    'if.wasm': 1,
     'loop.wasm': 0,
     'memory_redundancy.wasm': 0,
     'modules.json': 0,
     'names.wasm': 0,
     'nop.wasm': 0,
     'resizing.wasm': 0,
-    'return.wasm': 0,
-    'select.wasm': 0,
+    'return.wasm': 1,
+    'select.wasm': 1,
     'switch.wasm': 0,
     'tee_local.wasm': 0,
     'traps_int_div.wasm': 0,
@@ -69,8 +68,12 @@ def test_spec():
                 ret = parse_val(test['return'])
                 # execution
                 out = vm.exec(function, args)[0].n
+                # assert
                 if isinstance(ret, float):
-                    assert math.isclose(out, ret, rel_tol=1e-05)
+                    if math.isnan(ret):
+                        assert math.isnan(out)
+                    else:
+                        assert math.isclose(out, ret, rel_tol=1e-05)
                 else:
                     assert out == ret
                 continue
