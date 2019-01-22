@@ -416,6 +416,11 @@ def call(
 ):
     f: WasmFunc = store.funcs[address]
     assert len(f.functype.rets) <= 1
+    for i, t in enumerate(f.functype.args[::-1]):
+        ia = t
+        ib = stack.data[-1 - i]
+        if ia != ib.valtype:
+            raise Exception('pywasm: signature mismatch in call')
     code = f.code.expr.data
     valn = [stack.pop() for _ in f.functype.args][::-1]
     val0 = []
@@ -433,11 +438,14 @@ def call(
     stack.add(Label(len(f.functype.rets), len(code)))
     # An expression is evaluated relative to a current frame pointing to its containing module instance.
     exec_expr(store, frame, stack, f.code.expr)
-    assert isinstance(stack.data[-1 - frame.arity], Frame)
+    # Exit
+    if not isinstance(stack.data[-1 - frame.arity], Frame):
+        raise Exception('pywasm: signature mismatch in call')
     del stack.data[-1 - frame.arity]
     if frame.arity > 0:
         return stack.data[-frame.arity:]
     return []
+
 
 def spec_br(l: int, stack: Stack) -> int:
     # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
@@ -455,6 +463,7 @@ def spec_br(l: int, stack: Stack) -> int:
     for e in v:
         stack.add(e)
     return L.continuation - 1
+
 
 def exec_expr(
     store: Store,
@@ -550,18 +559,14 @@ def exec_expr(
                 call(module, module.funcaddrs[i.immediate_arguments], store, stack)
                 continue
             if opcode == convention.call_indirect:
-                # if i.immediate_arguments[1] != 0x00:
-                #     log.println("pywasm: zero byte malformed in call_indirect")
-                # idx = stack.pop().n
-                # tab = store.tables[module.tableaddrs[idx]]
-                # if not 0 <= idx < len(tab.elem):
-                #     raise Exception('pywasm: undefined element index')
-                # a = store.funcs[module.funcaddrs[tab[idx]]]
-                # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
-                # if isinstance(a, WasmFunc):
-                #     for e in invoke(store, f, stack, a.code.expr):
-                #         stack.add(e)
-                raise NotImplementedError
+                if i.immediate_arguments[1] != 0x00:
+                    raise Exception("pywasm: zero byte malformed in call_indirect")
+                idx = stack.pop().n
+                tab = store.tables[module.tableaddrs[0]]
+                if not 0 <= idx < len(tab.elem):
+                    raise Exception('pywasm: undefined element index')
+                call(module, tab.elem[idx], store, stack)
+                continue
             continue
         if opcode == convention.drop:
             stack.pop()

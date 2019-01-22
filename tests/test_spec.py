@@ -12,7 +12,7 @@ switch = {
     'break-drop.wasm': 1,
     'br_if.wasm': 1,
     'br_table.wasm': 1,
-    'call_indirect.wasm': 0,
+    'call_indirect.wasm': 1,
     'endianness.wasm': 1,
     'fac.wasm': 1,
     'forward.wasm': 1,

@@ -2030,7 +2030,7 @@
         "function": "dispatch"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:0",
           "i64:2"
@@ -2038,7 +2038,7 @@
         "function": "dispatch"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:15",
           "i64:2"
@@ -2098,14 +2098,14 @@
         "function": "dispatch-structural"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:11"
         ],
         "function": "dispatch-structural"
       },
       {
-        "trap": "exec: signature mismatch in call_indirect",
+        "trap": "exec: signature mismatch in call",
         "args": [
           "i32:22"
         ],
