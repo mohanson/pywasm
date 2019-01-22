@@ -439,9 +439,10 @@ def invoke(
                 stack.add(Label(0, expr.composition[pc][0] + 1))
                 continue
             if opcode == convention.if_:
+                c = stack.pop().n
                 arity = 0 if i.immediate_arguments == convention.empty else 1
                 stack.add(Label(arity, expr.composition[pc][-1] + 1))
-                if stack.pop().n != 0:
+                if c != 0:
                     continue
                 if len(expr.composition[pc]) > 2:
                     pc = expr.composition[pc][1]
@@ -449,7 +450,14 @@ def invoke(
                 pc = expr.composition[pc][-1] - 1
                 continue
             if opcode == convention.else_:
-                raise NotImplementedError
+                for i in range(len(stack.data)):
+                    i = -1 - i
+                    e = stack.data[i]
+                    if isinstance(e, Label):
+                        pc = e.continuation - 1
+                        del stack.data[i]
+                        break
+                continue
             if opcode == convention.end:
                 # label{instr∗} val* end -> val*
                 if stack.status() == Label:

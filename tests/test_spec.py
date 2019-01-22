@@ -1,4 +1,5 @@
 import json
+import math
 import os
 
 import pywasm
@@ -65,8 +66,13 @@ def test_spec():
                 if test['return'] is None:
                     assert vm.exec(function, args) == []
                     continue
-                rets = parse_val(test['return'])
-                assert vm.exec(function, args)[0].n == rets
+                ret = parse_val(test['return'])
+                # execution
+                out = vm.exec(function, args)[0].n
+                if isinstance(ret, float):
+                    assert math.isclose(out, ret, rel_tol=1e-05)
+                else:
+                    assert out == ret
                 continue
             if 'trap' in test:
                 trap = test['trap']
