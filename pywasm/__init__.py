@@ -28,17 +28,15 @@ class AbstractMachine:
     def open(cls, name: str):
         return AbstractMachine(structure.Module.open(name))
 
-    def glob_func(self, name: str):
+    def func_addr(self, name: str):
         for e in self.minst.exports:
             if e.name == name and e.value.extern_type == convention.extern_func:
-                return self.store.funcs[e.value.addr]
-        return None
+                return e.value.addr
+        raise Exception('pywasm: function not found')
 
     def exec(self, name: str, args: typing.List):
-        func = self.glob_func(name)
-        if not func:
-            raise Exception('pywasm: function not found')
-        assert isinstance(func, execution.WasmFunc)
+        func_addr = self.func_addr(name)
+        func = self.store.funcs[self.minst.funcaddrs[func_addr]]
         for i, e in enumerate(func.functype.args):
             if e in [convention.i32, convention.i64]:
                 assert isinstance(args[i], int)
@@ -46,6 +44,8 @@ class AbstractMachine:
                 assert isinstance(args[i], float)
             args[i] = execution.Value(e, args[i])
         stack = execution.Stack()
+        for e in args:
+            stack.add(e)
         frame = execution.Frame(self.minst, args, len(func.functype.rets), -1)
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
-        return execution.invoke(self.store, frame, stack, func.code.expr)
+        return execution.call(self.minst, func_addr, self.store, stack)

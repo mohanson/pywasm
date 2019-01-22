@@ -132,9 +132,9 @@ class Instruction:
     # Instructions are encoded by opcodes. Each opcode is represented by a single byte, and is followed by the
     # instruction’s immediate arguments, where present. The only exception are structured control instructions,
     # which consist of several opcodes bracketing their nested instruction sequences.
-    def __init__(self):
-        self.code: int
-        self.immediate_arguments = None
+    def __init__(self, code: int, immediate_arguments=None):
+        self.code = code
+        self.immediate_arguments = immediate_arguments
 
     def __repr__(self):
         if self.immediate_arguments is None:
@@ -148,34 +148,32 @@ class Instruction:
             return None
         code = ord(code_byte)
         code_size = convention.opcodes[code][1]
-        o = Instruction()
-        o.code = code
         if code_size == '':
-            pass
+            immediate_arguments = None
         elif code_size == 'u8':
-            o.immediate_arguments = common.read_count(r, 8)
+            immediate_arguments = common.read_count(r, 8)
         elif code_size == 'u32':
-            o.immediate_arguments = common.read_count(r, 32)
+            immediate_arguments = common.read_count(r, 32)
         elif code_size == 'i32':
-            o.immediate_arguments = common.read_count(r, 32, signed=True)
+            immediate_arguments = common.read_count(r, 32, signed=True)
         elif code_size == 'i64':
-            o.immediate_arguments = common.read_count(r, 64, signed=True)
+            immediate_arguments = common.read_count(r, 64, signed=True)
         elif code_size == 'f32':
-            o.immediate_arguments = num.LittleEndian.f32(r.read(4))
+            immediate_arguments = num.LittleEndian.f32(r.read(4))
         elif code_size == 'f64':
-            o.immediate_arguments = num.LittleEndian.f64(r.read(8))
+            immediate_arguments = num.LittleEndian.f64(r.read(8))
         elif code_size == 'u32,u8':
-            o.immediate_arguments = [common.read_count(r, 32), common.read_count(r, 8)]
+            immediate_arguments = [common.read_count(r, 32), common.read_count(r, 8)]
         elif code_size == 'u32,u32':
-            o.immediate_arguments = [common.read_count(r, 32) for _ in range(2)]
-        elif o.code == convention.br_table:
+            immediate_arguments = [common.read_count(r, 32) for _ in range(2)]
+        elif code == convention.br_table:
             n = common.read_count(r, 32)
             a = [common.read_count(r, 32) for _ in range(n)]
             b = common.read_count(r, 32)
-            o.immediate_arguments = [a, b]
+            immediate_arguments = [a, b]
         else:
             raise Exception('pywasm: invalid code size')
-        return o
+        return Instruction(code, immediate_arguments)
 
 
 class Expression:

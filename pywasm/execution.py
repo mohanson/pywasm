@@ -408,6 +408,836 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
+def call(
+    module: ModuleInstance,
+    address: int,
+    store: Store,
+    stack: Stack,
+):
+    f: WasmFunc = store.funcs[address]
+    assert len(f.functype.rets) <= 1
+    code = f.code.expr.data
+    valn = [stack.pop() for _ in f.functype.args][::-1]
+    val0 = []
+    for e in f.code.locals:
+        if e == convention.i32:
+            val0.append(Value.from_i32(0))
+        elif e == convention.i64:
+            val0.append(Value.from_i64(0))
+        elif e == convention.f32:
+            val0.append(Value.from_f32(0))
+        else:
+            val0.append(Value.from_f64(0))
+    frame = Frame(module, valn + val0, len(f.functype.rets), len(code))
+    stack.add(frame)
+    stack.add(Label(len(f.functype.rets), len(code)))
+    # An expression is evaluated relative to a current frame pointing to its containing module instance.
+    exec_expr(store, frame, stack, f.code.expr)
+    vals = [stack.pop() for _ in range(frame.arity)][::-1]
+    assert isinstance(stack.pop(), Frame)
+    for e in vals:
+        stack.add(e)
+    return vals
+
+
+def exec_expr(
+    store: Store,
+    frame: Frame,
+    stack: Stack,
+    expr: structure.Expression,
+):
+    module = frame.module
+    if not expr.data:
+        raise Exception('pywasm: empty init expr')
+    pc = -1
+    while True:
+        pc += 1
+        if pc >= len(expr.data):
+            break
+        i = expr.data[pc]
+        log.debugln(f'{pc} {str(i):<18} {stack}')
+        opcode = i.code
+        if opcode >= convention.unreachable and opcode <= convention.call_indirect:
+            if opcode == convention.unreachable:
+                raise Exception('pywasm: reached unreachable')
+            if opcode == convention.nop:
+                continue
+            if opcode == convention.block:
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1] + 1))
+                continue
+            if opcode == convention.loop:
+                stack.add(Label(0, expr.composition[pc][0] + 1))
+                continue
+            if opcode == convention.if_:
+                c = stack.pop().n
+                arity = 0 if i.immediate_arguments == convention.empty else 1
+                stack.add(Label(arity, expr.composition[pc][-1] + 1))
+                if c != 0:
+                    continue
+                if len(expr.composition[pc]) > 2:
+                    pc = expr.composition[pc][1]
+                    continue
+                pc = expr.composition[pc][-1] - 1
+                continue
+            if opcode == convention.else_:
+                for i in range(len(stack.data)):
+                    i = -1 - i
+                    e = stack.data[i]
+                    if isinstance(e, Label):
+                        pc = e.continuation - 1
+                        del stack.data[i]
+                        break
+                continue
+            if opcode == convention.end:
+                # label{instr∗} val* end -> val*
+                if stack.status() == Label:
+                    for i in range(len(stack.data)):
+                        i = -1 - i
+                        if isinstance(stack.data[i], Label):
+                            del stack.data[i]
+                            break
+                    continue
+                # frame{F} val* end -> val*
+                v = [stack.pop() for _ in range(frame.arity)]
+                assert isinstance(stack.pop(), Frame)
+                for e in v[::-1]:
+                    stack.add(e)
+                continue
+            if opcode == convention.br:
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                pc = L.continuation - 1
+                continue
+            if opcode == convention.br_if:
+                l = i.immediate_arguments
+                assert stack.len() >= l + 1
+                if stack.pop().n == 0:
+                    continue
+                # Same as br
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                pc = L.continuation - 1
+                continue
+            if opcode == convention.br_table:
+                a = i.immediate_arguments[0]
+                l = i.immediate_arguments[1]
+                c = stack.pop().n
+                if c >= 0 and c < len(a):
+                    l = a[c]
+                # Same as br
+                L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
+                n = L.arity
+                v = [stack.pop() for _ in range(n)][::-1]
+
+                s = 0
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Label):
+                        s += 1
+                        if s == l + 1:
+                            break
+                for e in v:
+                    stack.add(e)
+                pc = L.continuation - 1
+                continue
+            if opcode == convention.return_:
+                v = [stack.pop() for _ in range(frame.arity)][::-1]
+                while True:
+                    e = stack.pop()
+                    if isinstance(e, Frame):
+                        break
+                for e in v:
+                    stack.add(e)
+                break
+            if opcode == convention.call:
+                a = store.funcs[module.funcaddrs[i.immediate_arguments]]
+                f = Frame(
+                    module,
+                    [stack.pop() for _ in a.functype.args][::-1],
+                    len(a.functype.rets),
+                    len(a.code.expr.data)
+                )
+                if isinstance(a, WasmFunc):
+                    invoke(store, f, stack, a.code.expr)
+                    continue
+                raise NotImplementedError
+            if opcode == convention.call_indirect:
+                # if i.immediate_arguments[1] != 0x00:
+                #     log.println("pywasm: zero byte malformed in call_indirect")
+                # idx = stack.pop().n
+                # tab = store.tables[module.tableaddrs[idx]]
+                # if not 0 <= idx < len(tab.elem):
+                #     raise Exception('pywasm: undefined element index')
+                # a = store.funcs[module.funcaddrs[tab[idx]]]
+                # f = Frame(module, [stack.pop() for _ in a.functype.args][::-1], len(a.functype.rets), -1)
+                # if isinstance(a, WasmFunc):
+                #     for e in invoke(store, f, stack, a.code.expr):
+                #         stack.add(e)
+                raise NotImplementedError
+            continue
+        if opcode == convention.drop:
+            stack.pop()
+            continue
+        if opcode == convention.select:
+            cond = stack.pop().n
+            a = stack.pop()
+            b = stack.pop()
+            if cond:
+                stack.add(b)
+            else:
+                stack.add(a)
+            continue
+        if opcode == convention.get_local:
+            stack.add(frame.locals[i.immediate_arguments])
+            continue
+        if opcode == convention.set_local:
+            if i.immediate_arguments >= len(frame.locals):
+                frame.locals.extend(
+                    [Value.from_i32(0) for _ in range(i.immediate_arguments - len(frame.locals) + 1)]
+                )
+            frame.locals[i.immediate_arguments] = stack.pop()
+            continue
+        if opcode == convention.tee_local:
+            frame.locals[i.immediate_arguments] = stack.top()
+            continue
+        if opcode == convention.get_global:
+            stack.add(store.globals[module.globaladdrs[i.immediate_arguments]])
+            continue
+        if opcode == convention.set_global:
+            store.globals[module.globaladdrs[i.immediate_arguments]] = stack.pop()
+            continue
+        if opcode >= convention.i32_load and opcode <= convention.grow_memory:
+            m = store.mems[module.memaddrs[0]]
+            if opcode >= convention.i32_load and opcode <= convention.i64_load32_u:
+                a = stack.pop().n + i.immediate_arguments[1]
+                if a + convention.opcodes[opcode][2] > len(m.data):
+                    raise Exception('pywasm: out of bounds memory access')
+                if opcode == convention.i32_load:
+                    stack.add(Value.from_i32(num.LittleEndian.i32(m.data[a:a + 4])))
+                    continue
+                if opcode == convention.i64_load:
+                    stack.add(Value.from_i64(num.LittleEndian.i64(m.data[a:a + 8])))
+                    continue
+                if opcode == convention.f32_load:
+                    stack.add(Value.from_f32(num.LittleEndian.f32(m.data[a:a + 4])))
+                    continue
+                if opcode == convention.f64_load:
+                    stack.add(Value.from_f64(num.LittleEndian.f64(m.data[a:a + 8])))
+                    continue
+                if opcode == convention.i32_load8_s:
+                    stack.add(Value.from_i32(num.LittleEndian.i8(m.data[a:a + 1])))
+                    continue
+                if opcode == convention.i32_load8_u:
+                    stack.add(Value.from_i32(num.LittleEndian.u8(m.data[a:a + 1])))
+                    continue
+                if opcode == convention.i32_load16_s:
+                    stack.add(Value.from_i32(num.LittleEndian.i16(m.data[a:a + 2])))
+                    continue
+                if opcode == convention.i32_load16_u:
+                    stack.add(Value.from_i32(num.LittleEndian.u16(m.data[a:a + 2])))
+                    continue
+                if opcode == convention.i64_load8_s:
+                    stack.add(Value.from_i64(num.LittleEndian.i8(m.data[a:a + 1])))
+                    continue
+                if opcode == convention.i64_load8_u:
+                    stack.add(Value.from_i64(num.LittleEndian.u8(m.data[a:a + 1])))
+                    continue
+                if opcode == convention.i64_load16_s:
+                    stack.add(Value.from_i64(num.LittleEndian.i16(m.data[a:a + 2])))
+                    continue
+                if opcode == convention.i64_load16_u:
+                    stack.add(Value.from_i64(num.LittleEndian.u16(m.data[a:a + 2])))
+                    continue
+                if opcode == convention.i64_load32_s:
+                    stack.add(Value.from_i64(num.LittleEndian.i32(m.data[a:a + 4])))
+                    continue
+                if opcode == convention.i64_load32_u:
+                    stack.add(Value.from_i64(num.LittleEndian.u32(m.data[a:a + 4])))
+                    continue
+                continue
+            if opcode >= convention.i32_store and opcode <= convention.i64_store32:
+                v = stack.pop().n
+                a = stack.pop().n + i.immediate_arguments[1]
+                if a + convention.info[opcode][2] > len(m.data):
+                    raise Exception('pywasm: out of bounds memory access')
+                if opcode == convention.i32_store:
+                    m.data[a:a + 4] = num.LittleEndian.pack_i32(v)
+                    continue
+                if opcode == convention.i64_store:
+                    m.data[a:a + 8] = num.LittleEndian.pack_i64(v)
+                    continue
+                if opcode == convention.f32_store:
+                    m.data[a:a + 4] = num.LittleEndian.pack_f32(v)
+                    continue
+                if opcode == convention.f64_store:
+                    m.data[a:a + 8] = num.LittleEndian.pack_f64(v)
+                    continue
+                if opcode == convention.i32_store8:
+                    m.data[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v))
+                    continue
+                if opcode == convention.i32_store16:
+                    m.data[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v))
+                    continue
+                if opcode == convention.i64_store8:
+                    m.data[a:a + 1] = num.LittleEndian.pack_i8(num.int2i8(v))
+                    continue
+                if opcode == convention.i64_store16:
+                    m.data[a:a + 2] = num.LittleEndian.pack_i16(num.int2i16(v))
+                    continue
+                if opcode == convention.i64_store32:
+                    m.data[a:a + 4] = num.LittleEndian.pack_i32(num.int2i32(v))
+                    continue
+                continue
+            if opcode == convention.current_memory:
+                stack.add(Value.from_i32(m.size))
+                continue
+            if opcode == convention.grow_memory:
+                cursize = m.size
+                m.grow(stack.pop().n)
+                stack.add(Value.from_i32(cursize))
+                continue
+            continue
+        if opcode >= convention.i32_const and opcode <= convention.f64_const:
+            if opcode == convention.i32_const:
+                stack.add(Value.from_i32(i.immediate_arguments))
+                continue
+            if opcode == convention.i64_const:
+                stack.add(Value.from_i64(i.immediate_arguments))
+                continue
+            if opcode == convention.f32_const:
+                stack.add(Value.from_f32(i.immediate_arguments))
+                continue
+            if opcode == convention.f64_const:
+                stack.add(Value.from_f64(i.immediate_arguments))
+                continue
+            continue
+        if opcode == convention.i32_eqz:
+            stack.add(Value.from_i32(stack.pop().n == 0))
+            continue
+        if opcode >= convention.i32_eq and opcode <= convention.i32_geu:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.i32_eq:
+                stack.add(Value.from_i32(int(a == b)))
+                continue
+            if opcode == convention.i32_ne:
+                stack.add(Value.from_i32(int(a != b)))
+                continue
+            if opcode == convention.i32_lts:
+                stack.add(Value.from_i32(int(a < b)))
+                continue
+            if opcode == convention.i32_ltu:
+                stack.add(Value.from_i32(int(num.int2u32(a) < num.int2u32(b))))
+                continue
+            if opcode == convention.i32_gts:
+                stack.add(Value.from_i32(int(a > b)))
+                continue
+            if opcode == convention.i32_gtu:
+                stack.add(Value.from_i32(int(num.int2u32(a) > num.int2u32(b))))
+                continue
+            if opcode == convention.i32_les:
+                stack.add(Value.from_i32(int(a <= b)))
+                continue
+            if opcode == convention.i32_leu:
+                stack.add(Value.from_i32(int(num.int2u32(a) <= num.int2u32(b))))
+                continue
+            if opcode == convention.i32_ges:
+                stack.add(Value.from_i32(int(a >= b)))
+                continue
+            if opcode == convention.i32_geu:
+                stack.add(Value.from_i32(int(num.int2u32(a) >= num.int2u32(b))))
+                continue
+            continue
+        if opcode == convention.i64_eqz:
+            stack.add(Value.from_i32(stack.pop().n == 0))
+            continue
+        if opcode >= convention.i64_eq and opcode <= convention.i64_geu:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.i64_eq:
+                stack.add(Value.from_i32(int(a == b)))
+                continue
+            if opcode == convention.i64_ne:
+                stack.add(Value.from_i32(int(a != b)))
+                continue
+            if opcode == convention.i64_lts:
+                stack.add(Value.from_i32(int(a < b)))
+                continue
+            if opcode == convention.i64_ltu:
+                stack.add(Value.from_i32(int(num.int2u64(a) < num.int2u64(b))))
+                continue
+            if opcode == convention.i64_gts:
+                stack.add(Value.from_i32(int(a > b)))
+                continue
+            if opcode == convention.i64_gtu:
+                stack.add(Value.from_i32(int(num.int2u64(a) > num.int2u64(b))))
+                continue
+            if opcode == convention.i64_les:
+                stack.add(Value.from_i32(int(a <= b)))
+                continue
+            if opcode == convention.i64_leu:
+                stack.add(Value.from_i32(int(num.int2u64(a) <= num.int2u64(b))))
+                continue
+            if opcode == convention.i64_ges:
+                stack.add(Value.from_i32(int(a >= b)))
+                continue
+            if opcode == convention.i64_geu:
+                stack.add(Value.from_i32(int(num.int2u64(a) >= num.int2u64(b))))
+                continue
+            continue
+        if opcode >= convention.f32_eq and opcode <= convention.f64_ge:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f32_eq:
+                stack.add(Value.from_i32(int(a == b)))
+                continue
+            if opcode == convention.f32_ne:
+                stack.add(Value.from_i32(int(a != b)))
+                continue
+            if opcode == convention.f32_lt:
+                stack.add(Value.from_i32(int(a < b)))
+                continue
+            if opcode == convention.f32_gt:
+                stack.add(Value.from_i32(int(a > b)))
+                continue
+            if opcode == convention.f32_le:
+                stack.add(Value.from_i32(int(a <= b)))
+                continue
+            if opcode == convention.f32_ge:
+                stack.add(Value.from_i32(int(a >= b)))
+                continue
+            if opcode == convention.f64_eq:
+                stack.add(Value.from_i32(int(a == b)))
+                continue
+            if opcode == convention.f64_ne:
+                stack.add(Value.from_i32(int(a != b)))
+                continue
+            if opcode == convention.f64_lt:
+                stack.add(Value.from_i32(int(a < b)))
+                continue
+            if opcode == convention.f64_gt:
+                stack.add(Value.from_i32(int(a > b)))
+                continue
+            if opcode == convention.f64_le:
+                stack.add(Value.from_i32(int(a <= b)))
+                continue
+            if opcode == convention.f64_ge:
+                stack.add(Value.from_i32(int(a >= b)))
+                continue
+            continue
+        if opcode >= convention.i32_clz and opcode <= convention.i32_popcnt:
+            a = stack.pop().n
+            if opcode == convention.i32_clz:
+                c = 0
+                while c < 32 and (a & 0x80000000) == 0:
+                    c += 1
+                    a *= 2
+                stack.add(Value.from_i32(c))
+                continue
+            if opcode == convention.i32_ctz:
+                c = 0
+                while c < 32 and (a % 2) == 0:
+                    c += 1
+                    a /= 2
+                stack.add(Value.from_i32(c))
+                continue
+            if opcode == convention.i32_popcnt:
+                c = 0
+                for i in range(32):
+                    if 0x1 & a:
+                        c += 1
+                    a /= 2
+                stack.add(Value.from_i32(c))
+                continue
+            continue
+        if opcode >= convention.i32_add and opcode <= convention.i32_rotr:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode in [
+                convention.i32_divs,
+                convention.i32_divu,
+                convention.i32_rems,
+                convention.i32_remu,
+            ]:
+                if b == 0:
+                    raise Exception('pywasm: integer divide by zero')
+            if opcode == convention.i32_add:
+                stack.add(Value.from_i32(num.int2i32(a + b)))
+                continue
+            if opcode == convention.i32_sub:
+                stack.add(Value.from_i32(num.int2i32(a - b)))
+                continue
+            if opcode == convention.i32_mul:
+                stack.add(Value.from_i32(num.int2i32(a * b)))
+                continue
+            if opcode == convention.i32_divs:
+                if a == 0x80000000 and b == -1:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i32(num.idiv_s(a, b)))
+                continue
+            if opcode == convention.i32_divu:
+                stack.add(Value.from_i32(num.int2i32(num.int2u32(a) // num.int2u32(b))))
+                continue
+            if opcode == convention.i32_rems:
+                stack.add(Value.from_i32(num.irem_s(a, b)))
+                continue
+            if opcode == convention.i32_remu:
+                stack.add(Value.from_i32(num.int2i32(num.int2u32(a) % num.int2u32(b))))
+                continue
+            if opcode == convention.i32_and:
+                stack.add(Value.from_i32(a & b))
+                continue
+            if opcode == convention.i32_or:
+                stack.add(Value.from_i32(a | b))
+                continue
+            if opcode == convention.i32_xor:
+                stack.add(Value.from_i32(a ^ b))
+                continue
+            if opcode == convention.i32_shl:
+                stack.add(Value.from_i32(a << (b % 0x20)))
+                continue
+            if opcode == convention.i32_shrs:
+                stack.add(Value.from_i32(a >> (b % 0x20)))
+                continue
+            if opcode == convention.i32_shru:
+                stack.add(Value.from_i32(num.int2u32(a) >> (b % 0x20)))
+                continue
+            if opcode == convention.i32_rotl:
+                stack.add(Value.from_i32(num.int2i32(num.rotl_u32(a, b))))
+                continue
+            if opcode == convention.i32_rotr:
+                stack.add(Value.from_i32(num.int2i32(num.rotr_u32(a, b))))
+                continue
+            continue
+        if opcode >= convention.i64_clz and opcode <= convention.i64_popcnt:
+            a = stack.pop().n
+            if opcode == convention.i64_clz:
+                if a < 0:
+                    stack.add(Value.from_i32(0))
+                    continue
+                c = 1
+                while c < 63 and (a & 0x4000000000000000) == 0:
+                    c += 1
+                    a *= 2
+                stack.add(Value.from_i64(c))
+                continue
+            if opcode == convention.i64_ctz:
+                c = 0
+                while c < 64 and (a % 2) == 0:
+                    c += 1
+                    a /= 2
+                stack.add(Value.from_i64(c))
+                continue
+            if opcode == convention.i64_popcnt:
+                c = 0
+                for i in range(64):
+                    if 0x1 & a:
+                        c += 1
+                    a /= 2
+                stack.add(Value.from_i64(c))
+                continue
+            continue
+        if opcode >= convention.i64_add and opcode <= convention.i64_rotr:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode in [
+                convention.i64_divs,
+                convention.i64_divu,
+                convention.i64_rems,
+                convention.i64_remu,
+            ]:
+                if b == 0:
+                    raise Exception('pywasm: integer divide by zero')
+            if opcode == convention.i64_add:
+                stack.add(Value.from_i64(num.int2i64(a + b)))
+                continue
+            if opcode == convention.i64_sub:
+                stack.add(Value.from_i64(num.int2i64(a - b)))
+                continue
+            if opcode == convention.i64_mul:
+                stack.add(Value.from_i64(num.int2i64(a * b)))
+                continue
+            if opcode == convention.i64_divs:
+                stack.add(Value.from_i64(num.idiv_s(a, b)))
+                continue
+            if opcode == convention.i64_divu:
+                stack.add(Value.from_i64(num.int2i64(num.int2u64(a) // num.int2u64(b))))
+                continue
+            if opcode == convention.i64_rems:
+                stack.add(Value.from_i64(num.irem_s(a, b)))
+            if opcode == convention.i64_remu:
+                stack.add(Value.from_i64(num.int2u64(a) % num.int2u64(b)))
+                continue
+            if opcode == convention.i64_and:
+                stack.add(Value.from_i64(a & b))
+                continue
+            if opcode == convention.i64_or:
+                stack.add(Value.from_i64(a | b))
+                continue
+            if opcode == convention.i64_xor:
+                stack.add(Value.from_i64(a ^ b))
+                continue
+            if opcode == convention.i64_shl:
+                stack.add(Value.from_i64(a << (b % 0x40)))
+                continue
+            if opcode == convention.i64_shrs:
+                stack.add(Value.from_i64(a >> (b % 0x40)))
+                continue
+            if opcode == convention.i64_shru:
+                stack.add(Value.from_i64(num.int2u64(a) >> (b % 0x40)))
+                continue
+            if opcode == convention.i64_rotl:
+                stack.add(Value.from_i64(num.int2i64(num.rotl_u64(a, b))))
+                continue
+            if opcode == convention.i64_rotr:
+                stack.add(Value.from_i64(num.int2i64(num.rotr_u64(a, b))))
+                continue
+            continue
+        if opcode >= convention.f32_abs and opcode <= convention.f32_sqrt:
+            a = stack.pop().n
+            if opcode == convention.f32_abs:
+                stack.add(Value.from_f32(abs(a)))
+                continue
+            if opcode == convention.f32_neg:
+                stack.add(Value.from_f32(-a))
+                continue
+            if opcode == convention.f32_ceil:
+                stack.add(Value.from_f32(math.ceil(a)))
+                continue
+            if opcode == convention.f32_floor:
+                stack.add(Value.from_f32(math.floor(a)))
+                continue
+            if opcode == convention.f32_trunc:
+                stack.add(Value.from_f32(math.trunc(a)))
+                continue
+            if opcode == convention.f32_nearest:
+                ceil = math.ceil(a)
+                if ceil - a >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                stack.add(Value.from_f32(r))
+                continue
+            if opcode == convention.f32_sqrt:
+                stack.add(Value.from_f32(math.sqrt(a)))
+                continue
+            continue
+        if opcode >= convention.f32_add and opcode <= convention.f32_copysign:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f32_add:
+                stack.add(Value.from_f32(a + b))
+                continue
+            if opcode == convention.f32_sub:
+                stack.add(Value.from_f32(a - b))
+                continue
+            if opcode == convention.f32_mul:
+                stack.add(Value.from_f32(a * b))
+                continue
+            if opcode == convention.f32_div:
+                stack.add(Value.from_f32(a / b))
+                continue
+            if opcode == convention.f32_min:
+                stack.add(Value.from_f32(min(a, b)))
+                continue
+            if opcode == convention.f32_max:
+                stack.add(Value.from_f32(max(a, b)))
+                continue
+            if opcode == convention.f32_copysign:
+                stack.add(Value.from_f32(math.copysign(a, b)))
+                continue
+            continue
+        if opcode >= convention.f64_abs and opcode <= convention.f64_sqrt:
+            a = stack.pop().n
+            if opcode == convention.f64_abs:
+                stack.add(Value.from_f64(abs(a)))
+                continue
+            if opcode == convention.f64_neg:
+                stack.add(Value.from_f64(-a))
+                continue
+            if opcode == convention.f64_ceil:
+                stack.add(Value.from_f64(math.ceil(a)))
+                continue
+            if opcode == convention.f64_floor:
+                stack.add(Value.from_f64(math.floor(a)))
+                continue
+            if opcode == convention.f64_trunc:
+                stack.add(Value.from_f64(math.trunc(a)))
+                continue
+            if opcode == convention.f64_nearest:
+                ceil = math.ceil(a)
+                if ceil - a >= 0.5:
+                    r = ceil
+                else:
+                    r = ceil - 1
+                stack.add(Value.from_f64(r))
+                continue
+            if opcode == convention.f64_sqrt:
+                stack.add(Value.from_f64(math.sqrt(a)))
+                continue
+            continue
+        if opcode >= convention.f64_add and opcode <= convention.f64_copysign:
+            b = stack.pop().n
+            a = stack.pop().n
+            if opcode == convention.f64_add:
+                stack.add(Value.from_f64(a + b))
+                continue
+            if opcode == convention.f64_sub:
+                stack.add(Value.from_f64(a - b))
+                continue
+            if opcode == convention.f64_mul:
+                stack.add(Value.from_f64(a * b))
+                continue
+            if opcode == convention.f64_div:
+                stack.add(Value.from_f64(a / b))
+                continue
+            if opcode == convention.f64_min:
+                stack.add(Value.from_f64(min(a, b)))
+                continue
+            if opcode == convention.f64_max:
+                stack.add(Value.from_f64(max(a, b)))
+                continue
+            if opcode == convention.f64_copysign:
+                stack.add(Value.from_f64(math.copysign(a, b)))
+                continue
+            continue
+        if opcode >= convention.i32_wrap_i64 and opcode <= convention.f64_promote_f32:
+            a = stack.pop().n
+            if opcode in [
+                convention.i32_trunc_sf32,
+                convention.i32_trunc_uf32,
+                convention.i32_trunc_sf64,
+                convention.i32_trunc_uf64,
+                convention.i64_trunc_sf32,
+                convention.i64_trunc_uf32,
+                convention.i64_trunc_sf64,
+                convention.i64_trunc_uf64,
+            ]:
+                if math.isnan(a):
+                    raise Exception('pywasm: invalid conversion to integer')
+            if opcode == convention.i32_wrap_i64:
+                stack.add(Value.from_i32(num.int2i32(a)))
+                continue
+            if opcode == convention.i32_trunc_sf32:
+                if a > 2**31 - 1 or a < -2**32:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i32(int(a)))
+                continue
+            if opcode == convention.i32_trunc_uf32:
+                if a > 2**32 - 1 or a < -1:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i32(int(a)))
+                continue
+            if opcode == convention.i32_trunc_sf64:
+                if a > 2**31 - 1 or a < -2**32:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i32(int(a)))
+                continue
+            if opcode == convention.i32_trunc_uf64:
+                if a > 2**32 - 1 or a < -1:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i32(int(a)))
+                continue
+            if opcode == convention.i64_extend_si32:
+                stack.add(Value.from_i64(a))
+                continue
+            if opcode == convention.i64_extend_ui32:
+                stack.add(Value.from_i64(num.int2u32(a)))
+                continue
+            if opcode == convention.i64_trunc_sf32:
+                if a > 2**63 - 1 or a < -2**63:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i64(int(a)))
+                continue
+            if opcode == convention.i64_trunc_uf32:
+                if a > 2**63 - 1 or a < -1:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i64(int(a)))
+                continue
+            if opcode == convention.i64_trunc_sf64:
+                stack.add(Value.from_i64(int(a)))
+                continue
+            if opcode == convention.i64_trunc_uf64:
+                if a < -1:
+                    raise Exception('pywasm: integer overflow')
+                stack.add(Value.from_i64(int(a)))
+                continue
+            if opcode == convention.f32_convert_si32:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f32_convert_ui32:
+                stack.add(Value.from_f32(num.int2u32(a)))
+                continue
+            if opcode == convention.f32_convert_si64:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f32_convert_ui64:
+                stack.add(Value.from_f32(num.int2u64(a)))
+                continue
+            if opcode == convention.f32_demote_f64:
+                stack.add(Value.from_f32(a))
+                continue
+            if opcode == convention.f64_convert_si32:
+                stack.add(Value.from_f64(a))
+                continue
+            if opcode == convention.f64_convert_ui32:
+                stack.add(Value.from_f64(num.int2u32(a)))
+                continue
+            if opcode == convention.f64_convert_si64:
+                stack.add(Value.from_f64(a))
+                continue
+            if opcode == convention.f64_convert_ui64:
+                stack.add(Value.from_f64(num.int2u64(a)))
+                continue
+            if opcode == convention.f64_promote_f32:
+                stack.add(Value.from_f64(a))
+                continue
+            continue
+        if opcode >= convention.i32_reinterpret_f32 and opcode <= convention.f64_reinterpret_i64:
+            a = stack.pop().n
+            if opcode == convention.i32_reinterpret_f32:
+                stack.add(Value.from_i32(num.f322i32(a)))
+                continue
+            if opcode == convention.i64_reinterpret_f64:
+                stack.add(Value.from_i64(num.f642i64(a)))
+                continue
+            if opcode == convention.f32_reinterpret_i32:
+                stack.add(Value.from_f32(num.i322f32(a)))
+                continue
+            if opcode == convention.f64_reinterpret_i64:
+                stack.add(Value.from_f64(num.i642f64(a)))
+                continue
+            continue
+
+    return stack.data[-frame.arity:]
+
+
 def invoke(
     store: Store,
     frame: Frame,
