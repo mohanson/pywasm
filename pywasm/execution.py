@@ -433,6 +433,8 @@ def call(
     stack.add(Label(len(f.functype.rets), len(code)))
     # An expression is evaluated relative to a current frame pointing to its containing module instance.
     exec_expr(store, frame, stack, f.code.expr)
+    assert isinstance(stack.data[-1 - frame.arity], Frame)
+    del stack.data[-1 - frame.arity]
     if frame.arity > 0:
         return stack.data[-frame.arity:]
     return []
@@ -567,22 +569,14 @@ def exec_expr(
                 while True:
                     e = stack.pop()
                     if isinstance(e, Frame):
+                        stack.add(e)
                         break
                 for e in v:
                     stack.add(e)
                 break
             if opcode == convention.call:
-                a = store.funcs[module.funcaddrs[i.immediate_arguments]]
-                f = Frame(
-                    module,
-                    [stack.pop() for _ in a.functype.args][::-1],
-                    len(a.functype.rets),
-                    len(a.code.expr.data)
-                )
-                if isinstance(a, WasmFunc):
-                    invoke(store, f, stack, a.code.expr)
-                    continue
-                raise NotImplementedError
+                call(module, module.funcaddrs[i.immediate_arguments], store, stack)
+                continue
             if opcode == convention.call_indirect:
                 # if i.immediate_arguments[1] != 0x00:
                 #     log.println("pywasm: zero byte malformed in call_indirect")
