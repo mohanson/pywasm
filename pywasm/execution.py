@@ -304,6 +304,7 @@ class ModuleInstance:
         store: Store,
         externvals: typing.List[ExternValue] = None,
     ):
+        self.types = module.types
         # [TODO] If module is not valid, then panic
         # Assert: module is valid with external types classifying its imports
         for e in module.imports:
@@ -412,19 +413,26 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
-def call(
+def hostfunc_call(
+    _: ModuleInstance,
+    address: int,
+    store: Store,
+    stack: Stack,
+):
+    f: HostFunc = store.funcs[address]
+    valn = [stack.pop() for _ in f.functype.args][::-1]
+    r = f.hostcode(*[e.n for e in valn])
+    if r:
+        stack.add(Value(f.functype.rets[0], r))
+
+
+def wasmfunc_call(
     module: ModuleInstance,
     address: int,
     store: Store,
     stack: Stack,
 ):
     f: WasmFunc = store.funcs[address]
-    assert len(f.functype.rets) <= 1
-    for i, t in enumerate(f.functype.args[::-1]):
-        ia = t
-        ib = stack.data[-1 - i]
-        if ia != ib.valtype:
-            raise Exception('pywasm: signature mismatch in call')
     code = f.code.expr.data
     valn = [stack.pop() for _ in f.functype.args][::-1]
     val0 = []
@@ -449,6 +457,26 @@ def call(
     if frame.arity > 0:
         return stack.data[-frame.arity:]
     return []
+
+
+def call(
+    module: ModuleInstance,
+    address: int,
+    store: Store,
+    stack: Stack,
+):
+    f = store.funcs[address]
+    assert len(f.functype.rets) <= 1
+    for i, t in enumerate(f.functype.args[::-1]):
+        ia = t
+        ib = stack.data[-1 - i]
+        if ia != ib.valtype:
+            raise Exception('pywasm: signature mismatch in call')
+    if isinstance(f, WasmFunc):
+        return wasmfunc_call(module, address, store, stack)
+    if isinstance(f, HostFunc):
+        return hostfunc_call(module, address, store, stack)
+    raise KeyError
 
 
 def spec_br(l: int, stack: Stack) -> int:

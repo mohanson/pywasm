@@ -736,6 +736,11 @@ class Module:
         self.exports: typing.List[Export] = []
 
     @classmethod
+    def load(cls, name: str) -> 'Module':
+        with open(name, 'rb') as f:
+            return cls.from_reader(f)
+
+    @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> 'Module':
         if list(r.read(4)) != [0x00, 0x61, 0x73, 0x6d]:
             raise Exception('pywasm: invalid magic number')

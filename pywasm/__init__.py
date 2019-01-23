@@ -16,7 +16,17 @@ class VirtualMachine:
             name = f'{e.module}.{e.name}'
             if name not in imps:
                 raise Exception(f'pywasm: global import {name} not found')
-            externvals.append(imps[name])
+            if e.kind == convention.extern_func:
+                a = execution.HostFunc(self.module.types[e.desc], imps[name])
+                self.store.funcs.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.funcs) - 1))
+                continue
+            if e.kind == convention.extern_table:
+                raise NotImplementedError
+            if e.kind == convention.extern_mem:
+                raise NotImplementedError
+            if e.kind == convention.extern_global:
+                raise NotImplementedError
         self.module_instance.instantiate(self.module, self.store, externvals)
 
     def func_addr(self, name: str):
