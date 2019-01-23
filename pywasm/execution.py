@@ -219,6 +219,10 @@ class Stack:
     def add(self, e):
         self.data.append(e)
 
+    def ext(self, e: typing.List):
+        for i in e:
+            self.add(i)
+
     def pop(self):
         return self.data.pop()
 
@@ -460,8 +464,7 @@ def spec_br(l: int, stack: Stack) -> int:
             s += 1
             if s == l + 1:
                 break
-    for e in v:
-        stack.add(e)
+    stack.ext(v)
     return L.continuation - 1
 
 
@@ -524,10 +527,9 @@ def exec_expr(
                             break
                     continue
                 # frame{F} val* end -> val*
-                v = [stack.pop() for _ in range(frame.arity)]
+                v = [stack.pop() for _ in range(frame.arity)][::-1]
                 assert isinstance(stack.pop(), Frame)
-                for e in v[::-1]:
-                    stack.add(e)
+                stack.ext(v)
                 continue
             if opcode == convention.br:
                 pc = spec_br(i.immediate_arguments, stack)
@@ -552,8 +554,7 @@ def exec_expr(
                     if isinstance(e, Frame):
                         stack.add(e)
                         break
-                for e in v:
-                    stack.add(e)
+                stack.ext(v)
                 break
             if opcode == convention.call:
                 call(module, module.funcaddrs[i.immediate_arguments], store, stack)

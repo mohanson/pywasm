@@ -20,6 +20,7 @@ Some examples have been provided in the `examples` directory, you can try these 
 $ cd pywasm
 $ python3 examples add 40 2      => (i32.add) 42
 $ python3 examples fib 10        => (10th of fibonacci) 55
+$ python3 examples sum 10        => (0 + 1 + ... + 9) 45
 ```
 
 With detailed, take `./examples/fib.wasm` as an example, write some c code belows:
