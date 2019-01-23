@@ -26,8 +26,6 @@ r = vm.exec('fib', [10])
 print(r) # 55
 ```
 
-# Appendix
-
 A brief description for `./examples`
 
 | File                | Description                                  |
