@@ -12,42 +12,19 @@ Current specification wasm version is: [WebAssembly Core Specification W3C Worki
 $ pip3 install pywasm
 ```
 
-# Example
+# Some simple examples
 
-Some examples have been provided in the `examples` directory, you can try these examples quickly just:
+1. First we need a wasm module! Grab our `./examples/fib.wasm` file and save a copy in a new directory on your local machine. Note: `fib.wasm` was compiled from `./examples/fib.c` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/).
 
-```sh
-$ cd pywasm
-$ python3 examples add 40 2      => (i32.add) 42
-$ python3 examples fib 10        => (10th of fibonacci) 55
-$ python3 examples sum 10        => (0 + 1 + ... + 9) 45
-```
-
-With detailed, take `./examples/fib.wasm` as an example, write some c code belows:
-
-```c
-int fib(int n) {
-    if (n <= 1) {
-        return n;
-    }
-    return fib(n - 1) + fib(n - 2);
-}
-```
-
-Generate `fib.wasm` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/), and then:
+2. Now, compile and instantiate WebAssembly modules directly from underlying sources. This is achieved using the `pywasm.load` method.
 
 ```py
 import pywasm
 
-vm = pywasm.VirtualMachine.open('./examples/fib.wasm')
+vm = pywasm.load('./examples/fib.wasm')
 r = vm.exec('fib', [10])
 print(r) # 55
 ```
-
-# FAQ
-
-Q: How is the pywasm performance? <br>
-A: Fine. Almost the same as ocaml.
 
 # Thanks
 
