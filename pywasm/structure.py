@@ -394,6 +394,9 @@ class DataSegment:
         self.expr: Expression
         self.init: bytearray
 
+    def __repr__(self):
+        return self.init[:32].decode()
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSegment()
@@ -736,8 +739,8 @@ class Module:
         self.exports: typing.List[Export] = []
 
     @classmethod
-    def open(cls, file: str) -> 'Module':
-        with open(file, 'rb') as f:
+    def load(cls, name: str) -> 'Module':
+        with open(name, 'rb') as f:
             return cls.from_reader(f)
 
     @classmethod

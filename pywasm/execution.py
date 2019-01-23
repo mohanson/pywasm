@@ -219,6 +219,10 @@ class Stack:
     def add(self, e):
         self.data.append(e)
 
+    def ext(self, e: typing.List):
+        for i in e:
+            self.add(i)
+
     def pop(self):
         return self.data.pop()
 
@@ -300,6 +304,7 @@ class ModuleInstance:
         store: Store,
         externvals: typing.List[ExternValue] = None,
     ):
+        self.types = module.types
         # [TODO] If module is not valid, then panic
         # Assert: module is valid with external types classifying its imports
         for e in module.imports:
@@ -335,7 +340,8 @@ class ModuleInstance:
         frame = Frame(auxmod, [], 1, -1)
         vals = []
         for glob in module.globals:
-            v = invoke(store, frame, stack, glob.expr)[0]
+            stack.add(frame)
+            v = exec_expr(store, frame, stack, glob.expr)[0]
             vals.append(v)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -343,14 +349,16 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(store, frame, stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(store, frame, stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
@@ -358,9 +366,7 @@ class ModuleInstance:
             m.data[offset.n: offset.n + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
-            frame = Frame(self, [], 0, -1)
-            func = store.funcs[self.funcaddrs[module.start]]
-            invoke(store, frame, stack, func.code.expr)
+            call(module, module.start, store, stack)
 
     def allocate(
         self,
@@ -408,19 +414,26 @@ class ModuleInstance:
             self.exports.append(exportinst)
 
 
-def call(
+def hostfunc_call(
+    _: ModuleInstance,
+    address: int,
+    store: Store,
+    stack: Stack,
+):
+    f: HostFunc = store.funcs[address]
+    valn = [stack.pop() for _ in f.functype.args][::-1]
+    r = f.hostcode(*[e.n for e in valn])
+    if r:
+        stack.add(Value(f.functype.rets[0], r))
+
+
+def wasmfunc_call(
     module: ModuleInstance,
     address: int,
     store: Store,
     stack: Stack,
 ):
     f: WasmFunc = store.funcs[address]
-    assert len(f.functype.rets) <= 1
-    for i, t in enumerate(f.functype.args[::-1]):
-        ia = t
-        ib = stack.data[-1 - i]
-        if ia != ib.valtype:
-            raise Exception('pywasm: signature mismatch in call')
     code = f.code.expr.data
     valn = [stack.pop() for _ in f.functype.args][::-1]
     val0 = []
@@ -447,6 +460,26 @@ def call(
     return []
 
 
+def call(
+    module: ModuleInstance,
+    address: int,
+    store: Store,
+    stack: Stack,
+):
+    f = store.funcs[address]
+    assert len(f.functype.rets) <= 1
+    for i, t in enumerate(f.functype.args[::-1]):
+        ia = t
+        ib = stack.data[-1 - i]
+        if ia != ib.valtype:
+            raise Exception('pywasm: signature mismatch in call')
+    if isinstance(f, WasmFunc):
+        return wasmfunc_call(module, address, store, stack)
+    if isinstance(f, HostFunc):
+        return hostfunc_call(module, address, store, stack)
+    raise KeyError
+
+
 def spec_br(l: int, stack: Stack) -> int:
     # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
     L = [i for i in stack.data if isinstance(i, Label)][::-1][l]
@@ -460,8 +493,7 @@ def spec_br(l: int, stack: Stack) -> int:
             s += 1
             if s == l + 1:
                 break
-    for e in v:
-        stack.add(e)
+    stack.ext(v)
     return L.continuation - 1
 
 
@@ -524,10 +556,9 @@ def exec_expr(
                             break
                     continue
                 # frame{F} val* end -> val*
-                v = [stack.pop() for _ in range(frame.arity)]
+                v = [stack.pop() for _ in range(frame.arity)][::-1]
                 assert isinstance(stack.pop(), Frame)
-                for e in v[::-1]:
-                    stack.add(e)
+                stack.ext(v)
                 continue
             if opcode == convention.br:
                 pc = spec_br(i.immediate_arguments, stack)
@@ -552,8 +583,7 @@ def exec_expr(
                     if isinstance(e, Frame):
                         stack.add(e)
                         break
-                for e in v:
-                    stack.add(e)
+                stack.ext(v)
                 break
             if opcode == convention.call:
                 call(module, module.funcaddrs[i.immediate_arguments], store, stack)
@@ -1203,14 +1233,3 @@ def exec_expr(
             continue
 
     return stack.data[-frame.arity:]
-
-
-def invoke(
-    store: Store,
-    frame: Frame,
-    stack: Stack,
-    expr: structure.Expression,
-):
-    module = frame.module
-    stack.add(frame)
-    return exec_expr(store, frame, stack, expr)

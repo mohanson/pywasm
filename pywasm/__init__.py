@@ -6,27 +6,31 @@ from pywasm import log
 from pywasm import structure
 
 
-def on_debug():
-    log.lvl = 1
-
-
 class VirtualMachine:
-    def __init__(self, module: structure.Module, imps: typing.Dict = None):
+    def __init__(self, module: structure.Module, imps: typing.Dict):
         self.module = module
-        self.store = execution.Store()
         self.module_instance = execution.ModuleInstance()
-        imps = {} if imps is None else imps
+        self.store = execution.Store()
         externvals = []
         for e in self.module.imports:
             name = f'{e.module}.{e.name}'
             if name not in imps:
                 raise Exception(f'pywasm: global import {name} not found')
-            externvals.append(imps[name])
-        self.module_instance.instantiate(self.module, self.store, [])
-
-    @classmethod
-    def open(cls, name: str):
-        return VirtualMachine(structure.Module.open(name))
+            if e.kind == convention.extern_func:
+                a = execution.HostFunc(self.module.types[e.desc], imps[name])
+                self.store.funcs.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.funcs) - 1))
+                continue
+            if e.kind == convention.extern_table:
+                raise NotImplementedError
+            if e.kind == convention.extern_mem:
+                raise NotImplementedError
+            if e.kind == convention.extern_global:
+                a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[name]), e.desc.mut)
+                self.store.globals.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.globals) - 1))
+                continue
+        self.module_instance.instantiate(self.module, self.store, externvals)
 
     def func_addr(self, name: str):
         for e in self.module_instance.exports:
@@ -44,11 +48,31 @@ class VirtualMachine:
                 assert isinstance(args[i], float)
             args[i] = execution.Value(e, args[i])
         stack = execution.Stack()
-        for e in args:
-            stack.add(e)
+        stack.ext(args)
         frame = execution.Frame(self.module_instance, args, len(func.functype.rets), -1)
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
         r = execution.call(self.module_instance, func_addr, self.store, stack)
         if r:
-            return r[0]
+            return r[0].n
         return None
+
+
+# Using the pywasm API.
+# If you have already compiled a module from another language using tools like Emscripten, or loaded and run the code
+# by Javascript yourself, the pywasm API is easy to learn.
+
+def on_debug():
+    log.lvl = 1
+
+
+def load(name: str, imps: typing.Dict = None):
+    imps = imps if imps else {}
+    with open(name, 'rb') as f:
+        module = structure.Module.from_reader(f)
+        return VirtualMachine(module, imps)
+
+
+Memory = execution.MemoryInstance
+Value = execution.Value
+Table = execution.TableInstance
+Limits = structure.Limits
