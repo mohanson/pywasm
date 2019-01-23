@@ -50,7 +50,7 @@ class VirtualMachine:
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
         r = execution.call(self.module_instance, func_addr, self.store, stack)
         if r:
-            return r[0]
+            return r[0].n
         return None
 
 

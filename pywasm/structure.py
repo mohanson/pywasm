@@ -394,6 +394,9 @@ class DataSegment:
         self.expr: Expression
         self.init: bytearray
 
+    def __repr__(self):
+        return self.init[:32].decode()
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSegment()

@@ -74,7 +74,7 @@ def test_spec():
                     continue
                 ret = parse_val(test['return'])
                 # execution
-                out = vm.exec(function, args).n
+                out = vm.exec(function, args)
                 # assert
                 if isinstance(ret, float):
                     if math.isnan(ret):

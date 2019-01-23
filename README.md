@@ -26,6 +26,17 @@ r = vm.exec('fib', [10])
 print(r) # 55
 ```
 
+# Appendix
+
+A brief description for `./examples`
+
+| File                | Description                                  |
+|---------------------|----------------------------------------------|
+| ./examples/add.wasm | Export i32.add function                      |
+| ./examples/env.wasm | Call python/native function in wasm          |
+| ./examples/fib.wasm | Fibonacci, which contains loop and recursion |
+| ./examples/str.wasm | Export a function which returns string       |
+
 # Thanks
 
 - [wagon](https://github.com/go-interpreter/wagon), The author is very kind
