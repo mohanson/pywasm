@@ -14,7 +14,7 @@ $ pip3 install pywasm
 
 # Example
 
-A few small examples have been provided in the `examples` directory, you can try these examples quickly just:
+Some examples have been provided in the `examples` directory, you can try these examples quickly just:
 
 ```sh
 $ cd pywasm
@@ -22,7 +22,7 @@ $ python3 examples add 40 2      => (i32.add) 42
 $ python3 examples fib 10        => (10th of fibonacci) 55
 ```
 
-With detailed, we use `./examples/fib.wasm` as an example, write some c code belows:
+With detailed, take `./examples/fib.wasm` as an example, write some c code belows:
 
 ```c
 int fib(int n) {
@@ -55,18 +55,4 @@ A: Fine. Almost the same as ocaml.
 
 # License
 
-```
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-                    Version 2, December 2004
-
- Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
-
- Everyone is permitted to copy and distribute verbatim or modified
- copies of this license document, and changing it is allowed as long
- as the name is changed.
-
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-  0. You just DO WHAT THE FUCK YOU WANT TO.
-```
+[WTFPL](./LICENSE)

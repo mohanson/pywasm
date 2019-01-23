@@ -70,7 +70,7 @@ def test_spec():
             args = [parse_val(e) for e in test['args']]
             if 'return' in test:
                 if test['return'] is None:
-                    assert vm.exec(function, args) == None
+                    assert vm.exec(function, args) is None
                     continue
                 ret = parse_val(test['return'])
                 # execution
