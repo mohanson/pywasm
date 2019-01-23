@@ -72,5 +72,4 @@ def load(name: str, imps: typing.Dict = None):
 Memory = execution.MemoryInstance
 Value = execution.Value
 Table = execution.TableInstance
-HostFunc = execution.HostFunc
 Limits = structure.Limits
