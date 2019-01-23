@@ -340,7 +340,8 @@ class ModuleInstance:
         frame = Frame(auxmod, [], 1, -1)
         vals = []
         for glob in module.globals:
-            v = invoke(store, frame, stack, glob.expr)[0]
+            stack.add(frame)
+            v = exec_expr(store, frame, stack, glob.expr)[0]
             vals.append(v)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -348,14 +349,16 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            offset = invoke(store, frame, stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            offset = invoke(store, frame, stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
@@ -363,9 +366,7 @@ class ModuleInstance:
             m.data[offset.n: offset.n + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
-            frame = Frame(self, [], 0, -1)
-            func = store.funcs[self.funcaddrs[module.start]]
-            invoke(store, frame, stack, func.code.expr)
+            call(module, module.start, store, stack)
 
     def allocate(
         self,
@@ -1232,14 +1233,3 @@ def exec_expr(
             continue
 
     return stack.data[-frame.arity:]
-
-
-def invoke(
-    store: Store,
-    frame: Frame,
-    stack: Stack,
-    expr: structure.Expression,
-):
-    module = frame.module
-    stack.add(frame)
-    return exec_expr(store, frame, stack, expr)

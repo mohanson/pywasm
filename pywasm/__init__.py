@@ -26,7 +26,10 @@ class VirtualMachine:
             if e.kind == convention.extern_mem:
                 raise NotImplementedError
             if e.kind == convention.extern_global:
-                raise NotImplementedError
+                a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[name]), e.desc.mut)
+                self.store.globals.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.globals) - 1))
+                continue
         self.module_instance.instantiate(self.module, self.store, externvals)
 
     def func_addr(self, name: str):
