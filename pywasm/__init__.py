@@ -13,11 +13,10 @@ class VirtualMachine:
         self.store = execution.Store()
         externvals = []
         for e in self.module.imports:
-            name = f'{e.module}.{e.name}'
-            if name not in imps:
-                raise Exception(f'pywasm: global import {name} not found')
+            if e.module not in imps or e.name not in imps[e.module]:
+                raise Exception(f'pywasm: global import {e.module}.{e.name} not found')
             if e.kind == convention.extern_func:
-                a = execution.HostFunc(self.module.types[e.desc], imps[name])
+                a = execution.HostFunc(self.module.types[e.desc], imps[e.module][e.name])
                 self.store.funcs.append(a)
                 externvals.append(execution.ExternValue(e.kind, len(self.store.funcs) - 1))
                 continue
@@ -26,7 +25,7 @@ class VirtualMachine:
             if e.kind == convention.extern_mem:
                 raise NotImplementedError
             if e.kind == convention.extern_global:
-                a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[name]), e.desc.mut)
+                a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[e.module][e.name]), e.desc.mut)
                 self.store.globals.append(a)
                 externvals.append(execution.ExternValue(e.kind, len(self.store.globals) - 1))
                 continue
