@@ -413,6 +413,9 @@ class StartFunction:
     # start ::= {func funcidx}
     def __init__(self):
         self.funcidx: int
+    
+    def __repr__(self):
+        return f'StartFunction[{self.funcidx}]'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -800,8 +803,8 @@ class Module:
                 mod.exports = export_section.vec
             elif section_id == convention.start_section:
                 start_section = StartSection.from_reader(io.BytesIO(data))
-                log.debugln(start_section)
-                mod.start = start_section.start_function
+                log.debugln(f'{convention.section[section_id][0]:>12} {start_section.start_function}')
+                mod.start = start_section.start_function.funcidx
             elif section_id == convention.element_section:
                 element_section = ElementSection.from_reader(io.BytesIO(data))
                 for i, e in enumerate(element_section.vec):

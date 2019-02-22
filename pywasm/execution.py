@@ -366,7 +366,8 @@ class ModuleInstance:
             m.data[offset.n: offset.n + len(e.init)] = e.init
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
-            call(module, module.start, store, stack)
+            log.debugln(f'Running start function {module.start}:')
+            call(self, module.start, store, stack)
 
     def allocate(
         self,
