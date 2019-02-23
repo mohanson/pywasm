@@ -207,9 +207,9 @@ class Expression:
                 composition[block[0]] = block
                 continue
         if data[-1].code != convention.end:
-            log.println('pywasm: function block did not end with 0xb')
+            raise Exception('pywasm: function block did not end with 0xb')
         if stack:
-            log.println('pywasm: function ended in middle of block')
+            raise Exception('pywasm: function ended in middle of block')
         return composition
 
     @classmethod
@@ -413,7 +413,7 @@ class StartFunction:
     # start ::= {func funcidx}
     def __init__(self):
         self.funcidx: int
-    
+
     def __repr__(self):
         return f'StartFunction[{self.funcidx}]'
 
