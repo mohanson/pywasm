@@ -4,7 +4,7 @@
 
 A WebAssembly interpreter written in pure Python. JIT used.
 
-Current specification wasm version is: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/). Just like Firefox or Chrome does.
+The wasm version currently in use is: [WebAssembly Core Specification W3C Working Draft, 4 September 2018](https://www.w3.org/TR/2018/WD-wasm-core-1-20180904/). Just like Firefox or Chrome does.
 
 # Installation
 
@@ -20,8 +20,9 @@ $ pip3 install pywasm
 
 ```py
 import pywasm
+# pywasm.on_debug()
 
-vm = pywasm.load('./examples/fib.wasm')
+vm = pywasm.load('/src/pywasm/examples/fib.wasm')
 r = vm.exec('fib', [10])
 print(r) # 55
 ```
@@ -34,6 +35,7 @@ A brief description for `./examples`
 | ./examples/env.wasm | Call python/native function in wasm          |
 | ./examples/fib.wasm | Fibonacci, which contains loop and recursion |
 | ./examples/str.wasm | Export a function which returns string       |
+| ./examples/sum.wasm | Equal difference series summation            |
 
 # Thanks
 
