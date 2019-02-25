@@ -276,9 +276,8 @@ class Code:
         n = common.read_count(r, 32)
         n = common.read_count(r, 32)
         for _ in range(n):
-            n = common.read_count(r, 32)
-            valtype = ord(r.read(1))
-            o.locals.extend([valtype for _ in range(n)])
+            l = Locals.from_reader(r)
+            o.locals.extend([l.valtype for _ in range(l.n)])
         o.expr = Expression.from_reader(r)
         return o
 
