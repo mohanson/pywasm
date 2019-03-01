@@ -206,9 +206,9 @@ f64_convert_si64 = op(0xb9, 'f64.convert_i64_s', '', 0)
 f64_convert_ui64 = op(0xba, 'f64.convert_i64_u', '', 0)
 f64_promote_f32 = op(0xbb, 'f64.promote_f32', '', 0)
 i32_reinterpret_f32 = op(0xbc, 'i32.reinterpret_f32', '', 0)
-i64_reinterpret_f64 = op(0xbd, 'i64.reinterpret.f64', '', 0)
-f32_reinterpret_i32 = op(0xbe, 'f32.reinterpret.i32', '', 0)
-f64_reinterpret_i64 = op(0xbf, 'f64.reinterpret.i64', '', 0)
+i64_reinterpret_f64 = op(0xbd, 'i64.reinterpret_f64', '', 0)
+f32_reinterpret_i32 = op(0xbe, 'f32.reinterpret_i32', '', 0)
+f64_reinterpret_i64 = op(0xbf, 'f64.reinterpret_i64', '', 0)
 
 custom_section = 0x00
 type_section = 0x01
