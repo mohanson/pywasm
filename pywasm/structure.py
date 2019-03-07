@@ -187,6 +187,9 @@ class Expression:
         self.data: typing.List[Instruction] = []
         self.composition = {}
 
+    def __str__(self):
+        return str(self.data)
+
     @classmethod
     def compose(cls, data: typing.List[Instruction]):
         composition = {}
@@ -268,7 +271,7 @@ class Code:
         self.expr: Expression
 
     def __repr__(self):
-        return f'locals={self.locals}'
+        return f'locals=[{", ".join([convention.valtype[i][0] for i in self.locals])}]'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -414,7 +417,7 @@ class StartFunction:
         self.funcidx: int
 
     def __repr__(self):
-        return f'StartFunction[{self.funcidx}]'
+        return f'Function[{self.funcidx}]'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -778,8 +781,9 @@ class Module:
                 mod.imports = import_section.vec
             elif section_id == convention.function_section:
                 function_section = FunctionSection.from_reader(io.BytesIO(data))
+                num_imported_funcs = sum(1 for _ in filter(lambda i: i.kind == convention.extern_func, mod.imports))
                 for i, e in enumerate(function_section.vec):
-                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] sig={e}')
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] func={num_imported_funcs+i} sig={e}')
             elif section_id == convention.table_section:
                 table_section = TableSection.from_reader(io.BytesIO(data))
                 for i, e in enumerate(table_section.vec):
@@ -816,19 +820,22 @@ class Module:
                     for e in instrs:
                         a = f'           | {" " * prefix}{convention.opcodes[e.code][0]}'
                         if e.code in [convention.block, convention.loop, convention.if_]:
-                            log.debugln(f'{a} {e.immediate_arguments}')
+                            log.debugln(f'{a} {convention.blocktype[e.immediate_arguments][0]}')
                             prefix += 2
                         elif e.code == convention.end:
-                            log.debugln(f'{a}')
                             prefix -= 2
+                            a = f'           | {" " * prefix}{convention.opcodes[e.code][0]}'
+                            log.debugln(f'{a}')
                         elif e.immediate_arguments is None:
                             log.debugln(f'{a}')
                         elif isinstance(e.immediate_arguments, list):
                             log.debugln(f'{a} {" ".join([str(e) for e in e.immediate_arguments])}')
                         else:
                             log.debugln(f'{a} {e.immediate_arguments}')
+
+                num_imported_funcs = sum(1 for _ in filter(lambda i: i.kind == convention.extern_func, mod.imports))
                 for i, e in enumerate(code_section.vec):
-                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
+                    log.debugln(f'{convention.section[section_id][0]:>9}[{i}] func={num_imported_funcs+i} {e}')
                     printex(e.expr.data)
                     func = Function()
                     func.typeidx = function_section.vec[i]
