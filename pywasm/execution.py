@@ -628,7 +628,10 @@ def exec_expr(
             stack.add(store.globals[module.globaladdrs[i.immediate_arguments]].value)
             continue
         if opcode == convention.set_global:
-            store.globals[module.globaladdrs[i.immediate_arguments]] = GlobalInstance(stack.pop(), True)
+            addr = module.globaladdrs[i.immediate_arguments]
+            store.globals[addr] = GlobalInstance(stack.pop(), True)
+            # mirror the update in the stack for debugging even if get_global uses the local duplicate in the GlobalInstance
+            stack.data[addr] = store.globals[addr].value
             continue
         if opcode >= convention.i32_load and opcode <= convention.grow_memory:
             m = store.mems[module.memaddrs[0]]
