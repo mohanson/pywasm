@@ -48,7 +48,6 @@ class VirtualMachine:
             args[i] = execution.Value(e, args[i])
         stack = execution.Stack()
         stack.ext(args)
-        frame = execution.Frame(self.module_instance, args, len(func.functype.rets), -1)
         log.debugln(f'Running function {name}({", ".join([str(e) for e in args])}):')
         r = execution.call(self.module_instance, func_addr, self.store, stack)
         if r:

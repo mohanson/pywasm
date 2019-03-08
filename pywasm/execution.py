@@ -336,12 +336,12 @@ class ModuleInstance:
         # Let vals be the vector of global initialization values determined by module and externvaln
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
-        stack = Stack()
+        init_stack = Stack()
         frame = Frame(auxmod, [], 1, -1)
         vals = []
         for glob in module.globals:
-            stack.add(frame)
-            v = exec_expr(store, frame, stack, glob.expr)[0]
+            init_stack.add(frame)
+            v = exec_expr(store, frame, init_stack, glob.expr)[0]
             vals.append(v)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -349,16 +349,16 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            stack.add(frame)
-            offset = exec_expr(store, frame, stack, e.expr)[0]
+            init_stack.add(frame)
+            offset = exec_expr(store, frame, init_stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            stack.add(frame)
-            offset = exec_expr(store, frame, stack, e.expr)[0]
+            init_stack.add(frame)
+            offset = exec_expr(store, frame, init_stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
@@ -367,6 +367,7 @@ class ModuleInstance:
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             log.debugln(f'Running start function {module.start}:')
+            stack = Stack() # Run on a fresh stack, not the initialization one
             call(self, module.start, store, stack)
 
     def allocate(
@@ -513,7 +514,15 @@ def exec_expr(
         if pc >= len(expr.data):
             break
         i = expr.data[pc]
+
         log.debugln(f'{str(i):<18} {stack}')
+
+        if log.lvl >= 2:
+            ls = [f'{i}: {convention.valtype[l.valtype][0]} {l.n}' for i, l in enumerate(frame.locals)]
+            gs = [f'{i}: {"mut " if g.mut else ""}{convention.valtype[g.value.valtype][0]} {g.value.n}' for i, g in enumerate(store.globals)]
+            for n, e in (('locals', ls), ('globals', gs)):
+                log.verboseln(f'{" "*18} {str(n)+":":<8} [{", ".join(e)}]')
+
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
             if opcode == convention.unreachable:
@@ -628,10 +637,7 @@ def exec_expr(
             stack.add(store.globals[module.globaladdrs[i.immediate_arguments]].value)
             continue
         if opcode == convention.set_global:
-            addr = module.globaladdrs[i.immediate_arguments]
-            store.globals[addr] = GlobalInstance(stack.pop(), True)
-            # mirror the update in the stack for debugging even if get_global uses the local duplicate in the GlobalInstance
-            stack.data[addr] = store.globals[addr].value
+            store.globals[module.globaladdrs[i.immediate_arguments]] = GlobalInstance(stack.pop(), True)
             continue
         if opcode >= convention.i32_load and opcode <= convention.grow_memory:
             m = store.mems[module.memaddrs[0]]
