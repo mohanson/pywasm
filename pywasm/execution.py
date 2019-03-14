@@ -336,12 +336,12 @@ class ModuleInstance:
         # Let vals be the vector of global initialization values determined by module and externvaln
         auxmod = ModuleInstance()
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
-        init_stack = Stack()
+        stack = Stack()
         frame = Frame(auxmod, [], 1, -1)
         vals = []
         for glob in module.globals:
-            init_stack.add(frame)
-            v = exec_expr(store, frame, init_stack, glob.expr)[0]
+            stack.add(frame)
+            v = exec_expr(store, frame, stack, glob.expr)[0]
             vals.append(v)
         # Allocation
         self.allocate(module, store, externvals, vals)
@@ -349,16 +349,16 @@ class ModuleInstance:
         frame = Frame(self, [], 1, -1)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            init_stack.add(frame)
-            offset = exec_expr(store, frame, init_stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
             for i, e in enumerate(e.init):
                 t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            init_stack.add(frame)
-            offset = exec_expr(store, frame, init_stack, e.expr)[0]
+            stack.add(frame)
+            offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
@@ -367,7 +367,6 @@ class ModuleInstance:
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             log.debugln(f'Running start function {module.start}:')
-            stack = Stack() # Run on a fresh stack, not the initialization one
             call(self, module.start, store, stack)
 
     def allocate(
@@ -425,8 +424,7 @@ def hostfunc_call(
     f: HostFunc = store.funcs[address]
     valn = [stack.pop() for _ in f.functype.args][::-1]
     r = f.hostcode(*[e.n for e in valn])
-    if r:
-        stack.add(Value(f.functype.rets[0], r))
+    return [Value(f.functype.rets[0], r)]
 
 
 def wasmfunc_call(
@@ -452,14 +450,11 @@ def wasmfunc_call(
     stack.add(frame)
     stack.add(Label(len(f.functype.rets), len(code)))
     # An expression is evaluated relative to a current frame pointing to its containing module instance.
-    exec_expr(store, frame, stack, f.code.expr)
+    r = exec_expr(store, frame, stack, f.code.expr)
     # Exit
-    if not isinstance(stack.data[-1 - frame.arity], Frame):
+    if not isinstance(stack.pop(), Frame):
         raise Exception('pywasm: signature mismatch in call')
-    del stack.data[-1 - frame.arity]
-    if frame.arity > 0:
-        return stack.data[-frame.arity:]
-    return []
+    return r
 
 
 def call(
@@ -505,6 +500,11 @@ def exec_expr(
     stack: Stack,
     expr: structure.Expression,
 ):
+    # An expression is evaluated relative to a current frame pointing to its containing module instance.
+    # 1. Jump to the start of the instruction sequence instr∗ of the expression.
+    # 2. Execute the instruction sequence.
+    # 3. Assert: due to validation, the top of the stack contains a value.
+    # 4. Pop the value val from the stack.
     module = frame.module
     if not expr.data:
         raise Exception('pywasm: empty init expr')
@@ -519,7 +519,8 @@ def exec_expr(
 
         if log.lvl >= 2:
             ls = [f'{i}: {convention.valtype[l.valtype][0]} {l.n}' for i, l in enumerate(frame.locals)]
-            gs = [f'{i}: {"mut " if g.mut else ""}{convention.valtype[g.value.valtype][0]} {g.value.n}' for i, g in enumerate(store.globals)]
+            gs = [f'{i}: {"mut " if g.mut else ""}{convention.valtype[g.value.valtype][0]} {g.value.n}' for i,
+                  g in enumerate(store.globals)]
             for n, e in (('locals', ls), ('globals', gs)):
                 log.verboseln(f'{" "*18} {str(n)+":":<8} [{", ".join(e)}]')
 
@@ -596,7 +597,8 @@ def exec_expr(
                 stack.ext(v)
                 break
             if opcode == convention.call:
-                call(module, module.funcaddrs[i.immediate_arguments], store, stack)
+                r = call(module, module.funcaddrs[i.immediate_arguments], store, stack)
+                stack.ext(r)
                 continue
             if opcode == convention.call_indirect:
                 if i.immediate_arguments[1] != 0x00:
@@ -605,7 +607,8 @@ def exec_expr(
                 tab = store.tables[module.tableaddrs[0]]
                 if not 0 <= idx < len(tab.elem):
                     raise Exception('pywasm: undefined element index')
-                call(module, tab.elem[idx], store, stack)
+                r = call(module, tab.elem[idx], store, stack)
+                stack.ext(r)
                 continue
             continue
         if opcode == convention.drop:
@@ -1242,4 +1245,4 @@ def exec_expr(
                 continue
             continue
 
-    return stack.data[-frame.arity:]
+    return [stack.pop() for _ in range(frame.arity)][::-1]
