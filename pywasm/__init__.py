@@ -6,11 +6,15 @@ from pywasm import log
 from pywasm import structure
 
 
-class VirtualMachine:
-    def __init__(self, module: structure.Module, imps: typing.Dict):
+class Runtime:
+    # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
+
+    def __init__(self, module: structure.Module, imps: typing.Dict = None):
         self.module = module
         self.module_instance = execution.ModuleInstance()
         self.store = execution.Store()
+
+        imps = imps if imps else {}
         externvals = []
         for e in self.module.imports:
             if e.module not in imps or e.name not in imps[e.module]:
@@ -32,14 +36,17 @@ class VirtualMachine:
         self.module_instance.instantiate(self.module, self.store, externvals)
 
     def func_addr(self, name: str):
+        # Get a function address denoted by the function name
         for e in self.module_instance.exports:
             if e.name == name and e.value.extern_type == convention.extern_func:
                 return e.value.addr
         raise Exception('pywasm: function not found')
 
     def exec(self, name: str, args: typing.List):
+        # Invoke a function denoted by the function address with the provided arguments.
         func_addr = self.func_addr(name)
         func = self.store.funcs[self.module_instance.funcaddrs[func_addr]]
+        # Mapping check for Python valtype to WebAssembly valtype
         for i, e in enumerate(func.functype.args):
             if e in [convention.i32, convention.i64]:
                 assert isinstance(args[i], int)
@@ -64,10 +71,10 @@ def on_debug():
 
 
 def load(name: str, imps: typing.Dict = None):
-    imps = imps if imps else {}
+    # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
         module = structure.Module.from_reader(f)
-        return VirtualMachine(module, imps)
+        return Runtime(module, imps)
 
 
 Memory = execution.MemoryInstance
