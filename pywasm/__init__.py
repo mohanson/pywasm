@@ -25,9 +25,15 @@ class Runtime:
                 externvals.append(execution.ExternValue(e.kind, len(self.store.funcs) - 1))
                 continue
             if e.kind == convention.extern_table:
-                raise NotImplementedError
+                a = imps[e.module][e.name]
+                self.store.tables.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.tables) - 1))
+                continue
             if e.kind == convention.extern_mem:
-                raise NotImplementedError
+                a = imps[e.module][e.name]
+                self.store.mems.append(a)
+                externvals.append(execution.ExternValue(e.kind, len(self.store.mems) - 1))
+                continue
             if e.kind == convention.extern_global:
                 a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[e.module][e.name]), e.desc.mut)
                 self.store.globals.append(a)
@@ -70,7 +76,7 @@ def on_debug():
     log.lvl = 1
 
 
-def load(name: str, imps: typing.Dict = None):
+def load(name: str, imps: typing.Dict = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
         module = structure.Module.from_reader(f)

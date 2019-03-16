@@ -271,9 +271,7 @@ def import_matching_limits(limits1: structure.Limits, limits2: structure.Limits)
     m1 = limits1.maximum
     n2 = limits2.minimum
     m2 = limits2.maximum
-    if n1 < n2:
-        return False
-    if m2 is None or (m1 != None and m2 != None and m1 <= m2):
+    if m2 is None or (m1 != None and m1 <= m2):
         return True
     return False
 
@@ -328,7 +326,7 @@ class ModuleInstance:
             elif e.extern_type == convention.extern_mem:
                 a = store.mems[e.addr]
                 b = module.imports[i].desc
-                assert import_matching_limits(b, a)
+                assert import_matching_limits(b, a.limits)
             elif e.extern_type == convention.extern_global:
                 a = store.globals[e.addr]
                 b = module.imports[i].desc
