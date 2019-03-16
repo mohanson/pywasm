@@ -46,7 +46,7 @@ class Limits:
     #
     # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
     #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
-    def __init__(self, minimum: int, maximum: int):
+    def __init__(self, minimum: int, maximum: int = None):
         self.minimum = minimum
         self.maximum = maximum
 
@@ -78,7 +78,7 @@ class MemoryType:
 class TableType:
     # Table types classify tables over elements of element types within a size range.
     #
-    # tabletype :: =limits elemtype
+    # tabletype ::= limits elemtype
     # elemtype ::= funcref
     #
     # Like memories, tables are constrained by limits for their minimum and optionally maximum size. The limits are
@@ -88,6 +88,10 @@ class TableType:
     def __init__(self):
         self.limits: Limits
         self.elemtype: int
+
+    def __repr__(self):
+        a = convention.elemtype[self.elemtype][0]
+        return f'{a} {self.limits}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -109,9 +113,10 @@ class GlobalType:
         self.mut: bool
 
     def __repr__(self):
+        a = convention.valtype[self.valtype][0]
         if self.mut:
-            return f'var {convention.valtype[self.valtype]}'
-        return f'const {convention.valtype[self.valtype]}'
+            return f'var {a}'
+        return f'const {a}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
