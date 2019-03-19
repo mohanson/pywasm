@@ -336,18 +336,21 @@ class ModuleInstance:
         auxmod.globaladdrs = [e.addr for e in externvals if e.extern_type == convention.extern_global]
         stack = Stack()
         frame = Frame(auxmod, [], 1, -1)
+        stack.add(frame)
         vals = []
         for glob in module.globals:
-            stack.add(frame)
             v = exec_expr(store, frame, stack, glob.expr)[0]
             vals.append(v)
+        assert isinstance(stack.pop(), Frame)
+
         # Allocation
         self.allocate(module, store, externvals, vals)
 
+        # Push the frame F to the stack
         frame = Frame(self, [], 1, -1)
+        stack.add(frame)
         # For each element segment in module.elem, do:
         for e in module.elem:
-            stack.add(frame)
             offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             t = store.tables[self.tableaddrs[e.tableidx]]
@@ -355,13 +358,15 @@ class ModuleInstance:
                 t.elem[offset.n + i] = e
         # For each data segment in module.data, do:
         for e in module.data:
-            stack.add(frame)
             offset = exec_expr(store, frame, stack, e.expr)[0]
             assert offset.valtype == convention.i32
             m = store.mems[self.memaddrs[e.memidx]]
             end = offset.n + len(e.init)
             assert end <= len(m.data)
             m.data[offset.n: offset.n + len(e.init)] = e.init
+        # Assert: due to validation, the frame F is now on the top of the stack.
+        assert isinstance(stack.pop(), Frame)
+        assert stack.len() == 0
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             log.debugln(f'Running start function {module.start}:')
@@ -566,7 +571,6 @@ def exec_expr(
                     continue
                 # frame{F} val* end -> val*
                 v = [stack.pop() for _ in range(frame.arity)][::-1]
-                assert isinstance(stack.pop(), Frame)
                 stack.ext(v)
                 continue
             if opcode == convention.br:
