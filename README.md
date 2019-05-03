@@ -37,6 +37,17 @@ A brief description for `./examples`
 | ./examples/str.wasm | Export a function which returns string       |
 | ./examples/sum.wasm | Equal difference series summation            |
 
+# Test
+
+```
+python ./tests/test_spec.py
+```
+
+Tested in the following environments:
+
+- Python 3.7.3
+- Python 3.6.5
+
 # Thanks
 
 - [wagon](https://github.com/go-interpreter/wagon), The author is very kind
