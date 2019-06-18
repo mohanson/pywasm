@@ -83,6 +83,7 @@ def load(name: str, imps: typing.Dict = None) -> Runtime:
         return Runtime(module, imps)
 
 
+Ctx = execution.Ctx
 Memory = execution.MemoryInstance
 Value = execution.Value
 Table = execution.TableInstance

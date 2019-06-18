@@ -2,10 +2,14 @@ import pywasm
 pywasm.on_debug()
 
 
-def fib(n):
+def _fib(n):
     if n <= 1:
         return n
-    return fib(n - 1) + fib(n - 2)
+    return _fib(n - 1) + _fib(n - 2)
+
+
+def fib(_: pywasm.Ctx, n: int):
+    return _fib(n)
 
 
 vm = pywasm.load('./examples/env.wasm', {'env': {'fib': fib}})

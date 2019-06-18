@@ -241,29 +241,10 @@ class Stack:
                 return Frame
 
 
-class AdministrativeInstruction:
-    pass
-
-
-class BlockContext:
-    pass
-
-
-class Configuration:
-    # A configuration consists of the current store and an executing thread.
-    #
-    # A thread is a computation over instructions that operates relative to a current frame referring to the home
-    # module instance that the computation runs in.
-    #
-    # config ::= store;thread
-    # thread ::= frame;instr∗
-    pass
-
-
-class EvaluationContext:
-    # Finally, the following definition of evaluation context and associated structural rules enable reduction inside
-    # instruction sequences and administrative forms as well as the propagation of traps.
-    pass
+class Ctx:
+    # This exposes the specified memory of the WebAssembly instance.
+    def __init__(self, mems: typing.List[MemoryInstance]):
+        self.mems = mems
 
 
 def import_matching_limits(limits1: structure.Limits, limits2: structure.Limits):
@@ -271,7 +252,7 @@ def import_matching_limits(limits1: structure.Limits, limits2: structure.Limits)
     m1 = limits1.maximum
     n2 = limits2.minimum
     m2 = limits2.maximum
-    if m2 is None or (m1 != None and m1 <= m2):
+    if m2 is None or (m1 is not None and m1 <= m2):
         return True
     return False
 
@@ -426,7 +407,8 @@ def hostfunc_call(
 ):
     f: HostFunc = store.funcs[address]
     valn = [stack.pop() for _ in f.functype.args][::-1]
-    r = f.hostcode(*[e.n for e in valn])
+    ctx = Ctx(store.mems)
+    r = f.hostcode(ctx, *[e.n for e in valn])
     return [Value(f.functype.rets[0], r)]
 
 
