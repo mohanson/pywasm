@@ -866,7 +866,7 @@ def exec_expr(
                 for i in range(32):
                     if 0x1 & a:
                         c += 1
-                    a /= 2
+                    a //= 2
                 stack.add(Value.from_i32(c))
                 continue
             continue
@@ -953,7 +953,7 @@ def exec_expr(
                 for i in range(64):
                     if 0x1 & a:
                         c += 1
-                    a /= 2
+                    a //= 2
                 stack.add(Value.from_i64(c))
                 continue
             continue
