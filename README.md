@@ -37,6 +37,10 @@ A brief description for `./examples`
 | ./examples/str.wasm | Export a function which returns string       |
 | ./examples/sum.wasm | Equal difference series summation            |
 
+Of course there are some more complicated examples!
+
+- Zstandard decompression algorithm: [https://github.com/dholth/zstdpy](https://github.com/dholth/zstdpy)
+
 # Test
 
 ```
