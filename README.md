@@ -40,6 +40,7 @@ A brief description for `./examples`
 Of course there are some more complicated examples!
 
 - Zstandard decompression algorithm: [https://github.com/dholth/zstdpy](https://github.com/dholth/zstdpy)
+- Run AssemblyScript on pywasm: [https://github.com/mohanson/pywasm_assemblyscript](https://github.com/mohanson/pywasm_assemblyscript)
 
 # Test
 
