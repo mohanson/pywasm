@@ -44,14 +44,13 @@ Of course there are some more complicated examples!
 
 # Test
 
-```
-python ./tests/test_spec.py
+```sh
+$ python ./test/test_spec.py
 ```
 
 Tested in the following environments:
 
-- Python 3.7.3
-- Python 3.6.5
+- Python >= 3.6
 
 # Thanks
 

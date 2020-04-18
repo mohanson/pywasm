@@ -1,10 +1,10 @@
 import io
 import typing
 
-from pywasm import common
 from pywasm import convention
 from pywasm import log
 from pywasm import num
+from pywasm import leb128
 
 
 class FunctionType:
@@ -28,8 +28,8 @@ class FunctionType:
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionType()
         assert ord(r.read(1)) == 0x60
-        o.args = common.read_bytes(r)
-        o.rets = common.read_bytes(r)
+        o.args = bytearray(r.read(leb128.u.decode_reader(r)[0]))
+        o.rets = bytearray(r.read(leb128.u.decode_reader(r)[0]))
         return o
 
 
@@ -58,8 +58,8 @@ class Limits:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         flag = ord(r.read(1))
-        minimum = common.read_count(r)
-        maximum = common.read_count(r) if flag else None
+        minimum = leb128.u.decode_reader(r)[0]
+        maximum = leb128.u.decode_reader(r)[0] if flag else None
         return Limits(minimum, maximum)
 
 
@@ -156,25 +156,25 @@ class Instruction:
         if code_size == '':
             immediate_arguments = None
         elif code_size == 'u8':
-            immediate_arguments = common.read_count(r, 8)
+            immediate_arguments = leb128.u.decode_reader(r)[0]
         elif code_size == 'u32':
-            immediate_arguments = common.read_count(r, 32)
+            immediate_arguments = leb128.u.decode_reader(r)[0]
         elif code_size == 'i32':
-            immediate_arguments = num.int2i32(common.read_count(r, 32, signed=True))
+            immediate_arguments = num.int2i32(leb128.i.decode_reader(r)[0])
         elif code_size == 'i64':
-            immediate_arguments = num.int2i64(common.read_count(r, 64, signed=True))
+            immediate_arguments = num.int2i64(leb128.i.decode_reader(r)[0])
         elif code_size == 'f32':
             immediate_arguments = num.LittleEndian.f32(r.read(4))
         elif code_size == 'f64':
             immediate_arguments = num.LittleEndian.f64(r.read(8))
         elif code_size == 'u32,u8':
-            immediate_arguments = [common.read_count(r, 32), common.read_count(r, 8)]
+            immediate_arguments = [leb128.u.decode_reader(r)[0], leb128.u.decode_reader(r)[0]]
         elif code_size == 'u32,u32':
-            immediate_arguments = [common.read_count(r, 32) for _ in range(2)]
+            immediate_arguments = [leb128.u.decode_reader(r)[0] for _ in range(2)]
         elif code == convention.br_table:
-            n = common.read_count(r, 32)
-            a = [common.read_count(r, 32) for _ in range(n)]
-            b = common.read_count(r, 32)
+            n = leb128.u.decode_reader(r)[0]
+            a = [leb128.u.decode_reader(r)[0] for _ in range(n)]
+            b = leb128.u.decode_reader(r)[0]
             immediate_arguments = [a, b]
         else:
             raise Exception('pywasm: invalid code size')
@@ -252,7 +252,7 @@ class Locals:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Locals()
-        o.n = common.read_count(r, 32)
+        o.n = leb128.u.decode_reader(r)[0]
         o.valtype = ord(r.read(1))
         return o
 
@@ -281,8 +281,8 @@ class Code:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Code()
-        n = common.read_count(r, 32)
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_reader(r)[0]
         for _ in range(n):
             l = Locals.from_reader(r)
             o.locals.extend([l.valtype for _ in range(l.n)])
@@ -382,10 +382,10 @@ class ElementSegment:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ElementSegment()
-        o.tableidx = common.read_count(r, 32)
+        o.tableidx = leb128.u.decode_reader(r)[0]
         o.expr = Expression.from_reader(r)
-        n = common.read_count(r, 32)
-        o.init = [common.read_count(r, 32) for _ in range(n)]
+        n = leb128.u.decode_reader(r)[0]
+        o.init = [leb128.u.decode_reader(r)[0] for _ in range(n)]
         return o
 
 
@@ -402,14 +402,14 @@ class DataSegment:
         self.init: bytearray
 
     def __repr__(self):
-        return self.init[:32].decode()
+        return repr(self.init[:32])
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSegment()
-        o.memidx = common.read_count(r, 32)
+        o.memidx = leb128.u.decode_reader(r)[0]
         o.expr = Expression.from_reader(r)
-        o.init = bytearray(common.read_bytes(r, 32))
+        o.init = bytearray(r.read(leb128.u.decode_reader(r)[0]))
         return o
 
 
@@ -427,7 +427,7 @@ class StartFunction:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = StartFunction()
-        o.funcidx = common.read_count(r, 32)
+        o.funcidx = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -459,9 +459,9 @@ class Export:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Export()
-        o.name = common.read_bytes(r, 32).decode()
+        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
         o.kind = ord(r.read(1))
-        o.desc = common.read_count(r, 32)
+        o.desc = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -496,11 +496,11 @@ class Import:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Import()
-        o.module = common.read_bytes(r, 32).decode()
-        o.name = common.read_bytes(r, 32).decode()
+        o.module = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
         o.kind = ord(r.read(1))
         if o.kind == convention.extern_func:
-            o.desc = common.read_count(r, 32)
+            o.desc = leb128.u.decode_reader(r)[0]
         elif o.kind == convention.extern_table:
             o.desc = TableType.from_reader(r)
         elif o.kind == convention.extern_mem:
@@ -527,7 +527,7 @@ class CustomSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CustomSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.name = r.read(n).decode()
         o.data = bytearray(r.read(-1))
         return o
@@ -545,7 +545,7 @@ class TypeSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [FunctionType.from_reader(r) for _ in range(n)]
         return o
 
@@ -567,7 +567,7 @@ class ImportSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ImportSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Import.from_reader(r) for _ in range(n)]
         return o
 
@@ -586,8 +586,8 @@ class FunctionSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionSection()
-        n = common.read_count(r, 32)
-        o.vec = [common.read_count(r, 32) for _ in range(n)]
+        n = leb128.u.decode_reader(r)[0]
+        o.vec = [leb128.u.decode_reader(r)[0] for _ in range(n)]
         return o
 
 
@@ -604,7 +604,7 @@ class TableSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Table.from_reader(r) for _ in range(n)]
         return o
 
@@ -622,7 +622,7 @@ class MemorySection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = MemorySection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Memory.from_reader(r) for _ in range(n)]
         return o
 
@@ -640,7 +640,7 @@ class GlobalSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = GlobalSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Global.from_reader(r) for _ in range(n)]
         return o
 
@@ -662,7 +662,7 @@ class ExportSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ExportSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Export.from_reader(r) for _ in range(n)]
         return o
 
@@ -696,7 +696,7 @@ class ElementSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ElementSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [ElementSegment.from_reader(r) for _ in range(n)]
         return o
 
@@ -713,7 +713,7 @@ class CodeSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CodeSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [Code.from_reader(r) for _ in range(n)]
         return o
 
@@ -730,7 +730,7 @@ class DataSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSection()
-        n = common.read_count(r, 32)
+        n = leb128.u.decode_reader(r)[0]
         o.vec = [DataSegment.from_reader(r) for _ in range(n)]
         return o
 
@@ -767,7 +767,7 @@ class Module:
             if not section_id_byte:
                 break
             section_id = ord(section_id_byte)
-            n = common.read_count(r, 32)
+            n = leb128.u.decode_reader(r)[0]
             data = r.read(n)
             if len(data) != n:
                 raise Exception('pywasm: invalid section size')
