@@ -6,7 +6,6 @@
 # binary encoding for all integer literals.
 
 import io
-import math
 
 
 class _U:

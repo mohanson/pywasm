@@ -402,7 +402,7 @@ class DataSegment:
         self.init: bytearray
 
     def __repr__(self):
-        return self.init[:32].decode()
+        return repr(self.init[:32])
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):

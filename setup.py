@@ -7,7 +7,7 @@ with open(os.path.join(root, 'README.md'), encoding='utf-8') as f:
 
 setuptools.setup(
     name='pywasm',
-    version='0.4.7',
+    version='0.4.8',
     url='https://github.com/mohanson/pywasm',
     license='WTFPL',
     author='mohanson',

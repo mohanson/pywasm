@@ -57,13 +57,13 @@ def parse_val(s: str):
 
 
 def test_spec():
-    with open('./tests/spec/modules.json', 'r') as f:
+    with open('./test/spec/modules.json', 'r') as f:
         data = json.load(f)
     for case in data:
         file = case['file']
         if file not in switch or switch[file] == 0:
             continue
-        vm = pywasm.load(os.path.join('./tests/spec/', file))
+        vm = pywasm.load(os.path.join('./test/spec/', file))
         for test in case['tests']:
             print(f'{file} {test}')
             function = test['function']
