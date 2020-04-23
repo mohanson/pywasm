@@ -7,4 +7,3 @@ dist/
 *.egg
 
 /res/testsuite
-/res/testsuite_wasm
