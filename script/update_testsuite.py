@@ -13,16 +13,22 @@ if not wast2json:
     print('abort')
     sys.exit(0)
 
+
+def call(cmd: str):
+    print(f'$ {cmd}')
+    return subprocess.call(cmd, shell=True)
+
+
 shutil.rmtree('./res/testsuite', ignore_errors=True)
 shutil.rmtree('./res/testsuite_wasm', ignore_errors=True)
 os.makedirs('./res', exist_ok=True)
 os.mkdir('./res/testsuite_wasm')
 
 os.chdir('./res')
-subprocess.call(f'git clone {testsuite}', shell=True)
+call(f'git clone {testsuite}')
 os.chdir('..')
 
 for e in glob.glob('./res/testsuite/*.wast'):
     a, _ = os.path.splitext(os.path.basename(e))
     os.makedirs(f'./res/testsuite_wasm/{a}')
-    subprocess.call(f'wast2json --enable-all {e} -o ./res/testsuite_wasm/{a}/{a}.json', shell=True)
+    call(f'wast2json --enable-all {e} -o ./res/testsuite_wasm/{a}/{a}.json')
