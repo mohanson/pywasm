@@ -1,6 +1,8 @@
 import io
 
-import leb128
+import pywasm
+
+leb128 = pywasm.leb128
 
 
 def test_minimal():
@@ -24,7 +26,7 @@ def test_minimal():
 
 def test_u():
     n = 0
-    with open('./test/leb128_u_case.txt', 'r') as f:
+    with open('./res/leb128_u_case.txt', 'r') as f:
         for line in f:
             line = line.rstrip()
             seps = line.split()
@@ -40,7 +42,7 @@ def test_u():
 
 def test_i():
     n = 0
-    with open('./test/leb128_i_case.txt', 'r') as f:
+    with open('./res/leb128_i_case.txt', 'r') as f:
         for line in f:
             line = line.rstrip()
             seps = line.split()

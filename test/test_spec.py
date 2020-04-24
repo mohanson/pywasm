@@ -3,7 +3,8 @@ import math
 import os
 
 import pywasm
-from pywasm import num
+
+num = pywasm.num
 
 
 def case(path: str):
@@ -27,4 +28,4 @@ def case(path: str):
             continue
 
 
-case('./test/spec/address')
+case('./res/spectest/address')
