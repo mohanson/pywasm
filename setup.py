@@ -17,4 +17,8 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     packages=['pywasm'],
     python_requires='>=3.6',
+    install_requires=[
+        'leb128',
+        'numpy',
+    ]
 )

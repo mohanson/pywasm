@@ -1,10 +1,11 @@
 import io
 import typing
 
+import leb128
+
 from pywasm import convention
 from pywasm import log
 from pywasm import num
-from pywasm import leb128
 
 
 class FunctionType:
