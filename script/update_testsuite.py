@@ -22,6 +22,8 @@ def call(cmd: str):
 
 
 call('rm -rf ./res/testsuite')
+call('rm -rf ./res/spectest')
+
 call(f'cd ./res && git clone {testsuite}')
 call(f'cd ./res/testsuite && git checkout -b {testsuite_commit_id} {testsuite_commit_id}')
 call(f'cd ./res/testsuite && mkdir spectest')
@@ -29,4 +31,10 @@ call(f'cd ./res/testsuite && mkdir spectest')
 for e in glob.glob('./res/testsuite/*.wast'):
     a, _ = os.path.splitext(os.path.basename(e))
     os.makedirs(f'./res/testsuite/spectest/{a}')
-    call(f'wast2json --enable-all {e} -o ./res/testsuite/spectest/{a}/{a}.json')
+    call(f'wast2json {e} -o ./res/testsuite/spectest/{a}/{a}.json')
+
+for e in os.scandir('./res/testsuite/spectest/'):
+    if len(os.listdir(e)) == 0:
+        call(f'rm -rf {e.path}')
+
+call('mv ./res/testsuite/spectest ./res/spectest')
