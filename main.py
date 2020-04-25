@@ -1,6 +1,4 @@
 import pywasm
 
-a = pywasm.structure.ValueType(0x7f)
+a = pywasm.Module.from_reader(open('./examples/add.wasm', 'rb'))
 print(a)
-b = pywasm.structure.ResultType([a])
-print(b)
