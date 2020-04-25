@@ -9,10 +9,37 @@ funcref = 0x70
 const = 0x00
 var = 0x01
 
+custom_section = 0x00
+type_section = 0x01
+import_section = 0x02
+function_section = 0x03
+table_section = 0x04
+memory_section = 0x05
+global_section = 0x06
+export_section = 0x07
+start_section = 0x08
+element_section = 0x09
+code_section = 0x0a
+data_section = 0x0b
+
 valtype = {i32, i64, f32, f64}
 blocktype = {empty, *valtype}
 elemtype = {funcref}
 mut = {const, var}
+section = {
+    custom_section,
+    type_section,
+    import_section,
+    function_section,
+    table_section,
+    memory_section,
+    global_section,
+    export_section,
+    start_section,
+    element_section,
+    code_section,
+    data_section,
+}
 
 opcodes = {}
 
@@ -200,33 +227,6 @@ i64_reinterpret_f64 = op(0xbd, 'i64.reinterpret_f64', '', 0)
 f32_reinterpret_i32 = op(0xbe, 'f32.reinterpret_i32', '', 0)
 f64_reinterpret_i64 = op(0xbf, 'f64.reinterpret_i64', '', 0)
 
-custom_section = 0x00
-type_section = 0x01
-import_section = 0x02
-function_section = 0x03
-table_section = 0x04
-memory_section = 0x05
-global_section = 0x06
-export_section = 0x07
-start_section = 0x08
-element_section = 0x09
-code_section = 0x0a
-data_section = 0x0b
-
-section = {
-    custom_section: ['Custom'],
-    type_section: ['Type'],
-    import_section: ['Import'],
-    function_section: ['Function'],
-    table_section: ['Table'],
-    memory_section: ['Memory'],
-    global_section: ['Global'],
-    export_section: ['Export'],
-    start_section: ['Start'],
-    element_section: ['Element'],
-    code_section: ['Code'],
-    data_section: ['Data'],
-}
 
 extern_func = 0x00
 extern_table = 0x01
