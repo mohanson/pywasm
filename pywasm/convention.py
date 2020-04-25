@@ -17,8 +17,8 @@ mut = {const, var}
 opcodes = {}
 
 
-def op(code, name, code_size, load_size):
-    opcodes[code] = (name, code_size, load_size)
+def op(code: int, name: str, immediate: str, load_size: int):
+    opcodes[code] = (name, immediate, load_size)
     return code
 
 

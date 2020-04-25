@@ -185,13 +185,6 @@ class GlobalType:
         return o
 
 
-class ExternType:
-    # External types classify imports and external values with their respective types.
-    #
-    # externtype ::= func functype | table tabletype | mem memtype | global globaltype
-    pass
-
-
 class Instruction:
     # Instructions are encoded by opcodes. Each opcode is represented by a single byte, and is followed by the
     # instruction’s immediate arguments, where present. The only exception are structured control instructions,
@@ -238,6 +231,13 @@ class Instruction:
         else:
             raise Exception('pywasm: invalid code size')
         return Instruction(code, immediate_arguments)
+
+
+class ExternType:
+    # External types classify imports and external values with their respective types.
+    #
+    # externtype ::= func functype | table tabletype | mem memtype | global globaltype
+    pass
 
 
 class Expression:
