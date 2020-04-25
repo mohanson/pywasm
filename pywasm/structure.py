@@ -119,23 +119,23 @@ class TypeSection:
 #         return o
 
 
-# class FunctionSection:
-#     # The function section has the id 3. It decodes into a vector of type
-#     # indices that represent the type fields of the functions in the funcs
-#     # component of a module. The locals and body fields of the respective
-#     # functions are encoded separately in the code section.
-#     #
-#     # funcsec ::= x∗:section3(vec(typeidx)) ⇒ x∗
+class FunctionSection:
+    # The function section has the id 3. It decodes into a vector of type
+    # indices that represent the type fields of the functions in the funcs
+    # component of a module. The locals and body fields of the respective
+    # functions are encoded separately in the code section.
+    #
+    # funcsec ::= x∗:section3(vec(typeidx)) ⇒ x∗
 
-#     def __init__(self):
-#         self.vec: typing.List[int] = []
+    def __init__(self):
+        self.data: typing.List[int] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = FunctionSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [leb128.u.decode_reader(r)[0] for _ in range(n)]
-#         return o
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = FunctionSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [leb128.u.decode_reader(r)[0] for _ in range(n)]
+        return o
 
 
 # class TableSection:
@@ -292,7 +292,7 @@ class Module:
             CustomSection,
             TypeSection,
             # ImportSection,
-            # FunctionSection,
+            FunctionSection,
             # TableSection,
             # MemorySection,
             # GlobalSection,
@@ -322,11 +322,11 @@ class Module:
             s = {
                 convention.custom_section: CustomSection.from_reader,
                 convention.type_section: TypeSection.from_reader,
+                # convention.import_section: ImportSection.from_reader,
+                convention.function_section: FunctionSection.from_reader,
             }[section_id](io.BytesIO(data))
             mod.section_list.append(s)
 
-        # import_section = 0x02
-        # function_section = 0x03
         # table_section = 0x04
         # memory_section = 0x05
         # global_section = 0x06
