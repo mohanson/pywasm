@@ -82,6 +82,9 @@ class Limits:
         self.n: int = 0
         self.m: int = 0
 
+    def __repr__(self):
+        return f'min={self.n} max={self.m}'
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Limits()
@@ -101,6 +104,9 @@ class MemoryType:
     def __init__(self):
         self.limits: Limits = Limits()
 
+    def __repr__(self):
+        return self.limits.__repr__()
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = MemoryType()
@@ -114,6 +120,11 @@ class ElementType:
     # In future versions of WebAssembly, additional element types may be introduced.
     def __init__(self):
         self.byte: int = 0x00
+
+    def __repr__(self):
+        return {
+            convention.funcref: 'funcref',
+        }[self.byte]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -137,6 +148,9 @@ class TableType:
         self.element_type: ElementType = ElementType()
         self.limits: Limits = Limits()
 
+    def __repr__(self):
+        return f'{self.element_type} {self.limits}'
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
@@ -153,8 +167,13 @@ class GlobalType:
     # mut ::= 0x00 ⇒ const
     #       | 0x01 ⇒ var
     def __init__(self):
-        self.value_type: ValueType
-        self.mut: int
+        self.value_type: ValueType = ValueType()
+        self.mut: int = 0x00
+
+    def __repr__(self):
+        if self.mut:
+            return f'var {self.value_type}'
+        return f'const {self.value_type}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
