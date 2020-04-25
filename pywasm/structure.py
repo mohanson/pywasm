@@ -187,10 +187,6 @@ class GlobalType:
         return o
 
 
-
-# ======================================================================================================================
-
-
 class Instruction:
     # Instructions are encoded by opcodes. Each opcode is represented by a single byte, and is followed by the
     # instruction’s immediate arguments, where present. The only exception are structured control instructions,
