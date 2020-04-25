@@ -115,6 +115,26 @@ class MemoryType:
         return o
 
 
+class ElementType:
+    # The element type funcref is the infinite union of all function types. A table of that type thus contains
+    # references to functions of heterogeneous type.
+    # In future versions of WebAssembly, additional element types may be introduced.
+    def __init__(self):
+        self.byte: int
+
+    def __repr__(self):
+        return {
+            convention.funcref: 'funcref',
+        }[self.byte]
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementType()
+        o.byte = ord(r.read(1))
+        assert o.byte in convention.elemtype
+        return o
+
+
 class TableType:
     # Table types classify tables over elements of element types within a size range.
     #
@@ -126,17 +146,16 @@ class TableType:
     # type thus contains references to functions of heterogeneous type.
 
     def __init__(self):
+        self.element_type: ElementType
         self.limits: Limits
-        self.elemtype: int
 
     def __repr__(self):
-        a = convention.elemtype[self.elemtype][0]
-        return f'{a} {self.limits}'
+        return f'{self.element_type} {self.limits}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
-        o.elemtype = ord(r.read(1))
+        o.element_type = ElementType.from_reader(r)
         o.limits = Limits.from_reader(r)
         return o
 
@@ -149,21 +168,20 @@ class GlobalType:
     # mut ::= 0x00 ⇒ const
     #       | 0x01 ⇒ var
     def __init__(self):
-        self.valtype: int
-        self.mut: bool
+        self.value_type: ValueType
+        self.mut: int
 
     def __repr__(self):
-        return ''
-        # a = convention.valtype[self.valtype][0]
-        # if self.mut:
-        #     return f'var {a}'
-        # return f'const {a}'
+        if self.mut:
+            return f'var {self.value_type}'
+        return f'const {self.value_type}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = GlobalType()
-        o.valtype = ord(r.read(1))
-        o.mut = ord(r.read(1)) == 1
+        o.value_type = ValueType.from_reader(r)
+        o.mut = ord(r.read(1))
+        assert o.mut in convention.mut
         return o
 
 
@@ -363,7 +381,8 @@ class Table:
         self.tabletype: TableType
 
     def __repr__(self):
-        return f'{convention.elemtype[self.tabletype.elemtype][0]} {self.tabletype.limits}'
+        # return f'{convention.elemtype[self.tabletype.elemtype][0]} {self.tabletype.limits}'
+        return ''
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):

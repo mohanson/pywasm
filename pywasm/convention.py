@@ -3,18 +3,16 @@ i64 = 0x7e
 f32 = 0x7d
 f64 = 0x7c
 
-valtype = {i32, i64, f32, f64}
-
 empty = 0x40
-
-blocktype = {empty, *valtype}
-
 funcref = 0x70
 
-elemtype = {
-    funcref: ['funcref'],
-}
+const = 0x00
+var = 0x01
 
+valtype = {i32, i64, f32, f64}
+blocktype = {empty, *valtype}
+elemtype = {funcref}
+mut = {const, var}
 
 opcodes = {}
 

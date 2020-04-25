@@ -377,7 +377,7 @@ class ModuleInstance:
         # For each table in module.tables, do:
         for table in module.tables:
             tabletype = table.tabletype
-            elemtype = tabletype.elemtype
+            elemtype = tabletype.element_type
             tableinst = TableInstance(elemtype, tabletype.limits)
             store.tables.append(tableinst)
             self.tableaddrs.append(len(store.tables) - 1)
@@ -389,8 +389,14 @@ class ModuleInstance:
         # For each global in module.globals, do:
         for i, glob in enumerate(module.globals):
             val = vals[i]
-            if val.valtype != glob.globaltype.valtype:
-                raise Exception('pywasm: mismatch valtype')
+
+            if isinstance(val.valtype, int):
+                if val.valtype != glob.globaltype.value_type.byte:
+                    raise Exception('pywasm: mismatch valtype')
+            else:
+                if val.valtype != glob.globaltype.value_type:
+                    raise Exception('pywasm: mismatch valtype')
+
             globalinst = GlobalInstance(val, glob.globaltype.mut)
             store.globals.append(globalinst)
             self.globaladdrs.append(len(store.globals) - 1)
