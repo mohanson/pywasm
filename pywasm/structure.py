@@ -7,6 +7,58 @@ from . import convention
 from . import value
 
 
+class ValueType:
+    # Value types are encoded by a single byte.
+    # valtype ::= {
+    #     0x7f: i32,
+    #     0x7e: i64,
+    #     0x7d: f32,
+    #     0x7c: f64,
+    # }
+    def __init__(self):
+        self.byte: int = 0x00
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ValueType()
+        o.byte = ord(r.read(1))
+        assert o.byte in convention.valtype
+        return o
+
+
+class ResultType:
+    # Result types classify the result of executing instructions or blocks, which is a sequence of values written with
+    # brackets.
+    #
+    # resulttype ::= [valtype?]
+    def __init__(self):
+        self.data: typing.List[ValueType] = []
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ResultType()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [ValueType.from_reader(r) for i in range(n)]
+        return o
+
+
+class FunctionType:
+    # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
+    #
+    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
+    def __init__(self):
+        self.args: ResultType = ResultType()
+        self.rets: ResultType = ResultType()
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = FunctionType()
+        assert ord(r.read(1)) == 0x60
+        o.args = ResultType.from_reader(r)
+        o.rets = ResultType.from_reader(r)
+        return o
+
+
 class CustomSection:
     # Custom sections have the id 0. They are intended to be used for debugging
     # information or third-party extensions, and are ignored by the WebAssembly
@@ -16,8 +68,8 @@ class CustomSection:
     # customsec ::= section0(custom)
     # custom ::= name byte∗
     def __init__(self):
-        self.name: str
-        self.data: bytearray
+        self.name: str = ''
+        self.data: bytearray = bytearray()
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -28,21 +80,21 @@ class CustomSection:
         return o
 
 
-# class TypeSection:
-#     # The type section has the id 1. It decodes into a vector of function
-#     # types that represent the types component of a module.
-#     #
-#     # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
+class TypeSection:
+    # The type section has the id 1. It decodes into a vector of function
+    # types that represent the types component of a module.
+    #
+    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
 
-#     def __init__(self):
-#         self.data: typing.List[FunctionType]
+    def __init__(self):
+        self.data: typing.List[FunctionType] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = TypeSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.data = [FunctionType.from_reader(r) for _ in range(n)]
-#         return o
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TypeSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class ImportSection:
@@ -249,7 +301,7 @@ class Module:
             # ElementSection,
             # CodeSection,
             # DataSection,
-        ]]
+        ]] = []
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -269,11 +321,10 @@ class Module:
                 raise Exception('pywasm: invalid section size')
             s = {
                 convention.custom_section: CustomSection.from_reader,
+                convention.type_section: TypeSection.from_reader,
             }[section_id](io.BytesIO(data))
             mod.section_list.append(s)
 
-        # custom_section = 0x00
-        # type_section = 0x01
         # import_section = 0x02
         # function_section = 0x03
         # table_section = 0x04
