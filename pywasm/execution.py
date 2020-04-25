@@ -514,14 +514,14 @@ def exec_expr(
             break
         i = expr.data[pc]
 
-        log.debugln(f'{str(i):<18} {stack}')
+        # log.debugln(f'{str(i):<18} {stack}')
 
-        if log.lvl >= 2:
-            ls = [f'{i}: {convention.valtype[l.valtype][0]} {l.n}' for i, l in enumerate(frame.locals)]
-            gs = [f'{i}: {"mut " if g.mut else ""}{convention.valtype[g.value.valtype][0]} {g.value.n}' for i,
-                  g in enumerate(store.globals)]
-            for n, e in (('locals', ls), ('globals', gs)):
-                log.verboseln(f'{" "*18} {str(n)+":":<8} [{", ".join(e)}]')
+        # if log.lvl >= 2:
+        #     ls = [f'{i}: {convention.valtype[l.valtype][0]} {l.n}' for i, l in enumerate(frame.locals)]
+        #     gs = [f'{i}: {"mut " if g.mut else ""}{convention.valtype[g.value.valtype][0]} {g.value.n}' for i,
+        #           g in enumerate(store.globals)]
+        #     for n, e in (('locals', ls), ('globals', gs)):
+        #         log.verboseln(f'{" "*18} {str(n)+":":<8} [{", ".join(e)}]')
 
         opcode = i.code
         if opcode >= convention.unreachable and opcode <= convention.call_indirect:
