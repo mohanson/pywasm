@@ -76,7 +76,7 @@ class TableInstance:
     def __init__(self, elemtype: int, limits: structure.Limits):
         self.elemtype = elemtype
         self.limits = limits
-        self.elem = [None for _ in range(limits.minimum)]
+        self.elem = [None for _ in range(limits.n)]
 
 
 class MemoryInstance:
@@ -94,13 +94,15 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, limits: structure.Limits):
-        self.limits = limits
-        self.size = limits.minimum
-        self.data = bytearray([0x00 for _ in range(limits.minimum * 64 * 1024)])
+    def __init__(self, memtype: structure.MemoryType):
+        self.memtype = memtype
+        limits = self.memtype.limits
+        self.size = limits.n
+        self.data = bytearray([0x00 for _ in range(limits.n * 64 * 1024)])
 
     def grow(self, n: int):
-        if self.limits.maximum and self.size + n > self.limits.maximum:
+        limits = self.memtype.limits
+        if limits.m and self.size + n > limits.m:
             raise Exception('pywasm: out of memory limit')
         self.data.extend([0 for _ in range(n * 64 * 1024)])
         self.size += n

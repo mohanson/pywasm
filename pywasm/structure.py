@@ -79,21 +79,20 @@ class Limits:
     #
     # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
     #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
-    def __init__(self, minimum: int, maximum: int = None):
-        self.minimum = minimum
-        self.maximum = maximum
+    def __init__(self):
+        self.n: int
+        self.m: int
 
     def __repr__(self):
-        if self.maximum:
-            return f'minimum={self.minimum} maximum={self.maximum}'
-        return f'minimum={self.minimum}'
+        return f'min={self.n} max={self.m}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
+        o = Limits()
         flag = ord(r.read(1))
-        minimum = leb128.u.decode_reader(r)[0]
-        maximum = leb128.u.decode_reader(r)[0] if flag else None
-        return Limits(minimum, maximum)
+        o.n = leb128.u.decode_reader(r)[0]
+        o.m = leb128.u.decode_reader(r)[0] if flag else 0
+        return o
 
 
 class MemoryType:
@@ -103,9 +102,17 @@ class MemoryType:
     #
     # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
     # page size.
+    def __init__(self):
+        self.limits: Limits
+
+    def __repr__(self):
+        return str(self.limits)
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return Limits.from_reader(r)
+        o = MemoryType()
+        o.limits = Limits.from_reader(r)
+        return o
 
 
 class TableType:
