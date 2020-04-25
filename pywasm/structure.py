@@ -19,13 +19,13 @@ class ValueType:
     def __init__(self):
         self.byte: int
 
-    def __repr__(self):
-        return {
-            convention.i32: 'i32',
-            convention.i64: 'i64',
-            convention.f32: 'f32',
-            convention.f64: 'f64',
-        }[self.byte]
+    # def __repr__(self):
+    #     return {
+    #         convention.i32: 'i32',
+    #         convention.i64: 'i64',
+    #         convention.f32: 'f32',
+    #         convention.f64: 'f64',
+    #     }[self.byte]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -43,8 +43,8 @@ class ResultType:
     def __init__(self):
         self.valtype_vec: typing.List[ValueType]
 
-    def __repr__(self):
-        return str(self.valtype_vec)
+    # def __repr__(self):
+    #     return self.valtype_vec.__repr__()
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -62,8 +62,8 @@ class FunctionType:
         self.args: ResultType
         self.rets: ResultType
 
-    def __repr__(self):
-        return f'{self.args} -> {self.rets}'
+    # def __repr__(self):
+    #     return f'func({self.args}) -> {self.rets}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -83,8 +83,10 @@ class Limits:
         self.n: int
         self.m: int
 
-    def __repr__(self):
-        return f'min={self.n} max={self.m}'
+    # def __repr__(self):
+    #     if self.m:
+    #         return f'[{self.n}, {self.m}]'
+    #     return f'[{self.n}, inf]'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -105,8 +107,8 @@ class MemoryType:
     def __init__(self):
         self.limits: Limits
 
-    def __repr__(self):
-        return str(self.limits)
+    # def __repr__(self):
+    #     return self.limits.__repr__()
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -122,10 +124,10 @@ class ElementType:
     def __init__(self):
         self.byte: int
 
-    def __repr__(self):
-        return {
-            convention.funcref: 'funcref',
-        }[self.byte]
+    # def __repr__(self):
+    #     return {
+    #         convention.funcref: 'funcref',
+    #     }[self.byte]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -149,8 +151,8 @@ class TableType:
         self.element_type: ElementType
         self.limits: Limits
 
-    def __repr__(self):
-        return f'{self.element_type} {self.limits}'
+    # def __repr__(self):
+    #     return f'{self.element_type} {self.limits}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -171,10 +173,10 @@ class GlobalType:
         self.value_type: ValueType
         self.mut: int
 
-    def __repr__(self):
-        if self.mut:
-            return f'var {self.value_type}'
-        return f'const {self.value_type}'
+    # def __repr__(self):
+    #     if self.mut:
+    #         return f'var {self.value_type}'
+    #     return f'const {self.value_type}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -582,8 +584,11 @@ class CustomSection:
     # customsec ::= section0(custom)
     # custom ::= name byte∗
     def __init__(self):
-        self.name: str = None
-        self.data: bytearray = None
+        self.name: str
+        self.data: bytearray
+
+    def __repr__(self):
+        return f'Custom {self.name}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -838,7 +843,7 @@ class Module:
             elif section_id == convention.type_section:
                 type_section = TypeSection.from_reader(io.BytesIO(data))
                 # for i, e in enumerate(type_section.vec):
-                    # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
+                # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
                 mod.types = type_section.vec
             elif section_id == convention.import_section:
                 import_section = ImportSection.from_reader(io.BytesIO(data))
@@ -853,7 +858,7 @@ class Module:
             elif section_id == convention.table_section:
                 table_section = TableSection.from_reader(io.BytesIO(data))
                 # for i, e in enumerate(table_section.vec):
-                    # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
+                # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
                 mod.tables = table_section.vec
             elif section_id == convention.memory_section:
                 memory_section = MemorySection.from_reader(io.BytesIO(data))
@@ -911,7 +916,7 @@ class Module:
             elif section_id == convention.data_section:
                 data_section = DataSection.from_reader(io.BytesIO(data))
                 # for i, e in enumerate(data_section.vec):
-                    # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
+                # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
                 mod.data = data_section.vec
             else:
                 raise Exception('pywasm: invalid section id')
