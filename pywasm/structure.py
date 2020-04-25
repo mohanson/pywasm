@@ -8,29 +8,30 @@ from pywasm import log
 from pywasm import num
 
 
-class FunctionType:
-    # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
-    #
-    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
+class ValueType:
+    # Value types are encoded by a single byte.
+    # valtype ::= {
+    #     0x7f: i32,
+    #     0x7e: i64,
+    #     0x7d: f32,
+    #     0x7c: f64,
+    # }
     def __init__(self):
-        self.args: typing.List[int]
-        self.rets: typing.List[int]
+        self.byte: int
 
     def __repr__(self):
-        args = [convention.valtype[i][0] for i in self.args]
-        rets = [convention.valtype[i][0] for i in self.rets]
-        a = ', '.join(args)
-        if rets:
-            b = rets[0]
-            return f'({a}) -> {b}'
-        return f'({a})'
+        return {
+            convention.i32: 'i32',
+            convention.i64: 'i64',
+            convention.f32: 'f32',
+            convention.f64: 'f64',
+        }[self.byte]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        o = FunctionType()
-        assert ord(r.read(1)) == 0x60
-        o.args = bytearray(r.read(leb128.u.decode_reader(r)[0]))
-        o.rets = bytearray(r.read(leb128.u.decode_reader(r)[0]))
+        o = ValueType()
+        o.byte = ord(r.read(1))
+        assert o.byte in convention.valtype
         return o
 
 
@@ -39,7 +40,38 @@ class ResultType:
     # brackets.
     #
     # resulttype ::= [valtype?]
-    pass
+    def __init__(self):
+        self.valtype_vec: typing.List[ValueType]
+
+    def __repr__(self):
+        return str(self.valtype_vec)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ResultType()
+        n = leb128.u.decode_reader(r)[0]
+        o.valtype_vec = [ValueType.from_reader(r) for i in range(n)]
+        return o
+
+
+class FunctionType:
+    # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
+    #
+    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
+    def __init__(self):
+        self.args: ResultType
+        self.rets: ResultType
+
+    def __repr__(self):
+        return f'{self.args} -> {self.rets}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = FunctionType()
+        assert ord(r.read(1)) == 0x60
+        o.args = ResultType.from_reader(r)
+        o.rets = ResultType.from_reader(r)
+        return o
 
 
 class Limits:
@@ -114,10 +146,11 @@ class GlobalType:
         self.mut: bool
 
     def __repr__(self):
-        a = convention.valtype[self.valtype][0]
-        if self.mut:
-            return f'var {a}'
-        return f'const {a}'
+        return ''
+        # a = convention.valtype[self.valtype][0]
+        # if self.mut:
+        #     return f'var {a}'
+        # return f'const {a}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -277,7 +310,8 @@ class Code:
         self.expr: Expression
 
     def __repr__(self):
-        return f'locals=[{", ".join([convention.valtype[i][0] for i in self.locals])}]'
+        # return f'locals=[{", ".join([convention.valtype[i][0] for i in self.locals])}]'
+        return ''
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -826,7 +860,7 @@ class Module:
                     for e in instrs:
                         a = f'           | {" " * prefix}{convention.opcodes[e.code][0]}'
                         if e.code in [convention.block, convention.loop, convention.if_]:
-                            log.debugln(f'{a} {convention.blocktype[e.immediate_arguments][0]}')
+                            # log.debugln(f'{a} {convention.blocktype[e.immediate_arguments][0]}')
                             prefix += 2
                         elif e.code == convention.end:
                             prefix -= 2

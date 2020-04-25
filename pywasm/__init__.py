@@ -53,7 +53,7 @@ class Runtime:
         func_addr = self.func_addr(name)
         func = self.store.funcs[self.module_instance.funcaddrs[func_addr]]
         # Mapping check for Python valtype to WebAssembly valtype
-        for i, e in enumerate(func.functype.args):
+        for i, e in enumerate(func.functype.args.valtype_vec):
             if e in [convention.i32, convention.i64]:
                 assert isinstance(args[i], int)
             if e in [convention.f32, convention.f64]:
