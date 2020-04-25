@@ -428,7 +428,7 @@ def wasmfunc_call(
 ):
     f: WasmFunc = store.funcs[address]
     code = f.code.expr.data
-    valn = [stack.pop() for _ in f.functype.args.valtype_vec][::-1]
+    valn = [stack.pop() for _ in f.functype.args.data][::-1]
     val0 = []
     for e in f.code.locals:
         if e == convention.i32:
@@ -439,9 +439,9 @@ def wasmfunc_call(
             val0.append(Value.from_f32(0))
         else:
             val0.append(Value.from_f64(0))
-    frame = Frame(module, valn + val0, len(f.functype.rets.valtype_vec), len(code))
+    frame = Frame(module, valn + val0, len(f.functype.rets.data), len(code))
     stack.add(frame)
-    stack.add(Label(len(f.functype.rets.valtype_vec), len(code)))
+    stack.add(Label(len(f.functype.rets.data), len(code)))
     # An expression is evaluated relative to a current frame pointing to its containing module instance.
     r = exec_expr(store, frame, stack, f.code.expr)
     # Exit
@@ -457,8 +457,8 @@ def call(
     stack: Stack,
 ):
     f = store.funcs[address]
-    assert len(f.functype.rets.valtype_vec) <= 1
-    for i, t in enumerate(f.functype.args.valtype_vec[::-1]):
+    assert len(f.functype.rets.data) <= 1
+    for i, t in enumerate(f.functype.args.data[::-1]):
         ia = t
         ib = stack.data[-1 - i]
 

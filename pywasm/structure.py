@@ -41,7 +41,7 @@ class ResultType:
     #
     # resulttype ::= [valtype?]
     def __init__(self):
-        self.valtype_vec: typing.List[ValueType]
+        self.data: typing.List[ValueType]
 
     # def __repr__(self):
     #     return self.valtype_vec.__repr__()
@@ -50,7 +50,7 @@ class ResultType:
     def from_reader(cls, r: typing.BinaryIO):
         o = ResultType()
         n = leb128.u.decode_reader(r)[0]
-        o.valtype_vec = [ValueType.from_reader(r) for i in range(n)]
+        o.data = [ValueType.from_reader(r) for i in range(n)]
         return o
 
 
@@ -185,6 +185,46 @@ class GlobalType:
         o.mut = ord(r.read(1))
         assert o.mut in convention.mut
         return o
+
+
+class CustomSection:
+    # Custom sections have the id 0. They are intended to be used for debugging
+    # information or third-party extensions, and are ignored by the WebAssembly
+    # semantics. Their contents consist of a name further identifying the custom
+    # section, followed by an uninterpreted sequence of bytes for custom use.
+    #
+    # customsec ::= section0(custom)
+    # custom ::= name byte∗
+    def __init__(self):
+        self.name: str
+        self.data: bytearray
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = CustomSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.name = r.read(n).decode()
+        o.data = bytearray(r.read(-1))
+        return o
+
+
+class TypeSection:
+    # The type section has the id 1. It decodes into a vector of function
+    # types that represent the types component of a module.
+    #
+    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
+
+    def __init__(self):
+        self.data: typing.List[FunctionType]
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TypeSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        return o
+
+# ======================================================================================================================
 
 
 class Instruction:
@@ -575,44 +615,6 @@ class Import:
         return o
 
 
-class CustomSection:
-    # Custom sections have the id 0. They are intended to be used for debugging
-    # information or third-party extensions, and are ignored by the WebAssembly
-    # semantics. Their contents consist of a name further identifying the custom
-    # section, followed by an uninterpreted sequence of bytes for custom use.
-    #
-    # customsec ::= section0(custom)
-    # custom ::= name byte∗
-    def __init__(self):
-        self.name: str
-        self.data: bytearray
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = CustomSection()
-        n = leb128.u.decode_reader(r)[0]
-        o.name = r.read(n).decode()
-        o.data = bytearray(r.read(-1))
-        return o
-
-
-class TypeSection:
-    # The type section has the id 1. It decodes into a vector of function
-    # types that represent the types component of a module.
-    #
-    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
-
-    def __init__(self):
-        self.vec: typing.List[FunctionType] = []
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = TypeSection()
-        n = leb128.u.decode_reader(r)[0]
-        o.vec = [FunctionType.from_reader(r) for _ in range(n)]
-        return o
-
-
 class ImportSection:
     # The import section has the id 2. It decodes into a vector of imports
     # that represent the imports component of a module.
@@ -625,7 +627,7 @@ class ImportSection:
     #              | 0x03 gt:globaltype ⇒ global gt
 
     def __init__(self):
-        self.vec: typing.List[Import] = []
+        self.vec: typing.List[Import]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -841,7 +843,7 @@ class Module:
                 type_section = TypeSection.from_reader(io.BytesIO(data))
                 # for i, e in enumerate(type_section.vec):
                 # log.debugln(f'{convention.section[section_id][0]:>9}[{i}] {e}')
-                mod.types = type_section.vec
+                mod.types = type_section.data
             elif section_id == convention.import_section:
                 import_section = ImportSection.from_reader(io.BytesIO(data))
                 # for i, e in enumerate(import_section.vec):
