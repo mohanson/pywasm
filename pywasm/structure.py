@@ -4,7 +4,6 @@ import typing
 import leb128
 
 from . import convention
-from . import value
 
 
 class ValueType:
@@ -56,6 +55,99 @@ class FunctionType:
         assert ord(r.read(1)) == 0x60
         o.args = ResultType.from_reader(r)
         o.rets = ResultType.from_reader(r)
+        return o
+
+
+class Limits:
+    # Limits are encoded with a preceding flag indicating whether a maximum is present.
+    #
+    # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
+    #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
+    def __init__(self):
+        self.n: int = 0
+        self.m: int = 0
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Limits()
+        flag = ord(r.read(1))
+        o.n = leb128.u.decode_reader(r)[0]
+        o.m = leb128.u.decode_reader(r)[0] if flag else 0
+        return o
+
+
+class MemoryType:
+    # Memory types classify linear memories and their size range.
+    #
+    # memtype ::= limits
+    #
+    # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
+    # page size.
+    def __init__(self):
+        self.limits: Limits = Limits()
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = MemoryType()
+        o.limits = Limits.from_reader(r)
+        return o
+
+
+class ElementType:
+    # The element type funcref is the infinite union of all function types. A table of that type thus contains
+    # references to functions of heterogeneous type.
+    # In future versions of WebAssembly, additional element types may be introduced.
+    def __init__(self):
+        self.byte: int = 0x00
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementType()
+        o.byte = ord(r.read(1))
+        assert o.byte in convention.elemtype
+        return o
+
+
+class TableType:
+    # Table types classify tables over elements of element types within a size range.
+    #
+    # tabletype ::= limits elemtype
+    # elemtype ::= funcref
+    #
+    # Like memories, tables are constrained by limits for their minimum and optionally maximum size. The limits are
+    # given in numbers of entries. The element type funcref is the infinite union of all function types. A table of that
+    # type thus contains references to functions of heterogeneous type.
+
+    def __init__(self):
+        self.element_type: ElementType = ElementType()
+        self.limits: Limits = Limits()
+
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TableType()
+        o.element_type = ElementType.from_reader(r)
+        o.limits = Limits.from_reader(r)
+        return o
+
+
+class GlobalType:
+    # Global types are encoded by their value type and a flag for their
+    # mutability.
+    #
+    # globaltype ::= t:valtype m:mut ⇒ m t
+    # mut ::= 0x00 ⇒ const
+    #       | 0x01 ⇒ var
+    def __init__(self):
+        self.value_type: ValueType
+        self.mut: int
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = GlobalType()
+        o.value_type = ValueType.from_reader(r)
+        o.mut = ord(r.read(1))
+        assert o.mut in convention.mut
         return o
 
 
