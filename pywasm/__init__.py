@@ -19,25 +19,25 @@ class Runtime:
         for e in self.module.imports:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: global import {e.module}.{e.name} not found')
-            if e.kind == convention.extern_func:
+            if e.type == convention.extern_func:
                 a = execution.HostFunc(self.module.types[e.desc], imps[e.module][e.name])
                 self.store.funcs.append(a)
-                externvals.append(execution.ExternValue(e.kind, len(self.store.funcs) - 1))
+                externvals.append(execution.ExternValue(e.type, len(self.store.funcs) - 1))
                 continue
-            if e.kind == convention.extern_table:
+            if e.type == convention.extern_table:
                 a = imps[e.module][e.name]
                 self.store.tables.append(a)
-                externvals.append(execution.ExternValue(e.kind, len(self.store.tables) - 1))
+                externvals.append(execution.ExternValue(e.type, len(self.store.tables) - 1))
                 continue
-            if e.kind == convention.extern_mem:
+            if e.type == convention.extern_mem:
                 a = imps[e.module][e.name]
                 self.store.mems.append(a)
-                externvals.append(execution.ExternValue(e.kind, len(self.store.mems) - 1))
+                externvals.append(execution.ExternValue(e.type, len(self.store.mems) - 1))
                 continue
-            if e.kind == convention.extern_global:
+            if e.type == convention.extern_global:
                 a = execution.GlobalInstance(execution.Value(e.desc.valtype, imps[e.module][e.name]), e.desc.mut)
                 self.store.globals.append(a)
-                externvals.append(execution.ExternValue(e.kind, len(self.store.globals) - 1))
+                externvals.append(execution.ExternValue(e.type, len(self.store.globals) - 1))
                 continue
         self.module_instance.instantiate(self.module, self.store, externvals)
 

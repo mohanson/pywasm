@@ -22,6 +22,11 @@ element_section = 0x09
 code_section = 0x0a
 data_section = 0x0b
 
+extern_func = 0x00
+extern_table = 0x01
+extern_mem = 0x02
+extern_global = 0x03
+
 valtype = {i32, i64, f32, f64}
 blocktype = {empty, *valtype}
 elemtype = {funcref}
@@ -40,6 +45,7 @@ section = {
     code_section,
     data_section,
 }
+extern_type = {extern_func, extern_table, extern_mem, extern_global}
 
 opcodes = {}
 
@@ -226,16 +232,3 @@ i32_reinterpret_f32 = op(0xbc, 'i32.reinterpret_f32', '', 0)
 i64_reinterpret_f64 = op(0xbd, 'i64.reinterpret_f64', '', 0)
 f32_reinterpret_i32 = op(0xbe, 'f32.reinterpret_i32', '', 0)
 f64_reinterpret_i64 = op(0xbf, 'f64.reinterpret_i64', '', 0)
-
-
-extern_func = 0x00
-extern_table = 0x01
-extern_mem = 0x02
-extern_global = 0x03
-
-extern_type = {
-    extern_func: ['func'],
-    extern_table: ['table'],
-    extern_mem: ['mem'],
-    extern_global: ['global'],
-}

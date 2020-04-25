@@ -289,7 +289,7 @@ class ModuleInstance:
         # [TODO] If module is not valid, then panic
         # Assert: module is valid with external types classifying its imports
         for e in module.imports:
-            assert e.kind in convention.extern_type
+            assert e.type in convention.extern_type
         # Assert: number m of imports is equal to the number n of provided external values
         assert len(module.imports) == len(externvals)
         # Assert: externvals matching imports of module
@@ -414,10 +414,10 @@ def hostfunc_call(
     stack: Stack,
 ):
     f: HostFunc = store.funcs[address]
-    valn = [stack.pop() for _ in f.functype.args][::-1]
+    valn = [stack.pop() for _ in f.functype.args.data][::-1]
     ctx = Ctx(store.mems)
     r = f.hostcode(ctx, *[e.n for e in valn])
-    return [Value(f.functype.rets[0], r)]
+    return [Value(f.functype.rets.data[0], r)]
 
 
 def wasmfunc_call(
