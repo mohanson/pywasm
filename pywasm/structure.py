@@ -19,12 +19,13 @@ class ValueType:
         self.byte: int = 0x00
 
     def __repr__(self):
-        return {
+        a = {
             convention.i32: 'i32',
             convention.i64: 'i64',
             convention.f32: 'f32',
             convention.f64: 'f64',
         }[self.byte]
+        return f'ValueType({a})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -43,7 +44,7 @@ class ResultType:
         self.data: typing.List[ValueType] = []
 
     def __repr__(self):
-        return self.data.__repr__()
+        return f'ResultType({self.data.__repr__()})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -62,7 +63,7 @@ class FunctionType:
         self.rets: ResultType = ResultType()
 
     def __repr__(self):
-        return f'{self.args} -> {self.rets}'
+        return f'FunctionType({self.args}, {self.rets})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -83,7 +84,7 @@ class Limits:
         self.m: int = 0
 
     def __repr__(self):
-        return f'min={self.n} max={self.m}'
+        return f'Limits({self.n}, {self.m})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -105,7 +106,7 @@ class MemoryType:
         self.limits: Limits = Limits()
 
     def __repr__(self):
-        return self.limits.__repr__()
+        return f'MemoryType({self.limits.__repr__()})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -122,9 +123,10 @@ class ElementType:
         self.byte: int = 0x00
 
     def __repr__(self):
-        return {
+        a = {
             convention.funcref: 'funcref',
         }[self.byte]
+        return f'ElementType({a})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -149,7 +151,7 @@ class TableType:
         self.limits: Limits = Limits()
 
     def __repr__(self):
-        return f'{self.element_type} {self.limits}'
+        return f'TableType({self.element_type}, {self.limits})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -172,8 +174,8 @@ class GlobalType:
 
     def __repr__(self):
         if self.mut:
-            return f'var {self.value_type}'
-        return f'const {self.value_type}'
+            return f'GlobalType(var {self.value_type})'
+        return f'GlobalType(const {self.value_type})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -201,6 +203,9 @@ class Import:
         self.module: str = ''
         self.name: str = ''
         self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
+
+    def __repr__(self):
+        return f'Import({self.module}.{self.name}, {self.desc})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -231,6 +236,9 @@ class CustomSection:
         self.name: str = ''
         self.data: bytearray = bytearray()
 
+    def __repr__(self):
+        return f'CustomSection({self.name})'
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CustomSection()
@@ -248,6 +256,9 @@ class TypeSection:
 
     def __init__(self):
         self.data: typing.List[FunctionType] = []
+
+    def __repr__(self):
+        return f'TypeSection({self.data})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -271,6 +282,9 @@ class ImportSection:
     def __init__(self):
         self.data: typing.List[Import] = []
 
+    def __repr__(self):
+        return f'ImportSection({self.data})'
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ImportSection()
@@ -289,6 +303,9 @@ class FunctionSection:
 
     def __init__(self):
         self.data: typing.List[int] = []
+
+    def __repr__(self):
+        return f'FunctionSection({self.data})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
