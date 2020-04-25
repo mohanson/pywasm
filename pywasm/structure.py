@@ -4,6 +4,7 @@ import typing
 import leb128
 
 from . import convention
+from . import log
 
 
 class ValueType:
@@ -16,6 +17,14 @@ class ValueType:
     # }
     def __init__(self):
         self.byte: int = 0x00
+
+    def __repr__(self):
+        return {
+            convention.i32: 'i32',
+            convention.i64: 'i64',
+            convention.f32: 'f32',
+            convention.f64: 'f64',
+        }[self.byte]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -33,6 +42,9 @@ class ResultType:
     def __init__(self):
         self.data: typing.List[ValueType] = []
 
+    def __repr__(self):
+        return self.data.__repr__()
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ResultType()
@@ -48,6 +60,9 @@ class FunctionType:
     def __init__(self):
         self.args: ResultType = ResultType()
         self.rets: ResultType = ResultType()
+
+    def __repr__(self):
+        return f'{self.args} -> {self.rets}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -122,7 +137,6 @@ class TableType:
         self.element_type: ElementType = ElementType()
         self.limits: Limits = Limits()
 
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
@@ -148,6 +162,41 @@ class GlobalType:
         o.value_type = ValueType.from_reader(r)
         o.mut = ord(r.read(1))
         assert o.mut in convention.mut
+        return o
+
+
+class Import:
+    # The imports component of a module defines a set of imports that are required for instantiation.
+    #
+    # import ::= {module name, name name, desc importdesc}
+    # importdesc ::= func typeidx | table tabletype | mem memtype | global globaltype
+    #
+    # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
+    # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
+    # descriptor with a respective type that a definition provided during instantiation is required to match. Every
+    # import defines an index in the respective index space. In each index space, the indices of imports go before the
+    # first index of any definition contained in the module itself.
+
+    def __init__(self):
+        self.type: int = 0x00
+        self.module: str = ''
+        self.name: str = ''
+        self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Import()
+        n = leb128.u.decode_reader(r)[0]
+        o.module = r.read(n).decode()
+        n = leb128.u.decode_reader(r)[0]
+        o.name = r.read(n).decode()
+        o.type = ord(r.read(1))
+        o.desc = {
+            convention.extern_function: lambda r: leb128.u.decode_reader(r)[0],
+            convention.extern_table: TableType.from_reader,
+            convention.extern_memory: MemoryType.from_reader,
+            convention.extern_global: GlobalType.from_reader,
+        }[o.type](r)
         return o
 
 
@@ -189,26 +238,26 @@ class TypeSection:
         return o
 
 
-# class ImportSection:
-#     # The import section has the id 2. It decodes into a vector of imports
-#     # that represent the imports component of a module.
-#     #
-#     # importsec ::= im∗:section2(vec(import)) ⇒ im∗
-#     # import ::= mod:name nm:name d:importdesc ⇒ {module mod, name nm, desc d}
-#     # importdesc ::= 0x00 x:typeidx ⇒ func x
-#     #              | 0x01 tt:tabletype ⇒ table tt
-#     #              | 0x02 mt:memtype ⇒ mem mt
-#     #              | 0x03 gt:globaltype ⇒ global gt
+class ImportSection:
+    # The import section has the id 2. It decodes into a vector of imports
+    # that represent the imports component of a module.
+    #
+    # importsec ::= im∗:section2(vec(import)) ⇒ im∗
+    # import ::= mod:name nm:name d:importdesc ⇒ {module mod, name nm, desc d}
+    # importdesc ::= 0x00 x:typeidx ⇒ func x
+    #              | 0x01 tt:tabletype ⇒ table tt
+    #              | 0x02 mt:memtype ⇒ mem mt
+    #              | 0x03 gt:globaltype ⇒ global gt
 
-#     def __init__(self):
-#         self.data: typing.List[Import]
+    def __init__(self):
+        self.data: typing.List[Import] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = ImportSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.data = [Import.from_reader(r) for _ in range(n)]
-#         return o
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ImportSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Import.from_reader(r) for _ in range(n)]
+        return o
 
 
 class FunctionSection:
@@ -383,7 +432,7 @@ class Module:
         self.section_list: typing.List[typing.Union[
             CustomSection,
             TypeSection,
-            # ImportSection,
+            ImportSection,
             FunctionSection,
             # TableSection,
             # MemorySection,
@@ -414,9 +463,10 @@ class Module:
             s = {
                 convention.custom_section: CustomSection.from_reader,
                 convention.type_section: TypeSection.from_reader,
-                # convention.import_section: ImportSection.from_reader,
+                convention.import_section: ImportSection.from_reader,
                 convention.function_section: FunctionSection.from_reader,
             }[section_id](io.BytesIO(data))
+            log.debugln(s)
             mod.section_list.append(s)
 
         # table_section = 0x04
