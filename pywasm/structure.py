@@ -224,6 +224,23 @@ class Import:
         return o
 
 
+class Table:
+    # The tables component of a module defines a vector of tables described by their table type:
+    #
+    # table ::= {type tabletype}
+    def __init__(self):
+        self.type: TableType = TableType()
+
+    def __repr__(self):
+        return f'Table({self.type})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Table()
+        o.type = TableType.from_reader(r)
+        return o
+
+
 class CustomSection:
     # Custom sections have the id 0. They are intended to be used for debugging
     # information or third-party extensions, and are ignored by the WebAssembly
@@ -315,22 +332,25 @@ class FunctionSection:
         return o
 
 
-# class TableSection:
-#     # The table section has the id 4. It decodes into a vector of tables that
-#     # represent the tables component of a module.
-#     #
-#     # tablesec ::= tab∗:section4(vec(table)) ⇒ tab∗
-#     # table ::= tt:tabletype ⇒ {type tt}
+class TableSection:
+    # The table section has the id 4. It decodes into a vector of tables that
+    # represent the tables component of a module.
+    #
+    # tablesec ::= tab∗:section4(vec(table)) ⇒ tab∗
+    # table ::= tt:tabletype ⇒ {type tt}
 
-#     def __init__(self):
-#         self.vec: typing.List[Table] = []
+    def __init__(self):
+        self.data: typing.List[Table] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = TableSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [Table.from_reader(r) for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'TableSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TableSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Table.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class MemorySection:
@@ -470,7 +490,7 @@ class Module:
             TypeSection,
             ImportSection,
             FunctionSection,
-            # TableSection,
+            TableSection,
             # MemorySection,
             # GlobalSection,
             # ExportSection,
@@ -501,6 +521,7 @@ class Module:
                 convention.type_section: TypeSection.from_reader,
                 convention.import_section: ImportSection.from_reader,
                 convention.function_section: FunctionSection.from_reader,
+                convention.table_section: TableSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
