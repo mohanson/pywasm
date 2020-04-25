@@ -526,7 +526,6 @@ class Module:
             log.debugln(s)
             mod.section_list.append(s)
 
-        # table_section = 0x04
         # memory_section = 0x05
         # global_section = 0x06
         # export_section = 0x07
