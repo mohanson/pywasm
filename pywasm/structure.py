@@ -290,7 +290,7 @@ class Module:
     def __init__(self):
         self.section_list: typing.List[typing.Union[
             CustomSection,
-            # TypeSection,
+            TypeSection,
             # ImportSection,
             # FunctionSection,
             # TableSection,
