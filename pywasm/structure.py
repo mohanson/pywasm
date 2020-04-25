@@ -587,9 +587,6 @@ class CustomSection:
         self.name: str
         self.data: bytearray
 
-    def __repr__(self):
-        return f'Custom {self.name}'
-
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CustomSection()
