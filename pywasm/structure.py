@@ -249,6 +249,7 @@ class Export:
         o.desc = leb128.u.decode_reader(r)[0]
         return o
 
+
 class Table:
     # The tables component of a module defines a vector of tables described by their table type:
     #
@@ -300,6 +301,24 @@ class Global:
         o = Global()
         o.type = GlobalType.from_reader(r)
         o.expr = r.read(-1)
+        return o
+
+
+class Start:
+    # The start component of a module declares the function index of a start function that is automatically invoked
+    # when the module is instantiated, after tables and memories have been initialized.
+    #
+    # start ::= {func funcidx}
+    def __init__(self):
+        self.x: int = 0x00
+
+    def __repr__(self):
+        return f'Start({self.x})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Start()
+        o.x = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -469,31 +488,37 @@ class ExportSection:
     #              | 0x03 x:globalidx⇒global x
 
     def __init__(self):
-        self.vec: typing.List[Export] = []
+        self.data: typing.List[Export] = []
+
+    def __repr__(self):
+        return f'ExportSection({self.data})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ExportSection()
         n = leb128.u.decode_reader(r)[0]
-        o.vec = [Export.from_reader(r) for _ in range(n)]
+        o.data = [Export.from_reader(r) for _ in range(n)]
         return o
 
 
-# class StartSection:
-#     # The start section has the id 8. It decodes into an optional start
-#     # function that represents the start component of a module.
-#     #
-#     # startsec ::= st?:section8(start) ⇒ st?
-#     # start ::= x:funcidx ⇒ {func x}
+class StartSection:
+    # The start section has the id 8. It decodes into an optional start
+    # function that represents the start component of a module.
+    #
+    # startsec ::= st?:section8(start) ⇒ st?
+    # start ::= x:funcidx ⇒ {func x}
 
-#     def __init__(self):
-#         self.start_function: StartFunction
+    def __init__(self):
+        self.start: Start()
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = StartSection()
-#         o.start_function = StartFunction.from_reader(r)
-#         return o
+    def __repr__(self):
+        return f'StartSection({self.start})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = StartSection()
+        o.start_function = Start.from_reader(r)
+        return o
 
 
 # class ElementSection:
@@ -561,8 +586,8 @@ class Module:
             TableSection,
             MemorySection,
             GlobalSection,
-            # ExportSection,
-            # StartSection,
+            ExportSection,
+            StartSection,
             # ElementSection,
             # CodeSection,
             # DataSection,
@@ -592,12 +617,12 @@ class Module:
                 convention.table_section: TableSection.from_reader,
                 convention.memory_section: MemorySection.from_reader,
                 convention.global_section: GlobalSection.from_reader,
+                convention.export_section: ExportSection.from_reader,
+                convention.start_section: StartSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
 
-        # export_section = 0x07
-        # start_section = 0x08
         # element_section = 0x09
         # code_section = 0x0a
         # data_section = 0x0b
