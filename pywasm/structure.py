@@ -424,7 +424,7 @@ class Expression:
     def from_reader(cls, r: typing.BinaryIO):
         o = Expression()
         while True:
-            n = r.read(1)
+            n = ord(r.read(1))
             if n != 0x0B:
                 o.data.append(n)
                 continue
@@ -606,21 +606,91 @@ class ElementSection:
         return o
 
 
-# class CodeSection:
-#     # The code section has the id 10. It decodes into a vector of code
-#     # entries that are pairs of value type vectors and expressions. They
-#     # represent the locals and body field of the functions in the funcs
-#     # component of a module. The type fields of the respective functions are
-#     # encoded separately in the function section.
-#     def __init__(self):
-#         self.vec: typing.List[Code] = []
+class Locals:
+    # The locals declare a vector of mutable local variables and their types. These variables are referenced through
+    # local indices in the function’s body. The index of the first local is the smallest index not referencing a
+    # parameter.
+    #
+    # locals ::= n:u32 t:valtype ⇒ tn
+    def __init__(self):
+        self.n: int = 0x00
+        self.value_type: ValueType = ValueType()
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = CodeSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [Code.from_reader(r) for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'Locals({self.n}, {self.value_type})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Locals()
+        o.n = leb128.u.decode_reader(r)[0]
+        o.value_type = ValueType.from_reader(r)
+        return o
+
+
+class Func:
+    def __init__(self):
+        self.locals: typing.List[int] = []
+        self.expr: Expression = Expression()
+
+    def __repr__(self):
+        return f'Func({self.locals}, {self.expr})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Func()
+        n = leb128.u.decode_reader(r)[0]
+        o.locals = [Locals.from_reader(r) for i in range(n)]
+        o.expr = Expression.from_reader(r)
+        return o
+
+
+class Code:
+    # The encoding of each code entry consists of
+    #   - the u32 size of the function code in bytes
+    #   - the actual function code, which in turn consists of
+    #       - the declaration of locals
+    #      -  the function body as an expression.
+    #
+    # Local declarations are compressed into a vector whose entries consist of
+    #   - a u32 count
+    #   - a value type.
+    #
+    # code ::= size:u32 code:func ⇒ code(ifsize=||func||)
+    # func ::= (t∗)∗:vec(locals) e:expr ⇒ concat((t∗)∗), e∗(if|concat((t∗)∗)|<232)
+    # locals ::= n:u32 t:valtype ⇒ tn
+    def __init__(self):
+        self.size: int = 0x00
+        self.func: Func = Func()
+
+    def __repr__(self):
+        return f'Code({self.size}, {self.func})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Code()
+        o.size = leb128.u.decode_reader(r)[0]
+        o.func = Func.from_reader(r)
+        return o
+
+
+class CodeSection:
+    # The code section has the id 10. It decodes into a vector of code
+    # entries that are pairs of value type vectors and expressions. They
+    # represent the locals and body field of the functions in the funcs
+    # component of a module. The type fields of the respective functions are
+    # encoded separately in the function section.
+    def __init__(self):
+        self.data: typing.List[Code] = []
+
+    def __repr__(self):
+        return f'CodeSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = CodeSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Code.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class DataSection:
@@ -657,7 +727,7 @@ class Module:
             ExportSection,
             StartSection,
             ElementSection,
-            # CodeSection,
+            CodeSection,
             # DataSection,
         ]] = []
 
@@ -688,6 +758,7 @@ class Module:
                 convention.export_section: ExportSection.from_reader,
                 convention.start_section: StartSection.from_reader,
                 convention.element_section: ElementSection.from_reader,
+                convention.code_section: CodeSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
