@@ -407,13 +407,38 @@ class MemorySection:
         return o
 
 
+class Expression:
+    # Function bodies, initialization values for globals, and offsets of element or data segments are given as
+    # expressions, which are sequences of instructions terminated by an end marker.
+    #
+    # expr ::= instr∗ 0x0B
+    #
+    # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
+    def __init__(self):
+        self.data: bytearray = bytearray()
+
+    def __str__(self):
+        return f'Expression({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Expression()
+        while True:
+            n = r.read(1)
+            if n != 0x0B:
+                o.data.append(n)
+                continue
+            break
+        return o
+
+
 class Global:
     # The globals component of a module defines a vector of global variables (or globals for short):
     #
     # global ::= {type globaltype, init expr}
     def __init__(self):
         self.type: GlobalType = GlobalType()
-        self.expr: bytearray = bytearray()
+        self.expr: Expression = Expression()
 
     def __repr__(self):
         return f'Global({self.type}, {self.expr})'
@@ -422,7 +447,7 @@ class Global:
     def from_reader(cls, r: typing.BinaryIO):
         o = Global()
         o.type = GlobalType.from_reader(r)
-        o.expr = r.read(-1)
+        o.expr = Expression.from_reader(r)
         return o
 
 
@@ -459,7 +484,7 @@ class Export:
     def __init__(self):
         self.name: str = ''
         self.type: int = 0x00
-        self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
+        self.desc: typing.Union[int] = 0x00
 
     def __repr__(self):
         return f'Export({self.name}, {self.desc})'
@@ -536,42 +561,49 @@ class StartSection:
         return o
 
 
-# class ElementSegment:
-#     # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
-#     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
-#     #
-#     # elem ::= {table tableidx, offset expr, init vec(funcidx)}
-#     #
-#     # The offset is given by a constant expression.
-#     def __init__(self):
-#         self.tableidx: int
-#         self.expr: Expression
-#         self.init: typing.List[int]
+class ElementSegment:
+    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+    #
+    # elem ::= {table tableidx, offset expr, init vec(funcidx)}
+    #
+    # The offset is given by a constant expression.
+    def __init__(self):
+        self.table_idx: int = 0x00
+        self.offset: Expression = Expression()
+        self.init: typing.List[int] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = ElementSegment()
-#         o.tableidx = leb128.u.decode_reader(r)[0]
-#         o.expr = Expression.from_reader(r)
-#         n = leb128.u.decode_reader(r)[0]
-#         o.init = [leb128.u.decode_reader(r)[0] for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'ElementSegment({self.table_idx, self.offset, self.init})'
 
-# class ElementSection:
-#     # The element section has the id 9. It decodes into a vector of element
-#     # segments that represent the elem component of a module.
-#     #
-#     # elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
-#     # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
-#     def __init__(self):
-#         self.vec: typing.List[ElementSegment]
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementSegment()
+        o.table_idx = leb128.u.decode_reader(r)[0]
+        o.expr = Expression.from_reader(r)
+        n = leb128.u.decode_reader(r)[0]
+        o.init = [leb128.u.decode_reader(r)[0] for _ in range(n)]
+        return o
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = ElementSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [ElementSegment.from_reader(r) for _ in range(n)]
-#         return o
+
+class ElementSection:
+    # The element section has the id 9. It decodes into a vector of element
+    # segments that represent the elem component of a module.
+    #
+    # elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
+    # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
+    def __init__(self):
+        self.data: typing.List[ElementSegment] = []
+
+    def __repr__(self):
+        return f'ElementSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ElementSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [ElementSegment.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class CodeSection:
@@ -624,7 +656,7 @@ class Module:
             GlobalSection,
             ExportSection,
             StartSection,
-            # ElementSection,
+            ElementSection,
             # CodeSection,
             # DataSection,
         ]] = []
@@ -655,10 +687,10 @@ class Module:
                 convention.global_section: GlobalSection.from_reader,
                 convention.export_section: ExportSection.from_reader,
                 convention.start_section: StartSection.from_reader,
+                convention.element_section: ElementSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
 
-        # element_section = 0x09
         # code_section = 0x0a
         # data_section = 0x0b
