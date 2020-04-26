@@ -186,6 +186,65 @@ class GlobalType:
         return o
 
 
+class Custom:
+    # custom ::= name byte∗
+    def __init__(self):
+        self.name: str = ''
+        self.data: bytearray = bytearray()
+
+    def __repr__(self):
+        return f'Custom({self.name})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Custom()
+        n = leb128.u.decode_reader(r)[0]
+        o.name = r.read(n).decode()
+        o.data = bytearray(r.read(-1))
+        return o
+
+
+class CustomSection:
+    # Custom sections have the id 0. They are intended to be used for debugging
+    # information or third-party extensions, and are ignored by the WebAssembly
+    # semantics. Their contents consist of a name further identifying the custom
+    # section, followed by an uninterpreted sequence of bytes for custom use.
+    #
+    # customsec ::= section0(custom)
+    # custom ::= name byte∗
+    def __init__(self):
+        self.custom: Custom = Custom()
+
+    def __repr__(self):
+        return f'CustomSection({self.custom})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = CustomSection()
+        o.custom = Custom.from_reader(r)
+        return o
+
+
+class TypeSection:
+    # The type section has the id 1. It decodes into a vector of function
+    # types that represent the types component of a module.
+    #
+    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
+
+    def __init__(self):
+        self.data: typing.List[FunctionType] = []
+
+    def __repr__(self):
+        return f'TypeSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = TypeSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        return o
+
+
 class Import:
     # The imports component of a module defines a set of imports that are required for instantiation.
     #
@@ -221,148 +280,6 @@ class Import:
             convention.extern_memory: MemoryType.from_reader,
             convention.extern_global: GlobalType.from_reader,
         }[o.type](r)
-        return o
-
-
-class Export:
-    # The exports component of a module defines a set of exports that become accessible to the host environment once
-    # the module has been instantiated.
-    #
-    # export ::= {name name, desc exportdesc}
-    # exportdesc ::= func funcidx | table tableidx | mem memidx | global globalidx
-    #
-    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
-    # which are referenced through a respective descriptor.
-    def __init__(self):
-        self.name: str = ''
-        self.type: int = 0x00
-        self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
-
-    def __repr__(self):
-        return f'Export({self.name}, {self.desc})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Export()
-        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
-        o.type = ord(r.read(1))
-        o.desc = leb128.u.decode_reader(r)[0]
-        return o
-
-
-class Table:
-    # The tables component of a module defines a vector of tables described by their table type:
-    #
-    # table ::= {type tabletype}
-    def __init__(self):
-        self.type: TableType = TableType()
-
-    def __repr__(self):
-        return f'Table({self.type})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Table()
-        o.type = TableType.from_reader(r)
-        return o
-
-
-class Memory:
-    # The mems component of a module defines a vector of linear memories (or memories for short) as described by their
-    # memory type:
-    #
-    # mem ::= {type memtype}
-    def __init__(self):
-        self.type: MemoryType = MemoryType()
-
-    def __repr__(self):
-        return f'Memory({self.type})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Memory()
-        o.type = MemoryType.from_reader(r)
-        return o
-
-
-class Global:
-    # The globals component of a module defines a vector of global variables (or globals for short):
-    #
-    # global ::= {type globaltype, init expr}
-    def __init__(self):
-        self.type: GlobalType = GlobalType()
-        self.expr: bytearray = bytearray()
-
-    def __repr__(self):
-        return f'Global({self.type}, {self.expr})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Global()
-        o.type = GlobalType.from_reader(r)
-        o.expr = r.read(-1)
-        return o
-
-
-class Start:
-    # The start component of a module declares the function index of a start function that is automatically invoked
-    # when the module is instantiated, after tables and memories have been initialized.
-    #
-    # start ::= {func funcidx}
-    def __init__(self):
-        self.x: int = 0x00
-
-    def __repr__(self):
-        return f'Start({self.x})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Start()
-        o.x = leb128.u.decode_reader(r)[0]
-        return o
-
-
-class CustomSection:
-    # Custom sections have the id 0. They are intended to be used for debugging
-    # information or third-party extensions, and are ignored by the WebAssembly
-    # semantics. Their contents consist of a name further identifying the custom
-    # section, followed by an uninterpreted sequence of bytes for custom use.
-    #
-    # customsec ::= section0(custom)
-    # custom ::= name byte∗
-    def __init__(self):
-        self.name: str = ''
-        self.data: bytearray = bytearray()
-
-    def __repr__(self):
-        return f'CustomSection({self.name})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = CustomSection()
-        n = leb128.u.decode_reader(r)[0]
-        o.name = r.read(n).decode()
-        o.data = bytearray(r.read(-1))
-        return o
-
-
-class TypeSection:
-    # The type section has the id 1. It decodes into a vector of function
-    # types that represent the types component of a module.
-    #
-    # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
-
-    def __init__(self):
-        self.data: typing.List[FunctionType] = []
-
-    def __repr__(self):
-        return f'TypeSection({self.data})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = TypeSection()
-        n = leb128.u.decode_reader(r)[0]
-        o.data = [FunctionType.from_reader(r) for _ in range(n)]
         return o
 
 
@@ -413,6 +330,23 @@ class FunctionSection:
         return o
 
 
+class Table:
+    # The tables component of a module defines a vector of tables described by their table type:
+    #
+    # table ::= {type tabletype}
+    def __init__(self):
+        self.type: TableType = TableType()
+
+    def __repr__(self):
+        return f'Table({self.type})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Table()
+        o.type = TableType.from_reader(r)
+        return o
+
+
 class TableSection:
     # The table section has the id 4. It decodes into a vector of tables that
     # represent the tables component of a module.
@@ -431,6 +365,24 @@ class TableSection:
         o = TableSection()
         n = leb128.u.decode_reader(r)[0]
         o.data = [Table.from_reader(r) for _ in range(n)]
+        return o
+
+
+class Memory:
+    # The mems component of a module defines a vector of linear memories (or memories for short) as described by their
+    # memory type:
+    #
+    # mem ::= {type memtype}
+    def __init__(self):
+        self.type: MemoryType = MemoryType()
+
+    def __repr__(self):
+        return f'Memory({self.type})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Memory()
+        o.type = MemoryType.from_reader(r)
         return o
 
 
@@ -455,6 +407,25 @@ class MemorySection:
         return o
 
 
+class Global:
+    # The globals component of a module defines a vector of global variables (or globals for short):
+    #
+    # global ::= {type globaltype, init expr}
+    def __init__(self):
+        self.type: GlobalType = GlobalType()
+        self.expr: bytearray = bytearray()
+
+    def __repr__(self):
+        return f'Global({self.type}, {self.expr})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Global()
+        o.type = GlobalType.from_reader(r)
+        o.expr = r.read(-1)
+        return o
+
+
 class GlobalSection:
     # The global section has the id 6. It decodes into a vector of globals
     # that represent the globals component of a module.
@@ -473,6 +444,32 @@ class GlobalSection:
         o = GlobalSection()
         n = leb128.u.decode_reader(r)[0]
         o.data = [Global.from_reader(r) for _ in range(n)]
+        return o
+
+
+class Export:
+    # The exports component of a module defines a set of exports that become accessible to the host environment once
+    # the module has been instantiated.
+    #
+    # export ::= {name name, desc exportdesc}
+    # exportdesc ::= func funcidx | table tableidx | mem memidx | global globalidx
+    #
+    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
+    # which are referenced through a respective descriptor.
+    def __init__(self):
+        self.name: str = ''
+        self.type: int = 0x00
+        self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
+
+    def __repr__(self):
+        return f'Export({self.name}, {self.desc})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Export()
+        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        o.type = ord(r.read(1))
+        o.desc = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -501,6 +498,24 @@ class ExportSection:
         return o
 
 
+class StartFunction:
+    # The start component of a module declares the function index of a start function that is automatically invoked
+    # when the module is instantiated, after tables and memories have been initialized.
+    #
+    # start ::= {func funcidx}
+    def __init__(self):
+        self.function_idx: int = 0x00
+
+    def __repr__(self):
+        return f'StartFunction({self.function_idx})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = StartFunction()
+        o.function_idx = leb128.u.decode_reader(r)[0]
+        return o
+
+
 class StartSection:
     # The start section has the id 8. It decodes into an optional start
     # function that represents the start component of a module.
@@ -509,7 +524,7 @@ class StartSection:
     # start ::= x:funcidx ⇒ {func x}
 
     def __init__(self):
-        self.start: Start()
+        self.start: StartFunction = StartFunction()
 
     def __repr__(self):
         return f'StartSection({self.start})'
@@ -517,9 +532,30 @@ class StartSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = StartSection()
-        o.start_function = Start.from_reader(r)
+        o.start = StartFunction.from_reader(r)
         return o
 
+
+# class ElementSegment:
+#     # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+#     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+#     #
+#     # elem ::= {table tableidx, offset expr, init vec(funcidx)}
+#     #
+#     # The offset is given by a constant expression.
+#     def __init__(self):
+#         self.tableidx: int
+#         self.expr: Expression
+#         self.init: typing.List[int]
+
+#     @classmethod
+#     def from_reader(cls, r: typing.BinaryIO):
+#         o = ElementSegment()
+#         o.tableidx = leb128.u.decode_reader(r)[0]
+#         o.expr = Expression.from_reader(r)
+#         n = leb128.u.decode_reader(r)[0]
+#         o.init = [leb128.u.decode_reader(r)[0] for _ in range(n)]
+#         return o
 
 # class ElementSection:
 #     # The element section has the id 9. It decodes into a vector of element
