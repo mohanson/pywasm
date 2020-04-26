@@ -4,6 +4,7 @@ import typing
 import leb128
 
 from . import convention
+from . import instruction
 from . import log
 
 
@@ -415,7 +416,7 @@ class Expression:
     #
     # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
     def __init__(self):
-        self.data: bytearray = bytearray()
+        self.data: typing.List[instruction.Instruction] = []
 
     def __str__(self):
         return f'Expression({self.data})'
@@ -425,10 +426,10 @@ class Expression:
         o = Expression()
         while True:
             n = ord(r.read(1))
-            if n != 0x0B:
-                o.data.append(n)
-                continue
-            break
+            if n == 0x0b:
+                break
+            r.seek(-1, 1)
+            o.data.append(instruction.Instruction.from_reader(r))
         return o
 
 
