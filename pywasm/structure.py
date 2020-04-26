@@ -561,7 +561,7 @@ class StartSection:
         return o
 
 
-class ElementSegment:
+class Element:
     # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
     #
@@ -574,11 +574,11 @@ class ElementSegment:
         self.init: typing.List[int] = []
 
     def __repr__(self):
-        return f'ElementSegment({self.table_idx, self.offset, self.init})'
+        return f'Element({self.table_idx, self.offset, self.init})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        o = ElementSegment()
+        o = Element()
         o.table_idx = leb128.u.decode_reader(r)[0]
         o.expr = Expression.from_reader(r)
         n = leb128.u.decode_reader(r)[0]
@@ -593,7 +593,7 @@ class ElementSection:
     # elemsec ::= seg∗:section9(vec(elem)) ⇒ seg
     # elem ::= x:tableidx e:expr y∗:vec(funcidx) ⇒ {table x, offset e, init y∗}
     def __init__(self):
-        self.data: typing.List[ElementSegment] = []
+        self.data: typing.List[Element] = []
 
     def __repr__(self):
         return f'ElementSection({self.data})'
@@ -602,7 +602,7 @@ class ElementSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = ElementSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [ElementSegment.from_reader(r) for _ in range(n)]
+        o.data = [Element.from_reader(r) for _ in range(n)]
         return o
 
 
@@ -693,21 +693,49 @@ class CodeSection:
         return o
 
 
-# class DataSection:
-#     # The data section has the id 11. It decodes into a vector of data
-#     # segments that represent the data component of a module.
-#     #
-#     # datasec ::= seg∗:section11(vec(data)) ⇒ seg
-#     # data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
-#     def __init__(self):
-#         self.vec: typing.List[DataSegment] = []
+class Data:
+    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
+    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
+    #
+    # data::={data memidx,offset expr,init vec(byte)}
+    #
+    # The offset is given by a constant expression.
+    def __init__(self):
+        self.memory_idx: int = 0x00
+        self.offset: Expression = Expression()
+        self.init: bytearray = bytearray()
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = DataSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [DataSegment.from_reader(r) for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'Data({self.memory_idx}, {self.offset}, {self.init})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Data()
+        o.memory_idx = leb128.u.decode_reader(r)[0]
+        o.offset = Expression.from_reader(r)
+        n = leb128.u.decode_reader(r)[0]
+        o.init = bytearray(r.read(n))
+        return o
+
+
+class DataSection:
+    # The data section has the id 11. It decodes into a vector of data
+    # segments that represent the data component of a module.
+    #
+    # datasec ::= seg∗:section11(vec(data)) ⇒ seg
+    # data ::= x:memidx e:expr b∗:vec(byte) ⇒ {data x,offset e,init b∗}
+    def __init__(self):
+        self.data: typing.List[Data] = []
+
+    def __repr__(self):
+        return f'DataSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = DataSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Data.from_reader(r) for _ in range(n)]
+        return o
 
 
 class Module:
@@ -728,7 +756,7 @@ class Module:
             StartSection,
             ElementSection,
             CodeSection,
-            # DataSection,
+            DataSection,
         ]] = []
 
     @classmethod
@@ -759,9 +787,8 @@ class Module:
                 convention.start_section: StartSection.from_reader,
                 convention.element_section: ElementSection.from_reader,
                 convention.code_section: CodeSection.from_reader,
+                convention.data_section: DataSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
-
-        # code_section = 0x0a
-        # data_section = 0x0b
+        return mod
