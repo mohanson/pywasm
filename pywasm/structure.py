@@ -247,7 +247,7 @@ class Memory:
     #
     # mem ::= {type memtype}
     def __init__(self):
-        self.type: MemoryType
+        self.type: MemoryType = MemoryType()
 
     def __repr__(self):
         return f'Memory({self.type})'
@@ -256,6 +256,25 @@ class Memory:
     def from_reader(cls, r: typing.BinaryIO):
         o = Memory()
         o.type = MemoryType.from_reader(r)
+        return o
+
+
+class Global:
+    # The globals component of a module defines a vector of global variables (or globals for short):
+    #
+    # global ::= {type globaltype, init expr}
+    def __init__(self):
+        self.type: GlobalType = GlobalType()
+        self.expr: bytearray = bytearray()
+
+    def __repr__(self):
+        return f'Global({self.type}, {self.expr})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Global()
+        o.type = GlobalType.from_reader(r)
+        o.expr = r.read(-1)
         return o
 
 
@@ -392,22 +411,25 @@ class MemorySection:
         return o
 
 
-# class GlobalSection:
-#     # The global section has the id 6. It decodes into a vector of globals
-#     # that represent the globals component of a module.
-#     #
-#     # globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
-#     # global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+class GlobalSection:
+    # The global section has the id 6. It decodes into a vector of globals
+    # that represent the globals component of a module.
+    #
+    # globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
+    # global ::= gt:globaltype e:expr ⇒ {type gt, init e}
 
-#     def __init__(self):
-#         self.vec: typing.List[Global] = []
+    def __init__(self):
+        self.data: typing.List[Global] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = GlobalSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [Global.from_reader(r) for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'GlobalSection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = GlobalSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Global.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class ExportSection:
@@ -513,7 +535,7 @@ class Module:
             FunctionSection,
             TableSection,
             MemorySection,
-            # GlobalSection,
+            GlobalSection,
             # ExportSection,
             # StartSection,
             # ElementSection,
@@ -544,11 +566,11 @@ class Module:
                 convention.function_section: FunctionSection.from_reader,
                 convention.table_section: TableSection.from_reader,
                 convention.memory_section: MemorySection.from_reader,
+                convention.global_section: GlobalSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
 
-        # global_section = 0x06
         # export_section = 0x07
         # start_section = 0x08
         # element_section = 0x09
