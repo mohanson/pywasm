@@ -241,6 +241,24 @@ class Table:
         return o
 
 
+class Memory:
+    # The mems component of a module defines a vector of linear memories (or memories for short) as described by their
+    # memory type:
+    #
+    # mem ::= {type memtype}
+    def __init__(self):
+        self.type: MemoryType
+
+    def __repr__(self):
+        return f'Memory({self.type})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Memory()
+        o.type = MemoryType.from_reader(r)
+        return o
+
+
 class CustomSection:
     # Custom sections have the id 0. They are intended to be used for debugging
     # information or third-party extensions, and are ignored by the WebAssembly
@@ -353,22 +371,25 @@ class TableSection:
         return o
 
 
-# class MemorySection:
-#     # The memory section has the id 5. It decodes into a vector of memories
-#     # that represent the mems component of a module.
-#     #
-#     # memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
-#     # mem ::= mt:memtype ⇒ {type mt}
+class MemorySection:
+    # The memory section has the id 5. It decodes into a vector of memories
+    # that represent the mems component of a module.
+    #
+    # memsec ::= mem∗:section5(vec(mem)) ⇒ mem∗
+    # mem ::= mt:memtype ⇒ {type mt}
 
-#     def __init__(self):
-#         self.vec: typing.List[Memory] = []
+    def __init__(self):
+        self.data: typing.List[Memory] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = MemorySection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [Memory.from_reader(r) for _ in range(n)]
-#         return o
+    def __repr__(self):
+        return f'MemorySection({self.data})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = MemorySection()
+        n = leb128.u.decode_reader(r)[0]
+        o.data = [Memory.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class GlobalSection:
@@ -491,7 +512,7 @@ class Module:
             ImportSection,
             FunctionSection,
             TableSection,
-            # MemorySection,
+            MemorySection,
             # GlobalSection,
             # ExportSection,
             # StartSection,
@@ -522,11 +543,11 @@ class Module:
                 convention.import_section: ImportSection.from_reader,
                 convention.function_section: FunctionSection.from_reader,
                 convention.table_section: TableSection.from_reader,
+                convention.memory_section: MemorySection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
             mod.section_list.append(s)
 
-        # memory_section = 0x05
         # global_section = 0x06
         # export_section = 0x07
         # start_section = 0x08
