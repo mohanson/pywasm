@@ -199,9 +199,9 @@ class Import:
     # first index of any definition contained in the module itself.
 
     def __init__(self):
-        self.type: int = 0x00
         self.module: str = ''
         self.name: str = ''
+        self.type: int = 0x00
         self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
 
     def __repr__(self):
@@ -223,6 +223,31 @@ class Import:
         }[o.type](r)
         return o
 
+
+class Export:
+    # The exports component of a module defines a set of exports that become accessible to the host environment once
+    # the module has been instantiated.
+    #
+    # export ::= {name name, desc exportdesc}
+    # exportdesc ::= func funcidx | table tableidx | mem memidx | global globalidx
+    #
+    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
+    # which are referenced through a respective descriptor.
+    def __init__(self):
+        self.name: str = ''
+        self.type: int = 0x00
+        self.desc: typing.Union[int, TableType, MemoryType, GlobalType] = 0x00
+
+    def __repr__(self):
+        return f'Export({self.name}, {self.desc})'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Export()
+        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        o.type = ord(r.read(1))
+        o.desc = leb128.u.decode_reader(r)[0]
+        return o
 
 class Table:
     # The tables component of a module defines a vector of tables described by their table type:
@@ -432,26 +457,26 @@ class GlobalSection:
         return o
 
 
-# class ExportSection:
-#     # The export section has the id 7. It decodes into a vector of exports
-#     # that represent the exports component of a module.
-#     #
-#     # exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
-#     # export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
-#     # exportdesc ::= 0x00 x:funcidx ⇒ func x
-#     #              | 0x01 x:tableidx ⇒ table x
-#     #              | 0x02 x:memidx ⇒ mem x
-#     #              | 0x03 x:globalidx⇒global x
+class ExportSection:
+    # The export section has the id 7. It decodes into a vector of exports
+    # that represent the exports component of a module.
+    #
+    # exportsec ::= ex∗:section7(vec(export)) ⇒ ex∗
+    # export :: =nm:name d:exportdesc ⇒ {name nm, desc d}
+    # exportdesc ::= 0x00 x:funcidx ⇒ func x
+    #              | 0x01 x:tableidx ⇒ table x
+    #              | 0x02 x:memidx ⇒ mem x
+    #              | 0x03 x:globalidx⇒global x
 
-#     def __init__(self):
-#         self.vec: typing.List[Export] = []
+    def __init__(self):
+        self.vec: typing.List[Export] = []
 
-#     @classmethod
-#     def from_reader(cls, r: typing.BinaryIO):
-#         o = ExportSection()
-#         n = leb128.u.decode_reader(r)[0]
-#         o.vec = [Export.from_reader(r) for _ in range(n)]
-#         return o
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = ExportSection()
+        n = leb128.u.decode_reader(r)[0]
+        o.vec = [Export.from_reader(r) for _ in range(n)]
+        return o
 
 
 # class StartSection:
