@@ -109,24 +109,18 @@ class MemoryType:
         return o
 
 
-class ElementType:
+class ElementType(int):
     # The element type funcref is the infinite union of all function types. A table of that type thus contains
     # references to functions of heterogeneous type.
     # In future versions of WebAssembly, additional element types may be introduced.
-    def __init__(self):
-        self.byte: int = 0x00
-
     def __repr__(self):
-        a = {
+        return {
             convention.funcref: 'funcref',
-        }[self.byte]
-        return f'ElementType({a})'
+        }[self]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        o = ElementType()
-        o.byte = ord(r.read(1))
-        return o
+        return ElementType(ord(r.read(1)))
 
 
 class TableType:
@@ -154,6 +148,19 @@ class TableType:
         return o
 
 
+class Mut(int):
+    # Mut const | var
+    def __repr__(self):
+        return {
+            convention.const: 'const',
+            convention.var: 'var',
+        }[self]
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        return Mut(ord(r.read(1)))
+
+
 class GlobalType:
     # Global types are encoded by their value type and a flag for their
     # mutability.
@@ -163,18 +170,16 @@ class GlobalType:
     #       | 0x01 ⇒ var
     def __init__(self):
         self.value_type: ValueType = ValueType()
-        self.mut: int = 0x00
+        self.mut: Mut = Mut()
 
     def __repr__(self):
-        if self.mut:
-            return f'GlobalType(var {self.value_type})'
-        return f'GlobalType(const {self.value_type})'
+        return f'GlobalType({self.mut} {self.value_type})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = GlobalType()
         o.value_type = ValueType.from_reader(r)
-        o.mut = ord(r.read(1))
+        o.mut = Mut.from_reader(r)
         return o
 
 
@@ -753,35 +758,51 @@ class Module:
     # function section from their bodies in the code section.
 
     def __init__(self):
-        self.custom_list: typing.List[CustomSection] = []
-        self.type_list: typing.List[TypeSection] = []
-        self.import_list: typing.List[ImportSection] = []
-        self.function_list: typing.List[FunctionSection] = []
-        self.table_list: typing.List[TableSection] = []
-        self.memory_list: typing.List[MemorySection] = []
-        self.global_list: typing.List[GlobalSection] = []
-        self.export_list: typing.List[ExportSection] = []
-        self.start_list: typing.List[StartSection] = []
-        self.element_list: typing.List[ElementSection] = []
-        self.code_list: typing.List[CodeSection] = []
-        self.data_list: typing.List[DataSection] = []
+        # self.custom_list: typing.List[CustomSection] = []
+        # self.type_list: typing.List[TypeSection] = []
+        # self.import_list: typing.List[ImportSection] = []
+        # self.function_list: typing.List[FunctionSection] = []
+        # self.table_list: typing.List[TableSection] = []
+        # self.memory_list: typing.List[MemorySection] = []
+        # self.global_list: typing.List[GlobalSection] = []
+        # self.export_list: typing.List[ExportSection] = []
+        # self.start_list: typing.List[StartSection] = []
+        # self.element_list: typing.List[ElementSection] = []
+        # self.code_list: typing.List[CodeSection] = []
+        # self.data_list: typing.List[DataSection] = []
+
+        self.section_list: typing.Union[
+            CustomSection,
+            TypeSection,
+            ImportSection,
+            FunctionSection,
+            TableSection,
+            MemorySection,
+            GlobalSection,
+            ExportSection,
+            ExportSection,
+            StartSection,
+            ElementSection,
+            CodeSection,
+            DataSection,
+        ] = []
 
     def __repr__(self):
-        a = ', '.join([
-            f'{self.custom_list}',
-            f'{self.type_list}',
-            f'{self.import_list}',
-            f'{self.function_list}',
-            f'{self.table_list}',
-            f'{self.memory_list}',
-            f'{self.global_list}',
-            f'{self.export_list}',
-            f'{self.start_list}',
-            f'{self.element_list}',
-            f'{self.code_list}',
-            f'{self.data_list}',
-        ])
-        return f'Module({a})'
+        # a = ', '.join([
+        #     f'{self.custom_list}',
+        #     f'{self.type_list}',
+        #     f'{self.import_list}',
+        #     f'{self.function_list}',
+        #     f'{self.table_list}',
+        #     f'{self.memory_list}',
+        #     f'{self.global_list}',
+        #     f'{self.export_list}',
+        #     f'{self.start_list}',
+        #     f'{self.element_list}',
+        #     f'{self.code_list}',
+        #     f'{self.data_list}',
+        # ])
+        return f'Module({self.section_list})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -814,18 +835,20 @@ class Module:
                 convention.data_section: DataSection.from_reader,
             }[section_id](io.BytesIO(data))
             log.debugln(s)
-            s = {
-                convention.custom_section: mod.custom_list.append,
-                convention.type_section: mod.type_list.append,
-                convention.import_section: mod.import_list.append,
-                convention.function_section: mod.function_list.append,
-                convention.table_section: mod.table_list.append,
-                convention.memory_section: mod.memory_list.append,
-                convention.global_section: mod.global_list.append,
-                convention.export_section: mod.export_list.append,
-                convention.start_section: mod.start_list.append,
-                convention.element_section: mod.element_list.append,
-                convention.code_section: mod.code_list.append,
-                convention.data_section: mod.data_list.append,
-            }[section_id](s)
+            mod.section_list.append(s)
+
+        #     s = {
+        #         convention.custom_section: mod.custom_list.append,
+        #         convention.type_section: mod.type_list.append,
+        #         convention.import_section: mod.import_list.append,
+        #         convention.function_section: mod.function_list.append,
+        #         convention.table_section: mod.table_list.append,
+        #         convention.memory_section: mod.memory_list.append,
+        #         convention.global_section: mod.global_list.append,
+        #         convention.export_section: mod.export_list.append,
+        #         convention.start_section: mod.start_list.append,
+        #         convention.element_section: mod.element_list.append,
+        #         convention.code_section: mod.code_list.append,
+        #         convention.data_section: mod.data_list.append,
+        #     }[section_id](s)
         return mod

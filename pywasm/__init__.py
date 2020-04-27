@@ -1,1 +1,2 @@
-from .structure import Module
+from . import binary
+from . import log
