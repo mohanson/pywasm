@@ -1,11 +1,14 @@
 import io
 import typing
 
-import leb128
-
 from . import convention
 from . import instruction
+from . import leb128
 from . import log
+
+# ======================================================================================================================
+# Binary Format Types
+# ======================================================================================================================
 
 
 class ValueType(int):
@@ -182,6 +185,10 @@ class GlobalType:
         o.mut = Mut.from_reader(r)
         return o
 
+# ======================================================================================================================
+# Binary Format Instructions
+# ======================================================================================================================
+
 
 class BlockType(int):
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
@@ -199,6 +206,10 @@ class BlockType(int):
     def from_reader(cls, r: typing.BinaryIO):
         return BlockType(ord(r.read(1)))
 
+
+# ======================================================================================================================
+# Binary Format Modules
+# ======================================================================================================================
 
 class Custom:
     # custom ::= name byte∗
