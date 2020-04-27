@@ -1,4 +1,6 @@
+from . import convention
 from . import structure
+
 
 class Value:
     # Values are represented by themselves.
@@ -24,6 +26,7 @@ class Value:
     @classmethod
     def from_f64(cls, n):
         return Value(convention.f64, n)
+
 
 class AbstractMachine:
 

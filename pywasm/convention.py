@@ -26,23 +26,3 @@ start_section = 0x08
 element_section = 0x09
 code_section = 0x0a
 data_section = 0x0b
-
-# valtype = {i32, i64, f32, f64}
-# blocktype = {empty, *valtype}
-# elemtype = {funcref}
-# mut = {const, var}
-# section = {
-#     custom_section,
-#     type_section,
-#     import_section,
-#     function_section,
-#     table_section,
-#     memory_section,
-#     global_section,
-#     export_section,
-#     start_section,
-#     element_section,
-#     code_section,
-#     data_section,
-# }
-# extern_type = {extern_function, extern_table, extern_memory, extern_global}
