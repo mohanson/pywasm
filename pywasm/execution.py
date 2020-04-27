@@ -286,14 +286,23 @@ class Stack:
         self.data.append(v)
 
 
-class AdministrativeInstructions:
-    pass
-
-
-class AbstractMachine:
-
+class Machine:
+    # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
+    # which records operand values and control constructs, and an abstract store containing global state.
     def __init__(self):
-        pass
+        self.module: ModuleInstance = ModuleInstance()
+        self.stack: Stack = Stack()
+        self.store: Store = Store()
 
     def instantiate(self, module: structure.Module):
+        # [TODO] If module is not valid, then panic
+
+        # Assert: module is valid with external types classifying its imports
+
+        pass
+
+    def allocate(self):
+        pass
+
+    def invocate(self):
         pass
