@@ -26,3 +26,5 @@ start_section = 0x08
 element_section = 0x09
 code_section = 0x0a
 data_section = 0x0b
+
+memory_page_size = 64 * 1024
