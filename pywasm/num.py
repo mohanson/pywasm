@@ -2,7 +2,7 @@ import io
 import math
 import struct
 
-u8 = i8 = u16 = i16 = u32 = i32 = u64 = i64 = int
+i32 = i64 = int
 f32 = f64 = float
 
 
@@ -29,7 +29,7 @@ f32 = f64 = float
 
 
 # def int2u32(i: int) -> u32:
-    # return i & 0xffffffff
+#     return i & 0xffffffff
 
 
 # def int2i32(i: int) -> i32:
@@ -89,17 +89,17 @@ class LittleEndian:
     # def u32(r: bytes):
     #     return struct.unpack('<I', r)[0]
 
-    # @staticmethod
-    # def i32(r: bytes):
-    #     return struct.unpack('<i', r)[0]
+    @staticmethod
+    def i32(r: bytes):
+        return struct.unpack('<i', r)[0]
 
     # @staticmethod
     # def u64(r: bytes):
     #     return struct.unpack('<Q', r)[0]
 
-    # @staticmethod
-    # def i64(r: bytes):
-    #     return struct.unpack('<q', r)[0]
+    @staticmethod
+    def i64(r: bytes):
+        return struct.unpack('<q', r)[0]
 
     @staticmethod
     def f32(r: bytes):
@@ -129,22 +129,22 @@ class LittleEndian:
     # def pack_u32(n: u32):
     #     return struct.pack('<I', n)
 
-    # @staticmethod
-    # def pack_i32(n: i32):
-    #     return struct.pack('<i', n)
+    @staticmethod
+    def pack_i32(n: i32):
+        return struct.pack('<i', n)
 
     # @staticmethod
     # def pack_u64(n: u64):
     #     return struct.pack('<Q', n)
 
-    # @staticmethod
-    # def pack_i64(n: i64):
-    #     return struct.pack('<q', n)
+    @staticmethod
+    def pack_i64(n: i64):
+        return struct.pack('<q', n)
 
-    # @staticmethod
-    # def pack_f32(n: f32):
-    #     return struct.pack('<f', n)
+    @staticmethod
+    def pack_f32(n: f32):
+        return struct.pack('<f', n)
 
-    # @staticmethod
-    # def pack_f64(n: f64):
-    #     return struct.pack('<d', n)
+    @staticmethod
+    def pack_f64(n: f64):
+        return struct.pack('<d', n)
