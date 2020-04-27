@@ -8,7 +8,7 @@ from . import instruction
 from . import log
 
 
-class ValueType:
+class ValueType(int):
     # Value types are encoded by a single byte.
     # valtype ::= {
     #     0x7f: i32,
@@ -16,24 +16,17 @@ class ValueType:
     #     0x7d: f32,
     #     0x7c: f64,
     # }
-    def __init__(self):
-        self.byte: int = 0x00
-
     def __repr__(self):
-        a = {
+        return {
             convention.i32: 'i32',
             convention.i64: 'i64',
             convention.f32: 'f32',
             convention.f64: 'f64',
-        }[self.byte]
-        return f'ValueType({a})'
+        }[self]
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        o = ValueType()
-        o.byte = ord(r.read(1))
-        assert o.byte in convention.valtype
-        return o
+        return ValueType(ord(r.read(1)))
 
 
 class ResultType:
@@ -133,7 +126,6 @@ class ElementType:
     def from_reader(cls, r: typing.BinaryIO):
         o = ElementType()
         o.byte = ord(r.read(1))
-        assert o.byte in convention.elemtype
         return o
 
 
@@ -183,8 +175,24 @@ class GlobalType:
         o = GlobalType()
         o.value_type = ValueType.from_reader(r)
         o.mut = ord(r.read(1))
-        assert o.mut in convention.mut
         return o
+
+
+class BlockType(int):
+    # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
+    # single value type, or as a type index encoded as a positive signed integer.
+    #
+    # blocktype ::= 0x40
+    #             | t: valtype
+    #             | x: s33
+    def __repr__(self):
+        if self == convention.empty:
+            return 'empty'
+        return ValueType(self).__repr__()
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        return BlockType(ord(r.read(1)))
 
 
 class Custom:

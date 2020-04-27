@@ -3,4 +3,4 @@ import pywasm
 pywasm.log.lvl = 1
 
 a = pywasm.Module.from_reader(open('./examples/add.wasm', 'rb'))
-print(a)
+# print(a.section_list[0].data[0].args.data[0] == pywasm.convention.i32)

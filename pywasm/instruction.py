@@ -3,6 +3,7 @@ import typing
 import leb128
 
 from . import num
+from . import structure
 
 opcode: typing.Dict[int, typing.Tuple[str]] = {}
 
@@ -206,7 +207,7 @@ class Instruction:
         o.fccode: int = 0x00
         o.args = []
         if o.opcode in [block, loop]:
-            block_type = r.read(1)
+            block_type = structure.BlockType.from_reader(r)
             instr: typing.List[Instruction] = []
             while True:
                 a = r.read(1)
@@ -217,7 +218,7 @@ class Instruction:
             o.args = [block_type, instr]
             return o
         if o.opcode == if_:
-            block_type = r.read(1)
+            block_type = structure.BlockType.from_reader(r)
             instr1: typing.List[Instruction] = []
             instr2: typing.List[Instruction] = []
             idx = 1
