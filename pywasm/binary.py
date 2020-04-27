@@ -5,6 +5,7 @@ from . import convention
 from . import instruction
 from . import leb128
 from . import log
+from . import num
 
 # ======================================================================================================================
 # Binary Format Types
@@ -207,9 +208,134 @@ class BlockType(int):
         return BlockType(ord(r.read(1)))
 
 
+class Instruction:
+    # Instructions are encoded by opcodes. Each opcode is represented by a single byte, and is followed by the
+    # instruction's immediate arguments, where present. The only exception are structured control instructions, which
+    # consist of several opcodes bracketing their nested instruction sequences.
+
+    def __init__(self):
+        self.opcode: int = 0x00
+        self.fccode: int = 0x00
+        self.args: typing.List[typing.Any] = []
+
+    def __repr__(self):
+        return f'{instruction.opcode[self.opcode][0]} {self.args}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO):
+        o = Instruction()
+        o.opcode: int = ord(r.read(1))
+        o.fccode: int = 0x00
+        o.args = []
+        if o.opcode in [
+            instruction.block,
+            instruction.loop,
+        ]:
+            block_type = BlockType.from_reader(r)
+            instr: typing.List[Instruction] = []
+            while True:
+                a = r.read(1)
+                if a == 0x0b:
+                    break
+                r.seek(-1, 1)
+                instr.append(Instruction.from_reader(r))
+            o.args = [block_type, instr]
+            return o
+        if o.opcode == instruction.if_:
+            block_type = BlockType.from_reader(r)
+            instr1: typing.List[Instruction] = []
+            instr2: typing.List[Instruction] = []
+            idx = 1
+            while True:
+                a = r.read(1)
+                if a == 0x05:
+                    idx = 2
+                    continue
+                if a == 0x0b:
+                    break
+                r.seek(-1, 1)
+                if idx == 1:
+                    instr1.append(Instruction.from_reader(r))
+                else:
+                    instr2.append(Instruction.from_reader(r))
+            o.args = [block_type, instr1, instr2]
+            return o
+        if o.opcode in [
+            instruction.br,
+            instruction.br_if,
+            instruction.call
+        ]:
+            o.args = [leb128.u.decode_reader(r)[0]]
+            return o
+        if o.opcode == instruction.br_table:
+            n = leb128.u.decode_reader(r)[0]
+            a = [leb128.u.decode_reader(r)[0] for _ in range(n)]
+            b = leb128.u.decode_reader(r)[0]
+            o.args = [a, b]
+            return o
+        if o.opcode == instruction.call_indirect:
+            o.args = [leb128.u.decode_reader(r)[0], r.read(1)]
+            return o
+        if o.opcode in [
+            instruction.get_local,
+            instruction.set_local,
+            instruction.tee_local,
+            instruction.get_global,
+            instruction.set_global
+        ]:
+            o.args = [leb128.u.decode_reader(r)[0]]
+            return o
+        if o.opcode in [
+            instruction.i32_load,
+            instruction.i64_load,
+            instruction.f32_load,
+            instruction.f64_load,
+            instruction.i32_load8_s,
+            instruction.i32_load8_u,
+            instruction.i32_load16_s,
+            instruction.i32_load16_u,
+            instruction.i64_load8_s,
+            instruction.i64_load8_u,
+            instruction.i64_load16_s,
+            instruction.i64_load16_u,
+            instruction.i64_load32_s,
+            instruction.i64_load32_u,
+            instruction.i32_store,
+            instruction.i64_store,
+            instruction.f32_store,
+            instruction.f64_store,
+            instruction.i32_store8,
+            instruction.i32_store16,
+            instruction.i64_store8,
+            instruction.i64_store16,
+            instruction.i64_store32,
+        ]:
+            o.args = [leb128.u.decode_reader(r)[0] for _ in range(2)]
+            return o
+        if o.opcode in [
+            instruction.current_memory,
+            instruction.grow_memory
+        ]:
+            o.args = [r.read(1) for _ in range(2)]
+            return o
+        if o.opcode == instruction.i32_const:
+            o.args = [leb128.i.decode_reader(r)[0]]
+            return o
+        if o.opcode == instruction.i64_const:
+            o.args = [leb128.i.decode_reader(r)[0]]
+            return o
+        if o.opcode == instruction.f32_const:
+            o.args = [num.LittleEndian.f32(r.read(4))]
+            return o
+        if o.opcode == instruction.f64_const:
+            o.args = [num.LittleEndian.f64(r.read(8))]
+            return o
+        return o
+
 # ======================================================================================================================
 # Binary Format Modules
 # ======================================================================================================================
+
 
 class Custom:
     # custom ::= name byte∗
@@ -440,7 +566,7 @@ class Expression:
     #
     # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
     def __init__(self):
-        self.data: typing.List[instruction.Instruction] = []
+        self.data: typing.List[Instruction] = []
 
     def __str__(self):
         return f'Expression({self.data})'
@@ -453,7 +579,7 @@ class Expression:
             if n == 0x0b:
                 break
             r.seek(-1, 1)
-            o.data.append(instruction.Instruction.from_reader(r))
+            o.data.append(Instruction.from_reader(r))
         return o
 
 
