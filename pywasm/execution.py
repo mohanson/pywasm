@@ -1,6 +1,7 @@
 import typing
 
 from . import convention
+from . import instruction
 from . import num
 from . import structure
 
@@ -85,7 +86,7 @@ class Store:
         self.global_list: typing.List[GlobalInstance] = []
 
 
-class ModuleInstances:
+class ModuleInstance:
     # A module instance is the runtime representation of a module. It is created by instantiating a module, and
     # collects runtime representations of all entities that are imported, defined, or exported by the module.
     #
@@ -141,7 +142,7 @@ class FunctionInstance:
 
 
 class WasmFunc(FunctionInstance):
-    def __init__(self, function_type: structure.FunctionType, module: 'ModuleInstance', code: Function):
+    def __init__(self, function_type: structure.FunctionType, module: ModuleInstance, code: Function):
         self.function_type = function_type
         self.module = module
         self.code = code
@@ -237,11 +238,33 @@ class ExportInstance:
 
 
 class Label:
-    pass
+    # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
+    # instruction sequence:
+    #
+    # label ::= labeln{instr∗}
+    #
+    # Intuitively, instr∗ is the continuation to execute when the branch is taken, in place of the original control
+    # construct.
+    def __init__(self):
+        self.arity: int = 0x00
+        self.instr: typing.List[instruction.Instruction] = []
+
+
+class Frame:
+    def __init__(self, module: ModuleInstance, local_list: typing.List[Value]):
+        self.module = module
+        self.local_list = local_list
 
 
 class Activation:
-    pass
+    # Activation frames carry the return arity of the respective function, hold the values of its locals (including
+    # arguments) in the order corresponding to their static local indices, and a reference to the function’s own module
+    # instance:
+    #
+    # activation ::= framen{frame}
+    # frame ::= {locals val∗, module moduleinst}
+    def __init__(self, frame: Frame):
+        self.frame = frame
 
 
 class Stack:
