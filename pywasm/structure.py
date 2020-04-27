@@ -760,6 +760,9 @@ class Module:
             DataSection,
         ]] = []
 
+    def __repr__(self):
+        return f'Module({self.section_list})'
+
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         if list(r.read(4)) != [0x00, 0x61, 0x73, 0x6d]:
