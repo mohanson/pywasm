@@ -957,6 +957,29 @@ class DataSection:
         return o
 
 
+class Function:
+    # The funcs component of a module defines a vector of functions with the following structure:
+    #
+    # func ::= {type typeidx, locals vec(valtype), body expr}
+    #
+    # The type of a function declares its signature by reference to a type defined in the module. The parameters of the
+    # function are referenced through 0-based local indices in the function’s body; they are mutable.
+    #
+    # The locals declare a vector of mutable local variables and their types. These variables are referenced through
+    # local indices in the function’s body. The index of the first local is the smallest index not referencing a
+    # parameter.
+    #
+    # The body is an instruction sequence that upon termination must produce a stack matching the function type’s
+    # result type.
+    #
+    # Functions are referenced through function indices, starting with the smallest index not referencing
+    # a function import.
+    def __init__(self):
+        self.type_index: TypeIndex = TypeIndex()
+        self.local_list: typing.List[ValueType] = []
+        self.expr: Expression = Expression()
+
+
 class Module:
     # The binary encoding of modules is organized into sections. Most sections correspond to one component of a module
     # record, except that function definitions are split into two sections, separating their type declarations in the
@@ -979,6 +1002,17 @@ class Module:
             DataSection,
         ] = []
 
+        self.type_list: typing.List[FunctionType] = []
+        self.function_list: typing.List[Function] = []
+        self.table_list: typing.List[Table] = []
+        self.memory_list: typing.List[Memory] = []
+        self.global_list: typing.List[Global] = []
+        self.element_list: typing.List[Element] = []
+        self.data_list: typing.List[Data] = []
+        self.start: typing.Optional[StartFunction]
+        self.import_list: typing.List[Import] = []
+        self.export_list: typing.List[Export] = []
+
     def __repr__(self):
         return f'Module({self.section_list})'
 
@@ -998,21 +1032,68 @@ class Module:
             data = bytearray(r.read(n))
             if len(data) != n:
                 raise Exception('pywasm: invalid section size')
-            s = {
-                convention.custom_section: CustomSection.from_reader,
-                convention.type_section: TypeSection.from_reader,
-                convention.import_section: ImportSection.from_reader,
-                convention.function_section: FunctionSection.from_reader,
-                convention.table_section: TableSection.from_reader,
-                convention.memory_section: MemorySection.from_reader,
-                convention.global_section: GlobalSection.from_reader,
-                convention.export_section: ExportSection.from_reader,
-                convention.start_section: StartSection.from_reader,
-                convention.element_section: ElementSection.from_reader,
-                convention.code_section: CodeSection.from_reader,
-                convention.data_section: DataSection.from_reader,
-            }[section_id](io.BytesIO(data))
-            log.debugln(s)
-            mod.section_list.append(s)
+            if section_id == convention.custom_section:
+                custom_section = CustomSection.from_reader( io.BytesIO(data) )
+                mod.section_list.append(custom_section)
+                log.debugln(custom_section)
+            if section_id == convention.type_section:
+                type_section = TypeSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(type_section)
+                log.debugln(type_section)
+                mod.type_list = type_section.data
+            if section_id == convention.import_section:
+                import_section = ImportSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(import_section)
+                log.debugln(import_section)
+                mod.import_list = import_section.data
+            if section_id == convention.function_section:
+                function_section = FunctionSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(function_section)
+                log.debugln(function_section)
+            if section_id == convention.table_section:
+                table_section = TableSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(table_section)
+                log.debugln(table_section)
+                mod.table_list = table_section.data
+            if section_id == convention.memory_section:
+                memory_section = MemorySection.from_reader(io.BytesIO(data))
+                mod.section_list.append(memory_section)
+                log.debugln(memory_section)
+                mod.memory_list = memory_section.data
+            if section_id == convention.global_section:
+                global_section = GlobalSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(global_section)
+                log.debugln(global_section)
+                mod.global_list = global_section.data
+            if section_id == convention.export_section:
+                export_section = ExportSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(export_section)
+                log.debugln(export_section)
+                mod.export_list = export_section.data
+            if section_id == convention.start_section:
+                start_section = StartSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(start_section)
+                log.debugln(start_section)
+                mod.start = start_section.start
+            if section_id == convention.element_section:
+                element_section = ElementSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(element_section)
+                log.debugln(element_section)
+                mod.element_list = element_section.data
+            if section_id == convention.code_section:
+                code_section = CodeSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(code_section)
+                log.debugln(code_section)
+                for i, e in enumerate(code_section.data):
+                    func = Function()
+                    func.type_index = function_section.data[i]
+                    func.local_list = e.func.local_list
+                    func.expr = e.func.expr
+                    mod.function_list.append(func)
+            if section_id == convention.data_section:
+                data_section = DataSection.from_reader(io.BytesIO(data))
+                mod.section_list.append(data_section)
+                log.debugln(data_section)
+                mod.data_list = data_section.data
 
         return mod
