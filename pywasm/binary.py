@@ -1033,7 +1033,7 @@ class Module:
             if len(data) != n:
                 raise Exception('pywasm: invalid section size')
             if section_id == convention.custom_section:
-                custom_section = CustomSection.from_reader( io.BytesIO(data) )
+                custom_section = CustomSection.from_reader(io.BytesIO(data))
                 mod.section_list.append(custom_section)
                 log.debugln(custom_section)
             if section_id == convention.type_section:
