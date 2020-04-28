@@ -39,16 +39,16 @@ class ResultType:
     #
     # resulttype ::= [valtype?]
     def __init__(self):
-        self.value_type_list: typing.List[ValueType] = []
+        self.data: typing.List[ValueType] = []
 
     def __repr__(self):
-        return f'ResultType({self.value_type_list.__repr__()})'
+        return f'ResultType({self.data.__repr__()})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ResultType()
         n = leb128.u.decode_reader(r)[0]
-        o.value_type_list = [ValueType.from_reader(r) for i in range(n)]
+        o.data = [ValueType.from_reader(r) for i in range(n)]
         return o
 
 
@@ -66,7 +66,7 @@ class FunctionType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionType()
-        assert ord(r.read(1)) == 0x60
+        assert ord(r.read(1)) == convention.sign
         o.args = ResultType.from_reader(r)
         o.rets = ResultType.from_reader(r)
         return o
