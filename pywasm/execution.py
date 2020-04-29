@@ -184,7 +184,7 @@ class MemoryInstance:
         self.data = bytearray()
 
     def grow(self, n: int):
-        if len(self.data) // convention.memory_page_size + n > self.size:
+        if self.size and len(self.data) // convention.memory_page_size + n > self.size:
             raise Exception('pywasm: out of memory limit')
         self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
 
@@ -365,12 +365,14 @@ class Machine:
     def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
         self.module.type_list = module.type_list
         imps = imps if imps else {}
+        extern_value_list: typing.List[ExternValue] = []
         for e in module.import_list:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if isinstance(e.desc, binary.TypeIndex):
                 a = HostFunc(self.module.type_list[e.desc], imps[e.module][e.name])
                 addr = self.store.allocate_host_function(a)
+                extern_value_list.append(addr)
                 continue
             if isinstance(e.desc, binary.TableType):
                 raise NotImplementedError
@@ -393,7 +395,7 @@ class Machine:
 
         # Let moduleinst be a new module instance allocated from module in store S with imports externval and global
         # initializer values, and let S be the extended store produced by module allocation.
-        # self.allocate(module, extern_value_list, [])
+        self.allocate(module, extern_value_list, [])
 
     def allocate(
         self,
@@ -401,27 +403,25 @@ class Machine:
         extern_value_list: typing.List[ExternValue],
         global_values: typing.List[Value],
     ):
-        # Imports
-        # self.funcaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_func])
-        # self.tableaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_table])
-        # self.memaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_mem])
-        # self.globaladdrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_global])
-
         # For each function func in module.funcs, do:
         for e in module.function_list:
             function_addr = self.store.allocate_wasm_function(self.module, e)
             self.module.function_addr_list.append(function_addr)
+
         # For each table in module.tables, do:
         for e in module.table_list:
             table_addr = self.store.allocate_table(e.type)
             self.module.table_addr_list.append(table_addr)
+
         # For each memory module.mems, do:
         for e in module.memory_list:
             memory_addr = self.store.allocate_memory(e.type)
             self.module.memory_addr_list.append(memory_addr)
+
         # [TODO] For each global in module.globals, do:
+
         # For each export in module.exports, do:
-        for i, e in enumerate(module.export_list):
+        for e in module.export_list:
             export_inst = ExportInstance(e.name, e.desc)
             self.module.export_list.append(export_inst)
 
