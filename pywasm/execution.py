@@ -158,10 +158,10 @@ class TableInstance:
     #
     # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
     # present.
-    def __init__(self, element_type: int, size: int):
+    def __init__(self, element_type: int, limits: binary.Limits):
         self.element_type = element_type
-        self.element_list: typing.List[FunctionAddress] = []
-        self.size = size
+        self.element_list: typing.List[FunctionAddress] = [FunctionAddress() for _ in range(limits.n)]
+        self.size = limits.m
 
 
 class MemoryInstance:
@@ -240,10 +240,29 @@ class Store:
         self.function_list.append(wasmfunc)
         return function_address
 
-    def allocate_host_function(self, hostfunc: HostFunc):
+    def allocate_host_function(self, hostfunc: HostFunc) -> FunctionAddress:
         function_address = FunctionAddress(len(self.function_list))
         self.function_list.append(hostfunc)
         return function_address
+
+    def allocate_table(self, table_type: binary.TableType) -> TableAddress:
+        table_address = TableAddress(len(self.table_list))
+        table_instance = TableInstance(convention.funcref, table_type.limits)
+        self.table_list.append(table_instance)
+        return table_address
+
+    def allocate_memory(self, memory_type: binary.MemoryType) -> MemoryAddress:
+        memory_address = MemoryAddress(len(self.memory_list))
+        memory_instance = MemoryInstance(memory_type.limits.m)
+        memory_instance.grow(memory_type.limits.n)
+        self.memory_list.append(memory_instance)
+        return memory_address
+
+    def allocate_global(self, global_type: binary.GlobalType, value: Value) -> GlobalAddress:
+        global_address = GlobalAddress(len(self.global_list))
+        global_instance = GlobalInstance(value, global_type.mut)
+        self.global_list.append(global_instance)
+        return global_address
 
 
 class ExportInstance:
@@ -346,14 +365,12 @@ class Machine:
     def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
         self.module.type_list = module.type_list
         imps = imps if imps else {}
-        extern_value_list: typing.List[ExternValue] = []
         for e in module.import_list:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if isinstance(e.desc, binary.TypeIndex):
                 a = HostFunc(self.module.type_list[e.desc], imps[e.module][e.name])
                 addr = self.store.allocate_host_function(a)
-                extern_value_list.append(addr)
                 continue
             if isinstance(e.desc, binary.TableType):
                 raise NotImplementedError
@@ -364,30 +381,19 @@ class Machine:
 
         # [TODO] If module is not valid, then panic
 
-        # Assert: module is valid with external types classifying its imports
-        for e in extern_value_list:
-            if isinstance(e, FunctionAddress):
-                assert e < len(self.store.function_list)
-            if isinstance(e, TableAddress):
-                assert e < len(self.store.table_list)
-            if isinstance(e, MemoryAddress):
-                assert e < len(self.store.memory_list)
-            if isinstance(e, GlobalAddress):
-                assert e < len(self.store.global_list)
+        # [TODO] Assert: module is valid with external types classifying its imports
 
-        # If the number m of imports is not equal to the number n of provided external values, then fail
-        assert len(module.import_list) == len(extern_value_list)
+        # [TODO] If the number m of imports is not equal to the number n of provided external values, then fail
 
         # [TODO] For each external value and external type, do:
         # If externval is not valid with an external type in store S, then fail
         # If externtype does not match externtype, then fail
 
         # [TODO] Let vals be the vector of global initialization values determined by module and externvaln
-        self.module.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
 
         # Let moduleinst be a new module instance allocated from module in store S with imports externval and global
         # initializer values, and let S be the extended store produced by module allocation.
-        self.allocate(module, extern_value_list, [])
+        # self.allocate(module, extern_value_list, [])
 
     def allocate(
         self,
