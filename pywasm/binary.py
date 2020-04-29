@@ -186,6 +186,9 @@ class GlobalType:
         o.mut = Mut.from_reader(r)
         return o
 
+
+ExternalType = typing.Union[FunctionType, TableType, MemoryType, GlobalType]
+
 # ======================================================================================================================
 # Binary Format Instructions
 # ======================================================================================================================
@@ -459,6 +462,9 @@ class TypeSection:
         return o
 
 
+ImportDesc = typing.Union[TypeIndex, TableType, MemoryType, GlobalType]
+
+
 class Import:
     # The imports component of a module defines a set of imports that are required for instantiation.
     #
@@ -475,7 +481,7 @@ class Import:
         self.module: str = ''
         self.name: str = ''
         self.type: int = 0x00
-        self.desc: typing.Union[TypeIndex, TableType, MemoryType, GlobalType] = 0x00
+        self.desc: ImportDesc = 0x00
 
     def __repr__(self):
         return f'Import({self.module}.{self.name}, {self.desc})'

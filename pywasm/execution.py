@@ -292,6 +292,36 @@ class Stack:
     def add(self, v: typing.Union[Value, Label, Activation]):
         self.data.append(v)
 
+# ======================================================================================================================
+# Execution Runtime Import Matching
+# ======================================================================================================================
+
+
+def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
+    if a.n >= b.n:
+        if b.m == 0:
+            return 1
+        if a.m != 0 and b.m != 0:
+            if a.m < b.m:
+                return 1
+    return 0
+
+
+def match_function(a: binary.FunctionType, b: binary.FunctionType) -> bool:
+    return a.args.data == b.args and a.rets == b.rets
+
+
+def match_table(a: binary.TableType, b: binary.TableType) -> bool:
+    return match_limits(a.limits, b.limits) and a.element_type == b.element_type
+
+
+def match_memory(a: binary.MemoryType, b: binary.MemoryType) -> bool:
+    return match_limits(a.limits, b.limits)
+
+
+def match_global(a: binary.GlobalType, b: binary.GlobalType) -> bool:
+    return a.mut == b.mut and a.value_type == b.value_type
+
 
 class Machine:
     # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
@@ -301,11 +331,22 @@ class Machine:
         self.stack: Stack = Stack()
         self.store: Store = Store()
 
-    def instantiate(self, module: binary.Module):
+    def instantiate(self, module: binary.Module,  external_value_list: typing.List[ExternValue]):
         # [TODO] If module is not valid, then panic
 
         # Assert: module is valid with external types classifying its imports
-        pass
+        for e in module.import_list:
+            assert e.type in [
+                convention.extern_function,
+                convention.extern_table,
+                convention.extern_memory,
+                convention.extern_global,
+            ]
+        # If the number m of imports is not equal to the number n of provided external values, then fail
+        assert len(module.import_list) == len(external_value_list)
+        # For each external value and external type, do:
+        # If externval is not valid with an external type in store S, then fail
+        # If externtype does not match externtype, then fail.
 
     def allocate(self):
         pass
