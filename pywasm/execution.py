@@ -3,6 +3,7 @@ import typing
 from . import binary
 from . import convention
 from . import instruction
+from . import log
 from . import num
 
 # ======================================================================================================================
@@ -363,6 +364,7 @@ class Machine:
         self.store: Store = Store()
 
     def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
+        log.debugln('instantiate')
         self.module.type_list = module.type_list
         imps = imps if imps else {}
         extern_value_list: typing.List[ExternValue] = []
@@ -403,6 +405,7 @@ class Machine:
         extern_value_list: typing.List[ExternValue],
         global_values: typing.List[Value],
     ):
+        log.debugln('allocate')
         # For each function func in module.funcs, do:
         for e in module.function_list:
             function_addr = self.store.allocate_wasm_function(self.module, e)
