@@ -407,45 +407,23 @@ class Machine:
         # self.memaddrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_mem])
         # self.globaladdrs.extend([e.addr for e in externvals if e.extern_type == convention.extern_global])
 
-        # # For each function func in module.funcs, do:
-        # for func in module.funcs:
-        #     functype = self.types[func.typeidx]
-        #     funcinst = WasmFunc(functype, self, func)
-        #     store.funcs.append(funcinst)
-        #     self.funcaddrs.append(len(store.funcs) - 1)
-        # # For each table in module.tables, do:
-        # for table in module.tables:
-        #     tabletype = table.tabletype
-        #     elemtype = tabletype.element_type
-        #     tableinst = TableInstance(elemtype, tabletype.limits)
-        #     store.tables.append(tableinst)
-        #     self.tableaddrs.append(len(store.tables) - 1)
-        # # For each memory module.mems, do:
-        # for mem in module.mems:
-        #     meminst = MemoryInstance(mem.memtype)
-        #     store.mems.append(meminst)
-        #     self.memaddrs.append(len(store.mems) - 1)
-        # # For each global in module.globals, do:
-        # for i, glob in enumerate(module.globals):
-        #     val = vals[i]
-
-        #     if isinstance(val.valtype, int):
-        #         if val.valtype != glob.globaltype.value_type.byte:
-        #             raise Exception('pywasm: mismatch valtype')
-        #     else:
-        #         if val.valtype != glob.globaltype.value_type:
-        #             raise Exception('pywasm: mismatch valtype')
-
-        #     globalinst = GlobalInstance(val, glob.globaltype.mut)
-        #     store.globals.append(globalinst)
-        #     self.globaladdrs.append(len(store.globals) - 1)
-        # # For each export in module.exports, do:
-        # for i, export in enumerate(module.exports):
-        #     externval = ExternValue(export.kind, export.desc)
-        #     exportinst = ExportInstance(export.name, externval)
-        #     self.exports.append(exportinst)
-
-        pass
+        # For each function func in module.funcs, do:
+        for e in module.function_list:
+            function_addr = self.store.allocate_wasm_function(self.module, e)
+            self.module.function_addr_list.append(function_addr)
+        # For each table in module.tables, do:
+        for e in module.table_list:
+            table_addr = self.store.allocate_table(e.type)
+            self.module.table_addr_list.append(table_addr)
+        # For each memory module.mems, do:
+        for e in module.memory_list:
+            memory_addr = self.store.allocate_memory(e.type)
+            self.module.memory_addr_list.append(memory_addr)
+        # [TODO] For each global in module.globals, do:
+        # For each export in module.exports, do:
+        for i, e in enumerate(module.export_list):
+            export_inst = ExportInstance(e.name, e.desc)
+            self.module.export_list.append(export_inst)
 
     def invocate(self):
         pass
