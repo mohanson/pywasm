@@ -78,28 +78,6 @@ class Result:
         self.data = data
 
 
-class Store:
-    # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
-    # representation of all instances of functions, tables, memories, and globals that have been allocated during the
-    # life time of the abstract machine
-    # Syntactically, the store is defined as a record listing the existing instances of each category:
-    # store ::= {
-    #     funcs funcinst∗
-    #     tables tableinst∗
-    #     mems meminst∗
-    #     globals globalinst∗
-    # }
-    #
-    # Addresses are dynamic, globally unique references to runtime objects, in contrast to indices, which are static,
-    # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
-    # a memory instance in the store, not an offset inside a memory instance.
-    def __init__(self):
-        self.function_list: typing.List[FunctionInstance] = []
-        self.table_list: typing.List[TableInstance] = []
-        self.memory_list: typing.List[MemoryInstance] = []
-        self.global_list: typing.List[GlobalInstance] = []
-
-
 class FunctionAddress(int):
     def __repr__(self):
         return f'FunctionAddress({super().__repr__()})'
@@ -234,6 +212,40 @@ class GlobalInstance:
 ExternValue = typing.Union[FunctionAddress, TableAddress, MemoryAddress, GlobalAddress]
 
 
+class Store:
+    # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
+    # representation of all instances of functions, tables, memories, and globals that have been allocated during the
+    # life time of the abstract machine
+    # Syntactically, the store is defined as a record listing the existing instances of each category:
+    # store ::= {
+    #     funcs funcinst∗
+    #     tables tableinst∗
+    #     mems meminst∗
+    #     globals globalinst∗
+    # }
+    #
+    # Addresses are dynamic, globally unique references to runtime objects, in contrast to indices, which are static,
+    # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
+    # a memory instance in the store, not an offset inside a memory instance.
+    def __init__(self):
+        self.function_list: typing.List[FunctionInstance] = []
+        self.table_list: typing.List[TableInstance] = []
+        self.memory_list: typing.List[MemoryInstance] = []
+        self.global_list: typing.List[GlobalInstance] = []
+
+    def allocate_wasm_function(self, module: ModuleInstance, function: binary.Function) -> FunctionAddress:
+        function_address = FunctionAddress(len(self.function_list))
+        function_type = module.type_list[function.type_index]
+        wasmfunc = WasmFunc(function_type, module, function)
+        self.function_list.append(wasmfunc)
+        return function_address
+
+    def allocate_host_function(self, hostfunc: HostFunc):
+        function_address = FunctionAddress(len(self.function_list))
+        self.function_list.append(hostfunc)
+        return function_address
+
+
 class ExportInstance:
     # An export instance is the runtime representation of an export. It defines the export's name and the associated
     # external value.
@@ -331,22 +343,46 @@ class Machine:
         self.stack: Stack = Stack()
         self.store: Store = Store()
 
-    def instantiate(self, module: binary.Module,  external_value_list: typing.List[ExternValue]):
+    def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
+        # imps = imps if imps else {}
+        # extern_value_list: typing.List[ExternValue] = []
+        # for e in module.import_list:
+        #     if e.module not in imps or e.name not in imps[e.module]:
+        #         raise Exception(f'pywasm: missing import {e.module}.{e.name}')
+        #     if e.type == convention.extern_function:
+        #         a = HostFunc(module.types[e.desc], imps[e.module][e.name])
+        #         addr = self.store.allocate_host_function(a)
+        #         extern_value_list.append(addr)
+        #         continue
+        #     if e.type == convention.extern_table:
+        #         raise NotImplementedError
+        #     if e.type == convention.extern_memory:
+        #         raise NotImplementedError
+        #     if e.type == convention.extern_global:
+        #         raise NotImplementedError
+
         # [TODO] If module is not valid, then panic
 
         # Assert: module is valid with external types classifying its imports
-        for e in module.import_list:
-            assert e.type in [
-                convention.extern_function,
-                convention.extern_table,
-                convention.extern_memory,
-                convention.extern_global,
-            ]
+        # for e in extern_value_list:
+        #     if isinstance(e, FunctionAddress):
+        #         assert e < len(self.store.function_list)
+        #     if isinstance(e, TableAddress):
+        #         assert e < len(self.store.table_list)
+        #     if isinstance(e, MemoryAddress):
+        #         assert e < len(self.store.memory_list)
+        #     if isinstance(e, GlobalAddress):
+        #         assert e < len(self.store.global_list)
+
         # If the number m of imports is not equal to the number n of provided external values, then fail
-        assert len(module.import_list) == len(external_value_list)
+        # assert len(module.import_list) == len(extern_value_list)
+
         # For each external value and external type, do:
+        # for i in range(len(extern_value_list)):
         # If externval is not valid with an external type in store S, then fail
         # If externtype does not match externtype, then fail.
+
+        pass
 
     def allocate(self):
         pass

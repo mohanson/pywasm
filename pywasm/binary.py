@@ -480,7 +480,6 @@ class Import:
     def __init__(self):
         self.module: str = ''
         self.name: str = ''
-        self.type: int = 0x00
         self.desc: ImportDesc = 0x00
 
     def __repr__(self):
@@ -493,13 +492,13 @@ class Import:
         o.module = r.read(n).decode()
         n = leb128.u.decode_reader(r)[0]
         o.name = r.read(n).decode()
-        o.type = ord(r.read(1))
+        n = ord(r.read(1))
         o.desc = {
             convention.extern_function: TypeIndex.from_reader,
             convention.extern_table: TableType.from_reader,
             convention.extern_memory: MemoryType.from_reader,
             convention.extern_global: GlobalType.from_reader,
-        }[o.type](r)
+        }[n](r)
         return o
 
 
