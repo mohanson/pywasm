@@ -284,26 +284,29 @@ class Label:
     #
     # Intuitively, instr∗ is the continuation to execute when the branch is taken, in place of the original control
     # construct.
-    def __init__(self):
-        self.arity: int = 0x00
-        self.instr: typing.List[binary.Instruction] = []
+    def __init__(self, opcode: int, instruction_list: typing.List[binary.Instruction], arity: int):
+        # Mark which instruction is replaced by Label, usefull in loop
+        self.opcode = opcode
+        self.instruction_list = instruction_list
+        self.arity = arity
+        self.value_stack = Stack()
 
 
 class Frame:
-    def __init__(self, module: ModuleInstance, local_list: typing.List[Value]):
+    # Activation frames carry the return arity n of the respective function, hold the values of its locals
+    # (including arguments) in the order corresponding to their static local indices, and a reference to the function's
+    # own module instance.
+
+    def __init__(self, module: ModuleInstance,
+                 local_list: typing.List[Value],
+                 instruction_list: typing.List[binary.Instruction],
+                 arity: int):
         self.module = module
         self.local_list = local_list
-
-
-class Activation:
-    # Activation frames carry the return arity of the respective function, hold the values of its locals (including
-    # arguments) in the order corresponding to their static local indices, and a reference to the function’s own module
-    # instance:
-    #
-    # activation ::= framen{frame}
-    # frame ::= {locals val∗, module moduleinst}
-    def __init__(self, frame: Frame):
-        self.frame = frame
+        self.instruction_list = instruction_list
+        self.arity = arity
+        self.label_stack = Stack()
+        self.value_stack = Stack()
 
 
 class Stack:
@@ -316,12 +319,12 @@ class Stack:
     # These entries can occur on the stack in any order during the execution of a program. Stack entries are described
     # by abstract syntax as follows.
     def __init__(self):
-        self.data: typing.List[typing.Union[Value, Label, Activation]] = []
+        self.data: typing.List[typing.Union[Value, Label, Frame]] = []
 
     def pop(self):
         return self.data.pop()
 
-    def add(self, v: typing.Union[Value, Label, Activation]):
+    def add(self, v: typing.Union[Value, Label, Frame]):
         self.data.append(v)
 
 # ======================================================================================================================
@@ -355,6 +358,16 @@ def match_global(a: binary.GlobalType, b: binary.GlobalType) -> bool:
     return a.mut == b.mut and a.value_type == b.value_type
 
 
+# ======================================================================================================================
+# Abstract Machine
+# ======================================================================================================================
+
+class Configuration:
+    def __init__(self, store: Store):
+        self.store = store
+        self.frame_stack = Stack()
+
+
 class Machine:
     # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
     # which records operand values and control constructs, and an abstract store containing global state.
@@ -362,6 +375,12 @@ class Machine:
         self.module: ModuleInstance = ModuleInstance()
         self.stack: Stack = Stack()
         self.store: Store = Store()
+
+    def init_elem(self):
+        pass
+
+    def init_data(self):
+        pass
 
     def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
         log.debugln('instantiate')
