@@ -78,6 +78,9 @@ class Result:
     def __init__(self, data: typing.List[Value]):
         self.data = data
 
+    def __repr__(self):
+        return self.data.__repr__()
+
 
 class FunctionAddress(int):
     def __repr__(self):
@@ -122,9 +125,12 @@ class ModuleInstance:
 
 class WasmFunc:
     def __init__(self, function_type: binary.FunctionType, module: ModuleInstance, code: binary.Function):
-        self.function_type = function_type
+        self.type = function_type
         self.module = module
         self.code = code
+
+    def __repr__(self):
+        return f'wasm_func({self.type})'
 
 
 class HostFunc:
@@ -133,7 +139,7 @@ class HostFunc:
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
     def __init__(self, function_type: binary.FunctionType, hostcode: typing.Callable):
-        self.function_type = function_type
+        self.type = function_type
         self.hostcode = hostcode
 
 
@@ -363,9 +369,20 @@ def match_global(a: binary.GlobalType, b: binary.GlobalType) -> bool:
 # ======================================================================================================================
 
 class Configuration:
+    # A configuration consists of the current store and an executing thread.
+    # A thread is a computation over instructions that operates relative to a current frame referring to the module
+    # instance in which the computation runs, i.e., where the current function originates from.
+    #
+    # config ::= store;thread
+    # thread ::= frame;instr∗
     def __init__(self, store: Store):
         self.store = store
         self.frame_stack = Stack()
+
+    def execute(self):
+        frame: Frame = self.frame_stack.data[-1]
+        for e in frame.instruction_list:
+            print(e)
 
 
 class Machine:
@@ -376,11 +393,11 @@ class Machine:
         self.stack: Stack = Stack()
         self.store: Store = Store()
 
-    def init_elem(self):
-        pass
+    # def init_elem(self):
+    #     pass
 
-    def init_data(self):
-        pass
+    # def init_data(self):
+    #     pass
 
     def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
         log.debugln('instantiate')
@@ -447,5 +464,31 @@ class Machine:
             export_inst = ExportInstance(e.name, e.desc)
             self.module.export_list.append(export_inst)
 
-    def invocate(self):
-        pass
+    def invocate(self, function_addr: FunctionAddress, function_args: typing.List[Value]) -> Result:
+        function = self.store.function_list[function_addr]
+        log.debugln(f'invocate {function}({function_args})')
+        for e, t in zip(function_args, function.type.args.data):
+            assert e.type == t
+        assert len(function.type.rets.data) < 2
+
+        conf = Configuration(self.store)
+        if isinstance(function, WasmFunc):
+            local_list = [Value() for _ in function.code.local_list]
+            body = binary.Instruction()
+            body.opcode = instruction.block
+            if len(function.type.rets.data) == 1:
+                body.args = [binary.BlockType(function.type.rets.data[0]),  function.code.expr.data]
+            else:
+                body.args = [binary.BlockType(convention.empty), function.code.expr.data]
+            frame = Frame(
+                module=function.module,
+                local_list=function_args + local_list,
+                instruction_list=[body],
+                arity=len(function.type.rets.data),
+            )
+            # frame.label_stack.add(Label(instruction.block,  function.code.expr.data, 1))
+            conf.frame_stack.add(frame)
+            conf.execute()
+            return Result([])
+        else:
+            raise Exception(f'pywasm: unknown function type: {type(function)}')
