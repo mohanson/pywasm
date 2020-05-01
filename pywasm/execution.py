@@ -1296,7 +1296,6 @@ class Machine:
     #     pass
 
     def instantiate(self, module: binary.Module, extern_value_list: typing.List[ExternValue]):
-        log.debugln('instantiate module')
         self.module.type_list = module.type_list
 
         # [TODO] If module is not valid, then panic
@@ -1362,7 +1361,6 @@ class Machine:
         extern_value_list: typing.List[ExternValue],
         global_values: typing.List[Value],
     ):
-        log.debugln('allocate')
         # For each function func in module.funcs, do:
         for e in module.function_list:
             function_addr = self.store.allocate_wasm_function(self.module, e)
@@ -1378,7 +1376,10 @@ class Machine:
             memory_addr = self.store.allocate_memory(e.type)
             self.module.memory_addr_list.append(memory_addr)
 
-        # [TODO] For each global in module.globals, do:
+        # For each global in module.globals, do:
+        for i, e in enumerate(module.global_list):
+            global_addr = self.store.allocate_global(e.type, global_values[i])
+            self.module.global_addr_list.append(global_addr)
 
         # For each export in module.exports, do:
         for e in module.export_list:
