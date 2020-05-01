@@ -297,6 +297,9 @@ class Label:
         self.arity = arity
         self.value_stack = Stack()
 
+    def __repr__(self):
+        return f'label({self.arity})'
+
 
 class Frame:
     # Activation frames carry the return arity n of the respective function, hold the values of its locals
@@ -398,6 +401,8 @@ class Configuration:
         r = []
         for _ in range(frame.arity):
             r.append(frame.value_stack.pop())
+        self.frame_stack.pop()
+        assert self.frame_stack.len() == 0
         return Result(r)
 
 
@@ -607,6 +612,7 @@ class ArithmeticLogicUnit:
                 config.current_label().value_stack.add(v)
             else:
                 config.current_frame().value_stack.add(v)
+        assert label.value_stack.len() == 0
 
     @staticmethod
     def loop(config: Configuration, i: binary.Instruction):
