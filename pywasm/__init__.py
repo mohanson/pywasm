@@ -62,6 +62,8 @@ class Runtime:
 # If you have already compiled a module from another language using tools like Emscripten, or loaded and run the code
 # by Javascript yourself, the pywasm API is easy to learn.
 
+def on_debug():
+    log.lvl = 1
 
 def load(name: str, imps: typing.Dict = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
