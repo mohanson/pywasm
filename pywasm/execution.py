@@ -1357,7 +1357,15 @@ class Machine:
 
         # For each export in module.exports, do:
         for e in module.export_list:
-            export_inst = ExportInstance(e.name, e.desc)
+            if isinstance(e.desc, binary.FunctionIndex):
+                addr = self.module.function_addr_list[e.desc]
+            if isinstance(e.desc, binary.TableIndex):
+                addr = self.module.table_addr_list[e.desc]
+            if isinstance(e.desc, binary.MemoryIndex):
+                addr = self.module.memory_addr_list[e.desc]
+            if isinstance(e.desc, binary.GlobalIndex):
+                addr = self.module.global_addr_list[e.desc]
+            export_inst = ExportInstance(e.name, addr)
             self.module.export_list.append(export_inst)
 
     def invocate(self, function_addr: FunctionAddress, function_args: typing.List[Value]) -> Result:
