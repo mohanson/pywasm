@@ -1355,6 +1355,36 @@ class Machine:
         # initializer values, and let S be the extended store produced by module allocation.
         self.allocate(module, extern_value_list, global_values)
 
+        for element_segment in module.element_list:
+            # Let F be the frame, push the frame F to the stack
+            frame = Frame(self, [], element_segment.offset.data, arity=1)
+            config = Configuration(store=self.store)
+            config.frame_stack.add(frame)
+            r = config.execute().data[0]
+            offset = r.val()
+            table_addr = self.module.table_addr_list[e.table_index]
+            table_instance = self.store.table_list[table_addr]
+            for i, e in enumerate(element_segment.init):
+                table_instance.element_list[offset + i] = e
+
+        for data_segment in module.data_list:
+            frame = Frame(self, [], element_segment.offset.data, arity=1)
+            config = Configuration(store=self.store)
+            config.frame_stack.add(frame)
+            r = config.execute().data[0]
+            offset = r.val()
+            memory_addr = self.module.memory_addr_list[data_segment.memory_index]
+            memory_instance = self.store.memory_list[memory_addr]
+            memory_instance.data[offset.n: offset.n + len(data_segment.init)] = data_segment.init
+
+        # Assert: due to validation, the frame F is now on the top of the stack.
+        assert self.stack.len() == 0
+
+        # If the start function module.start is not empty, invoke the function instance
+        if module.start is not None:
+            log.debugln(f'running start function {module.start}')
+            self.invocate(self.module.function_addr_list[module.start.function_idx], [])
+
     def allocate(
         self,
         module: binary.Module,

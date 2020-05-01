@@ -1012,7 +1012,7 @@ class Module:
         self.global_list: typing.List[Global] = []
         self.element_list: typing.List[Element] = []
         self.data_list: typing.List[Data] = []
-        self.start: typing.Optional[StartFunction]
+        self.start: typing.Optional[StartFunction] = None
         self.import_list: typing.List[Import] = []
         self.export_list: typing.List[Export] = []
 
