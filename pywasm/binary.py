@@ -218,7 +218,6 @@ class Instruction:
 
     def __init__(self):
         self.opcode: int = 0x00
-        self.fccode: int = 0x00
         self.args: typing.List[typing.Any] = []
 
     def __repr__(self):
@@ -228,7 +227,6 @@ class Instruction:
     def from_reader(cls, r: typing.BinaryIO):
         o = Instruction()
         o.opcode: int = ord(r.read(1))
-        o.fccode: int = 0x00
         o.args = []
         if o.opcode in [
             instruction.block,

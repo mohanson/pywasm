@@ -314,6 +314,9 @@ class Frame:
         self.label_stack = Stack()
         self.value_stack = Stack()
 
+    def __repr__(self):
+        return f'frame({self.arity}, {self.local_list})'
+
 
 class Stack:
     # Besides the store, most instructions interact with an implicit stack. The stack contains three kinds of entries:
@@ -326,6 +329,9 @@ class Stack:
     # by abstract syntax as follows.
     def __init__(self):
         self.data: typing.List[typing.Union[Value, Label, Frame]] = []
+
+    def len(self):
+        return len(self.data)
 
     def pop(self):
         return self.data.pop()
@@ -382,7 +388,889 @@ class Configuration:
     def execute(self):
         frame: Frame = self.frame_stack.data[-1]
         for e in frame.instruction_list:
-            print(e)
+            ArithmeticLogicUnit.exec(e, self)
+
+# ======================================================================================================================
+# Instruction Set
+# ======================================================================================================================
+
+
+class ArithmeticLogicUnit:
+
+    @staticmethod
+    def exec(i: binary.Instruction, config: Configuration):
+        log.debugln(i)
+        func = {
+            instruction.unreachable: ArithmeticLogicUnit.unreachable,
+            instruction.nop: ArithmeticLogicUnit.nop,
+            instruction.block: ArithmeticLogicUnit.block,
+            instruction.loop: ArithmeticLogicUnit.loop,
+            instruction.if_: ArithmeticLogicUnit.if_,
+            instruction.br: ArithmeticLogicUnit.br,
+            instruction.br_if: ArithmeticLogicUnit.br_if,
+            instruction.br_table: ArithmeticLogicUnit.br_table,
+            instruction.return_: ArithmeticLogicUnit.return_,
+            instruction.call: ArithmeticLogicUnit.call,
+            instruction.call_indirect: ArithmeticLogicUnit.call_indirect,
+            instruction.drop: ArithmeticLogicUnit.drop,
+            instruction.select: ArithmeticLogicUnit.select,
+            instruction.get_local: ArithmeticLogicUnit.get_local,
+            instruction.set_local: ArithmeticLogicUnit.set_local,
+            instruction.tee_local: ArithmeticLogicUnit.tee_local,
+            instruction.get_global: ArithmeticLogicUnit.get_global,
+            instruction.set_global: ArithmeticLogicUnit.set_global,
+            instruction.i32_load: ArithmeticLogicUnit.i32_load,
+            instruction.i64_load: ArithmeticLogicUnit.i64_load,
+            instruction.f32_load: ArithmeticLogicUnit.f32_load,
+            instruction.f64_load: ArithmeticLogicUnit.f64_load,
+            instruction.i32_load8_s: ArithmeticLogicUnit.i32_load8_s,
+            instruction.i32_load8_u: ArithmeticLogicUnit.i32_load8_u,
+            instruction.i32_load16_s: ArithmeticLogicUnit.i32_load16_s,
+            instruction.i32_load16_u: ArithmeticLogicUnit.i32_load16_u,
+            instruction.i64_load8_s: ArithmeticLogicUnit.i64_load8_s,
+            instruction.i64_load8_u: ArithmeticLogicUnit.i64_load8_u,
+            instruction.i64_load16_s: ArithmeticLogicUnit.i64_load16_s,
+            instruction.i64_load16_u: ArithmeticLogicUnit.i64_load16_u,
+            instruction.i64_load32_s: ArithmeticLogicUnit.i64_load32_s,
+            instruction.i64_load32_u: ArithmeticLogicUnit.i64_load32_u,
+            instruction.i32_store: ArithmeticLogicUnit.i32_store,
+            instruction.i64_store: ArithmeticLogicUnit.i64_store,
+            instruction.f32_store: ArithmeticLogicUnit.f32_store,
+            instruction.f64_store: ArithmeticLogicUnit.f64_store,
+            instruction.i32_store8: ArithmeticLogicUnit.i32_store8,
+            instruction.i32_store16: ArithmeticLogicUnit.i32_store16,
+            instruction.i64_store8: ArithmeticLogicUnit.i64_store8,
+            instruction.i64_store16: ArithmeticLogicUnit.i64_store16,
+            instruction.i64_store32: ArithmeticLogicUnit.i64_store32,
+            instruction.current_memory: ArithmeticLogicUnit.current_memory,
+            instruction.grow_memory: ArithmeticLogicUnit.grow_memory,
+            instruction.i32_const: ArithmeticLogicUnit.i32_const,
+            instruction.i64_const: ArithmeticLogicUnit.i64_const,
+            instruction.f32_const: ArithmeticLogicUnit.f32_const,
+            instruction.f64_const: ArithmeticLogicUnit.f64_const,
+            instruction.i32_eqz: ArithmeticLogicUnit.i32_eqz,
+            instruction.i32_eq: ArithmeticLogicUnit.i32_eq,
+            instruction.i32_ne: ArithmeticLogicUnit.i32_ne,
+            instruction.i32_lts: ArithmeticLogicUnit.i32_lts,
+            instruction.i32_ltu: ArithmeticLogicUnit.i32_ltu,
+            instruction.i32_gts: ArithmeticLogicUnit.i32_gts,
+            instruction.i32_gtu: ArithmeticLogicUnit.i32_gtu,
+            instruction.i32_les: ArithmeticLogicUnit.i32_les,
+            instruction.i32_leu: ArithmeticLogicUnit.i32_leu,
+            instruction.i32_ges: ArithmeticLogicUnit.i32_ges,
+            instruction.i32_geu: ArithmeticLogicUnit.i32_geu,
+            instruction.i64_eqz: ArithmeticLogicUnit.i64_eqz,
+            instruction.i64_eq: ArithmeticLogicUnit.i64_eq,
+            instruction.i64_ne: ArithmeticLogicUnit.i64_ne,
+            instruction.i64_lts: ArithmeticLogicUnit.i64_lts,
+            instruction.i64_ltu: ArithmeticLogicUnit.i64_ltu,
+            instruction.i64_gts: ArithmeticLogicUnit.i64_gts,
+            instruction.i64_gtu: ArithmeticLogicUnit.i64_gtu,
+            instruction.i64_les: ArithmeticLogicUnit.i64_les,
+            instruction.i64_leu: ArithmeticLogicUnit.i64_leu,
+            instruction.i64_ges: ArithmeticLogicUnit.i64_ges,
+            instruction.i64_geu: ArithmeticLogicUnit.i64_geu,
+            instruction.f32_eq: ArithmeticLogicUnit.f32_eq,
+            instruction.f32_ne: ArithmeticLogicUnit.f32_ne,
+            instruction.f32_lt: ArithmeticLogicUnit.f32_lt,
+            instruction.f32_gt: ArithmeticLogicUnit.f32_gt,
+            instruction.f32_le: ArithmeticLogicUnit.f32_le,
+            instruction.f32_ge: ArithmeticLogicUnit.f32_ge,
+            instruction.f64_eq: ArithmeticLogicUnit.f64_eq,
+            instruction.f64_ne: ArithmeticLogicUnit.f64_ne,
+            instruction.f64_lt: ArithmeticLogicUnit.f64_lt,
+            instruction.f64_gt: ArithmeticLogicUnit.f64_gt,
+            instruction.f64_le: ArithmeticLogicUnit.f64_le,
+            instruction.f64_ge: ArithmeticLogicUnit.f64_ge,
+            instruction.i32_clz: ArithmeticLogicUnit.i32_clz,
+            instruction.i32_ctz: ArithmeticLogicUnit.i32_ctz,
+            instruction.i32_popcnt: ArithmeticLogicUnit.i32_popcnt,
+            instruction.i32_add: ArithmeticLogicUnit.i32_add,
+            instruction.i32_sub: ArithmeticLogicUnit.i32_sub,
+            instruction.i32_mul: ArithmeticLogicUnit.i32_mul,
+            instruction.i32_divs: ArithmeticLogicUnit.i32_divs,
+            instruction.i32_divu: ArithmeticLogicUnit.i32_divu,
+            instruction.i32_rems: ArithmeticLogicUnit.i32_rems,
+            instruction.i32_remu: ArithmeticLogicUnit.i32_remu,
+            instruction.i32_and: ArithmeticLogicUnit.i32_and,
+            instruction.i32_or: ArithmeticLogicUnit.i32_or,
+            instruction.i32_xor: ArithmeticLogicUnit.i32_xor,
+            instruction.i32_shl: ArithmeticLogicUnit.i32_shl,
+            instruction.i32_shrs: ArithmeticLogicUnit.i32_shrs,
+            instruction.i32_shru: ArithmeticLogicUnit.i32_shru,
+            instruction.i32_rotl: ArithmeticLogicUnit.i32_rotl,
+            instruction.i32_rotr: ArithmeticLogicUnit.i32_rotr,
+            instruction.i64_clz: ArithmeticLogicUnit.i64_clz,
+            instruction.i64_ctz: ArithmeticLogicUnit.i64_ctz,
+            instruction.i64_popcnt: ArithmeticLogicUnit.i64_popcnt,
+            instruction.i64_add: ArithmeticLogicUnit.i64_add,
+            instruction.i64_sub: ArithmeticLogicUnit.i64_sub,
+            instruction.i64_mul: ArithmeticLogicUnit.i64_mul,
+            instruction.i64_divs: ArithmeticLogicUnit.i64_divs,
+            instruction.i64_divu: ArithmeticLogicUnit.i64_divu,
+            instruction.i64_rems: ArithmeticLogicUnit.i64_rems,
+            instruction.i64_remu: ArithmeticLogicUnit.i64_remu,
+            instruction.i64_and: ArithmeticLogicUnit.i64_and,
+            instruction.i64_or: ArithmeticLogicUnit.i64_or,
+            instruction.i64_xor: ArithmeticLogicUnit.i64_xor,
+            instruction.i64_shl: ArithmeticLogicUnit.i64_shl,
+            instruction.i64_shrs: ArithmeticLogicUnit.i64_shrs,
+            instruction.i64_shru: ArithmeticLogicUnit.i64_shru,
+            instruction.i64_rotl: ArithmeticLogicUnit.i64_rotl,
+            instruction.i64_rotr: ArithmeticLogicUnit.i64_rotr,
+            instruction.f32_abs: ArithmeticLogicUnit.f32_abs,
+            instruction.f32_neg: ArithmeticLogicUnit.f32_neg,
+            instruction.f32_ceil: ArithmeticLogicUnit.f32_ceil,
+            instruction.f32_floor: ArithmeticLogicUnit.f32_floor,
+            instruction.f32_trunc: ArithmeticLogicUnit.f32_trunc,
+            instruction.f32_nearest: ArithmeticLogicUnit.f32_nearest,
+            instruction.f32_sqrt: ArithmeticLogicUnit.f32_sqrt,
+            instruction.f32_add: ArithmeticLogicUnit.f32_add,
+            instruction.f32_sub: ArithmeticLogicUnit.f32_sub,
+            instruction.f32_mul: ArithmeticLogicUnit.f32_mul,
+            instruction.f32_div: ArithmeticLogicUnit.f32_div,
+            instruction.f32_min: ArithmeticLogicUnit.f32_min,
+            instruction.f32_max: ArithmeticLogicUnit.f32_max,
+            instruction.f32_copysign: ArithmeticLogicUnit.f32_copysign,
+            instruction.f64_abs: ArithmeticLogicUnit.f64_abs,
+            instruction.f64_neg: ArithmeticLogicUnit.f64_neg,
+            instruction.f64_ceil: ArithmeticLogicUnit.f64_ceil,
+            instruction.f64_floor: ArithmeticLogicUnit.f64_floor,
+            instruction.f64_trunc: ArithmeticLogicUnit.f64_trunc,
+            instruction.f64_nearest: ArithmeticLogicUnit.f64_nearest,
+            instruction.f64_sqrt: ArithmeticLogicUnit.f64_sqrt,
+            instruction.f64_add: ArithmeticLogicUnit.f64_add,
+            instruction.f64_sub: ArithmeticLogicUnit.f64_sub,
+            instruction.f64_mul: ArithmeticLogicUnit.f64_mul,
+            instruction.f64_div: ArithmeticLogicUnit.f64_div,
+            instruction.f64_min: ArithmeticLogicUnit.f64_min,
+            instruction.f64_max: ArithmeticLogicUnit.f64_max,
+            instruction.f64_copysign: ArithmeticLogicUnit.f64_copysign,
+            instruction.i32_wrap_i64: ArithmeticLogicUnit.i32_wrap_i64,
+            instruction.i32_trunc_sf32: ArithmeticLogicUnit.i32_trunc_sf32,
+            instruction.i32_trunc_uf32: ArithmeticLogicUnit.i32_trunc_uf32,
+            instruction.i32_trunc_sf64: ArithmeticLogicUnit.i32_trunc_sf64,
+            instruction.i32_trunc_uf64: ArithmeticLogicUnit.i32_trunc_uf64,
+            instruction.i64_extend_si32: ArithmeticLogicUnit.i64_extend_si32,
+            instruction.i64_extend_ui32: ArithmeticLogicUnit.i64_extend_ui32,
+            instruction.i64_trunc_sf32: ArithmeticLogicUnit.i64_trunc_sf32,
+            instruction.i64_trunc_uf32: ArithmeticLogicUnit.i64_trunc_uf32,
+            instruction.i64_trunc_sf64: ArithmeticLogicUnit.i64_trunc_sf64,
+            instruction.i64_trunc_uf64: ArithmeticLogicUnit.i64_trunc_uf64,
+            instruction.f32_convert_si32: ArithmeticLogicUnit.f32_convert_si32,
+            instruction.f32_convert_ui32: ArithmeticLogicUnit.f32_convert_ui32,
+            instruction.f32_convert_si64: ArithmeticLogicUnit.f32_convert_si64,
+            instruction.f32_convert_ui64: ArithmeticLogicUnit.f32_convert_ui64,
+            instruction.f32_demote_f64: ArithmeticLogicUnit.f32_demote_f64,
+            instruction.f64_convert_si32: ArithmeticLogicUnit.f64_convert_si32,
+            instruction.f64_convert_ui32: ArithmeticLogicUnit.f64_convert_ui32,
+            instruction.f64_convert_si64: ArithmeticLogicUnit.f64_convert_si64,
+            instruction.f64_convert_ui64: ArithmeticLogicUnit.f64_convert_ui64,
+            instruction.f64_promote_f32: ArithmeticLogicUnit.f64_promote_f32,
+            instruction.i32_reinterpret_f32: ArithmeticLogicUnit.i32_reinterpret_f32,
+            instruction.i64_reinterpret_f64: ArithmeticLogicUnit.i64_reinterpret_f64,
+            instruction.f32_reinterpret_i32: ArithmeticLogicUnit.f32_reinterpret_i32,
+            instruction.f64_reinterpret_i64: ArithmeticLogicUnit.f64_reinterpret_i64,
+        }[i.opcode]
+        func(i, config)
+
+    @staticmethod
+    def unreachable(i: binary.Instruction, config: Configuration):
+        raise Exception('pywasm: unreachable')
+
+    @staticmethod
+    def nop(i: binary.Instruction, config: Configuration):
+        pass
+
+    @staticmethod
+    def block(i: binary.Instruction, config: Configuration):
+        current_label = config.current_label
+        arity = 1
+        label = Label(i.opcode, i.args[1], arity)
+        config.current_frame.label_stack.add(label)
+        config.current_label = label
+        for e in i.args[1]:
+            ArithmeticLogicUnit.exec(e, config)
+        config.current_frame.label_stack.pop()
+        for _ in range(arity):
+            v = label.value_stack.pop()
+            if current_label:
+                current_label.value_stack.add(v)
+            else:
+                config.current_frame.value_stack.add(v)
+        config.current_label = current_label
+
+
+    @staticmethod
+    def loop(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def if_(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def br(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def br_if(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def br_table(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def return_(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def call(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def call_indirect(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def drop(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def select(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def get_local(i: binary.Instruction, config: Configuration):
+        value = config.current_frame().local_list[i.args[0]]
+        config.current_label().value_stack.add(value)
+
+    @staticmethod
+    def set_local(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def tee_local(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def get_global(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def set_global(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_load(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_load(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_load(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_load8_s(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_load8_u(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_load16_s(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_load16_u(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load8_s(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load8_u(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load16_s(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load16_u(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load32_s(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_load32_u(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_store(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_store(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_store(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_store(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_store8(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_store16(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_store8(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_store16(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_store32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def current_memory(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def grow_memory(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_const(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_const(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_const(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_const(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_eqz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_eq(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_ne(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_lts(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_ltu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_gts(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_gtu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_les(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_leu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_ges(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_geu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_eqz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_eq(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_ne(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_lts(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_ltu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_gts(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_gtu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_les(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_leu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_ges(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_geu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_eq(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_ne(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_lt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_gt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_le(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_ge(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_eq(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_ne(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_lt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_gt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_le(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_ge(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_clz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_ctz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_popcnt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_add(i: binary.Instruction, config: Configuration):
+        a = config.current_label().value_stack.pop().i32()
+        b = config.current_label().value_stack.pop().i32()
+        config.current_label().value_stack.add(a + b)
+
+    @staticmethod
+    def i32_sub(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_mul(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_divs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_divu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_rems(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_remu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_and(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_or(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_xor(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_shl(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_shrs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_shru(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_rotl(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_rotr(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_clz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_ctz(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_popcnt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_add(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_sub(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_mul(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_divs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_divu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_rems(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_remu(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_and(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_or(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_xor(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_shl(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_shrs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_shru(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_rotl(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_rotr(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_abs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_neg(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_ceil(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_floor(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_trunc(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_nearest(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_sqrt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_add(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_sub(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_mul(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_div(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_min(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_max(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_copysign(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_abs(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_neg(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_ceil(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_floor(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_trunc(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_nearest(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_sqrt(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_add(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_sub(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_mul(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_div(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_min(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_max(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_copysign(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_wrap_i64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_trunc_sf32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_trunc_uf32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_trunc_sf64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_trunc_uf64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_extend_si32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_extend_ui32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_trunc_sf32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_trunc_uf32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_trunc_sf64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_trunc_uf64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_convert_si32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_convert_ui32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_convert_si64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_convert_ui64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_demote_f64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_convert_si32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_convert_ui32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_convert_si64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_convert_ui64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_promote_f32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i32_reinterpret_f32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def i64_reinterpret_f64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f32_reinterpret_i32(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
+
+    @staticmethod
+    def f64_reinterpret_i64(i: binary.Instruction, config: Configuration):
+        raise NotImplementedError
 
 
 class Machine:
@@ -486,8 +1374,8 @@ class Machine:
                 instruction_list=[body],
                 arity=len(function.type.rets.data),
             )
-            # frame.label_stack.add(Label(instruction.block,  function.code.expr.data, 1))
             conf.frame_stack.add(frame)
+            conf.current_frame = frame
             conf.execute()
             return Result([])
         else:
