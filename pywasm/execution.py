@@ -410,7 +410,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def exec(config: Configuration, i: binary.Instruction):
-        log.debugln(i)
+        log.debugln(i, config.frame_stack)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
             instruction.nop: ArithmeticLogicUnit.nop,
