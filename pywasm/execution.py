@@ -385,10 +385,21 @@ class Configuration:
         self.store = store
         self.frame_stack = Stack()
 
-    def execute(self):
+    def current_frame(self) -> Frame:
+        return self.frame_stack.data[-1]
+
+    def current_label(self) -> Label:
+        return self.current_frame().label_stack.data[-1]
+
+    def execute(self) -> Result:
         frame: Frame = self.frame_stack.data[-1]
         for e in frame.instruction_list:
-            ArithmeticLogicUnit.exec(e, self)
+            ArithmeticLogicUnit.exec(self, e)
+        r = []
+        for _ in range(frame.arity):
+            r.append(frame.value_stack.pop())
+        return Result(r)
+
 
 # ======================================================================================================================
 # Instruction Set
@@ -398,7 +409,7 @@ class Configuration:
 class ArithmeticLogicUnit:
 
     @staticmethod
-    def exec(i: binary.Instruction, config: Configuration):
+    def exec(config: Configuration, i: binary.Instruction):
         log.debugln(i)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
@@ -572,704 +583,701 @@ class ArithmeticLogicUnit:
             instruction.f32_reinterpret_i32: ArithmeticLogicUnit.f32_reinterpret_i32,
             instruction.f64_reinterpret_i64: ArithmeticLogicUnit.f64_reinterpret_i64,
         }[i.opcode]
-        func(i, config)
+        func(config, i)
 
     @staticmethod
-    def unreachable(i: binary.Instruction, config: Configuration):
+    def unreachable(config: Configuration, i: binary.Instruction):
         raise Exception('pywasm: unreachable')
 
     @staticmethod
-    def nop(i: binary.Instruction, config: Configuration):
+    def nop(config: Configuration, i: binary.Instruction):
         pass
 
     @staticmethod
-    def block(i: binary.Instruction, config: Configuration):
-        current_label = config.current_label
+    def block(config: Configuration, i: binary.Instruction):
         arity = 1
         label = Label(i.opcode, i.args[1], arity)
-        config.current_frame.label_stack.add(label)
-        config.current_label = label
+        config.current_frame().label_stack.add(label)
         for e in i.args[1]:
-            ArithmeticLogicUnit.exec(e, config)
-        config.current_frame.label_stack.pop()
+            ArithmeticLogicUnit.exec(config, e)
+        config.current_frame().label_stack.pop()
         for _ in range(arity):
             v = label.value_stack.pop()
-            if current_label:
-                current_label.value_stack.add(v)
+            if config.current_frame().label_stack.len():
+                config.current_label().value_stack.add(v)
             else:
-                config.current_frame.value_stack.add(v)
-        config.current_label = current_label
-
+                config.current_frame().value_stack.add(v)
 
     @staticmethod
-    def loop(i: binary.Instruction, config: Configuration):
+    def loop(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def if_(i: binary.Instruction, config: Configuration):
+    def if_(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def br(i: binary.Instruction, config: Configuration):
+    def br(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def br_if(i: binary.Instruction, config: Configuration):
+    def br_if(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def br_table(i: binary.Instruction, config: Configuration):
+    def br_table(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def return_(i: binary.Instruction, config: Configuration):
+    def return_(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def call(i: binary.Instruction, config: Configuration):
+    def call(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def call_indirect(i: binary.Instruction, config: Configuration):
+    def call_indirect(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def drop(i: binary.Instruction, config: Configuration):
+    def drop(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def select(i: binary.Instruction, config: Configuration):
+    def select(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def get_local(i: binary.Instruction, config: Configuration):
+    def get_local(config: Configuration, i: binary.Instruction):
         value = config.current_frame().local_list[i.args[0]]
         config.current_label().value_stack.add(value)
 
     @staticmethod
-    def set_local(i: binary.Instruction, config: Configuration):
+    def set_local(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def tee_local(i: binary.Instruction, config: Configuration):
+    def tee_local(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def get_global(i: binary.Instruction, config: Configuration):
+    def get_global(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def set_global(i: binary.Instruction, config: Configuration):
+    def set_global(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_load(i: binary.Instruction, config: Configuration):
+    def i32_load(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load(i: binary.Instruction, config: Configuration):
+    def i64_load(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_load(i: binary.Instruction, config: Configuration):
+    def f32_load(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_load(i: binary.Instruction, config: Configuration):
+    def f64_load(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_load8_s(i: binary.Instruction, config: Configuration):
+    def i32_load8_s(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_load8_u(i: binary.Instruction, config: Configuration):
+    def i32_load8_u(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_load16_s(i: binary.Instruction, config: Configuration):
+    def i32_load16_s(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_load16_u(i: binary.Instruction, config: Configuration):
+    def i32_load16_u(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load8_s(i: binary.Instruction, config: Configuration):
+    def i64_load8_s(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load8_u(i: binary.Instruction, config: Configuration):
+    def i64_load8_u(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load16_s(i: binary.Instruction, config: Configuration):
+    def i64_load16_s(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load16_u(i: binary.Instruction, config: Configuration):
+    def i64_load16_u(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load32_s(i: binary.Instruction, config: Configuration):
+    def i64_load32_s(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_load32_u(i: binary.Instruction, config: Configuration):
+    def i64_load32_u(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_store(i: binary.Instruction, config: Configuration):
+    def i32_store(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_store(i: binary.Instruction, config: Configuration):
+    def i64_store(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_store(i: binary.Instruction, config: Configuration):
+    def f32_store(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_store(i: binary.Instruction, config: Configuration):
+    def f64_store(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_store8(i: binary.Instruction, config: Configuration):
+    def i32_store8(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_store16(i: binary.Instruction, config: Configuration):
+    def i32_store16(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_store8(i: binary.Instruction, config: Configuration):
+    def i64_store8(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_store16(i: binary.Instruction, config: Configuration):
+    def i64_store16(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_store32(i: binary.Instruction, config: Configuration):
+    def i64_store32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def current_memory(i: binary.Instruction, config: Configuration):
+    def current_memory(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def grow_memory(i: binary.Instruction, config: Configuration):
+    def grow_memory(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_const(i: binary.Instruction, config: Configuration):
+    def i32_const(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_const(i: binary.Instruction, config: Configuration):
+    def i64_const(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_const(i: binary.Instruction, config: Configuration):
+    def f32_const(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_const(i: binary.Instruction, config: Configuration):
+    def f64_const(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_eqz(i: binary.Instruction, config: Configuration):
+    def i32_eqz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_eq(i: binary.Instruction, config: Configuration):
+    def i32_eq(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_ne(i: binary.Instruction, config: Configuration):
+    def i32_ne(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_lts(i: binary.Instruction, config: Configuration):
+    def i32_lts(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_ltu(i: binary.Instruction, config: Configuration):
+    def i32_ltu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_gts(i: binary.Instruction, config: Configuration):
+    def i32_gts(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_gtu(i: binary.Instruction, config: Configuration):
+    def i32_gtu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_les(i: binary.Instruction, config: Configuration):
+    def i32_les(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_leu(i: binary.Instruction, config: Configuration):
+    def i32_leu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_ges(i: binary.Instruction, config: Configuration):
+    def i32_ges(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_geu(i: binary.Instruction, config: Configuration):
+    def i32_geu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_eqz(i: binary.Instruction, config: Configuration):
+    def i64_eqz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_eq(i: binary.Instruction, config: Configuration):
+    def i64_eq(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_ne(i: binary.Instruction, config: Configuration):
+    def i64_ne(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_lts(i: binary.Instruction, config: Configuration):
+    def i64_lts(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_ltu(i: binary.Instruction, config: Configuration):
+    def i64_ltu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_gts(i: binary.Instruction, config: Configuration):
+    def i64_gts(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_gtu(i: binary.Instruction, config: Configuration):
+    def i64_gtu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_les(i: binary.Instruction, config: Configuration):
+    def i64_les(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_leu(i: binary.Instruction, config: Configuration):
+    def i64_leu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_ges(i: binary.Instruction, config: Configuration):
+    def i64_ges(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_geu(i: binary.Instruction, config: Configuration):
+    def i64_geu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_eq(i: binary.Instruction, config: Configuration):
+    def f32_eq(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_ne(i: binary.Instruction, config: Configuration):
+    def f32_ne(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_lt(i: binary.Instruction, config: Configuration):
+    def f32_lt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_gt(i: binary.Instruction, config: Configuration):
+    def f32_gt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_le(i: binary.Instruction, config: Configuration):
+    def f32_le(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_ge(i: binary.Instruction, config: Configuration):
+    def f32_ge(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_eq(i: binary.Instruction, config: Configuration):
+    def f64_eq(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_ne(i: binary.Instruction, config: Configuration):
+    def f64_ne(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_lt(i: binary.Instruction, config: Configuration):
+    def f64_lt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_gt(i: binary.Instruction, config: Configuration):
+    def f64_gt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_le(i: binary.Instruction, config: Configuration):
+    def f64_le(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_ge(i: binary.Instruction, config: Configuration):
+    def f64_ge(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_clz(i: binary.Instruction, config: Configuration):
+    def i32_clz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_ctz(i: binary.Instruction, config: Configuration):
+    def i32_ctz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_popcnt(i: binary.Instruction, config: Configuration):
+    def i32_popcnt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_add(i: binary.Instruction, config: Configuration):
-        a = config.current_label().value_stack.pop().i32()
+    def i32_add(config: Configuration, i: binary.Instruction):
         b = config.current_label().value_stack.pop().i32()
-        config.current_label().value_stack.add(a + b)
+        a = config.current_label().value_stack.pop().i32()
+        c = Value.from_i32(a + b)
+        config.current_label().value_stack.add(c)
 
     @staticmethod
-    def i32_sub(i: binary.Instruction, config: Configuration):
+    def i32_sub(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_mul(i: binary.Instruction, config: Configuration):
+    def i32_mul(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_divs(i: binary.Instruction, config: Configuration):
+    def i32_divs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_divu(i: binary.Instruction, config: Configuration):
+    def i32_divu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_rems(i: binary.Instruction, config: Configuration):
+    def i32_rems(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_remu(i: binary.Instruction, config: Configuration):
+    def i32_remu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_and(i: binary.Instruction, config: Configuration):
+    def i32_and(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_or(i: binary.Instruction, config: Configuration):
+    def i32_or(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_xor(i: binary.Instruction, config: Configuration):
+    def i32_xor(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_shl(i: binary.Instruction, config: Configuration):
+    def i32_shl(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_shrs(i: binary.Instruction, config: Configuration):
+    def i32_shrs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_shru(i: binary.Instruction, config: Configuration):
+    def i32_shru(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_rotl(i: binary.Instruction, config: Configuration):
+    def i32_rotl(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_rotr(i: binary.Instruction, config: Configuration):
+    def i32_rotr(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_clz(i: binary.Instruction, config: Configuration):
+    def i64_clz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_ctz(i: binary.Instruction, config: Configuration):
+    def i64_ctz(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_popcnt(i: binary.Instruction, config: Configuration):
+    def i64_popcnt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_add(i: binary.Instruction, config: Configuration):
+    def i64_add(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_sub(i: binary.Instruction, config: Configuration):
+    def i64_sub(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_mul(i: binary.Instruction, config: Configuration):
+    def i64_mul(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_divs(i: binary.Instruction, config: Configuration):
+    def i64_divs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_divu(i: binary.Instruction, config: Configuration):
+    def i64_divu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_rems(i: binary.Instruction, config: Configuration):
+    def i64_rems(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_remu(i: binary.Instruction, config: Configuration):
+    def i64_remu(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_and(i: binary.Instruction, config: Configuration):
+    def i64_and(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_or(i: binary.Instruction, config: Configuration):
+    def i64_or(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_xor(i: binary.Instruction, config: Configuration):
+    def i64_xor(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_shl(i: binary.Instruction, config: Configuration):
+    def i64_shl(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_shrs(i: binary.Instruction, config: Configuration):
+    def i64_shrs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_shru(i: binary.Instruction, config: Configuration):
+    def i64_shru(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_rotl(i: binary.Instruction, config: Configuration):
+    def i64_rotl(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_rotr(i: binary.Instruction, config: Configuration):
+    def i64_rotr(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_abs(i: binary.Instruction, config: Configuration):
+    def f32_abs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_neg(i: binary.Instruction, config: Configuration):
+    def f32_neg(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_ceil(i: binary.Instruction, config: Configuration):
+    def f32_ceil(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_floor(i: binary.Instruction, config: Configuration):
+    def f32_floor(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_trunc(i: binary.Instruction, config: Configuration):
+    def f32_trunc(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_nearest(i: binary.Instruction, config: Configuration):
+    def f32_nearest(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_sqrt(i: binary.Instruction, config: Configuration):
+    def f32_sqrt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_add(i: binary.Instruction, config: Configuration):
+    def f32_add(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_sub(i: binary.Instruction, config: Configuration):
+    def f32_sub(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_mul(i: binary.Instruction, config: Configuration):
+    def f32_mul(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_div(i: binary.Instruction, config: Configuration):
+    def f32_div(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_min(i: binary.Instruction, config: Configuration):
+    def f32_min(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_max(i: binary.Instruction, config: Configuration):
+    def f32_max(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_copysign(i: binary.Instruction, config: Configuration):
+    def f32_copysign(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_abs(i: binary.Instruction, config: Configuration):
+    def f64_abs(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_neg(i: binary.Instruction, config: Configuration):
+    def f64_neg(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_ceil(i: binary.Instruction, config: Configuration):
+    def f64_ceil(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_floor(i: binary.Instruction, config: Configuration):
+    def f64_floor(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_trunc(i: binary.Instruction, config: Configuration):
+    def f64_trunc(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_nearest(i: binary.Instruction, config: Configuration):
+    def f64_nearest(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_sqrt(i: binary.Instruction, config: Configuration):
+    def f64_sqrt(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_add(i: binary.Instruction, config: Configuration):
+    def f64_add(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_sub(i: binary.Instruction, config: Configuration):
+    def f64_sub(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_mul(i: binary.Instruction, config: Configuration):
+    def f64_mul(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_div(i: binary.Instruction, config: Configuration):
+    def f64_div(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_min(i: binary.Instruction, config: Configuration):
+    def f64_min(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_max(i: binary.Instruction, config: Configuration):
+    def f64_max(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_copysign(i: binary.Instruction, config: Configuration):
+    def f64_copysign(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_wrap_i64(i: binary.Instruction, config: Configuration):
+    def i32_wrap_i64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_trunc_sf32(i: binary.Instruction, config: Configuration):
+    def i32_trunc_sf32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_trunc_uf32(i: binary.Instruction, config: Configuration):
+    def i32_trunc_uf32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_trunc_sf64(i: binary.Instruction, config: Configuration):
+    def i32_trunc_sf64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_trunc_uf64(i: binary.Instruction, config: Configuration):
+    def i32_trunc_uf64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_extend_si32(i: binary.Instruction, config: Configuration):
+    def i64_extend_si32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_extend_ui32(i: binary.Instruction, config: Configuration):
+    def i64_extend_ui32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_trunc_sf32(i: binary.Instruction, config: Configuration):
+    def i64_trunc_sf32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_trunc_uf32(i: binary.Instruction, config: Configuration):
+    def i64_trunc_uf32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_trunc_sf64(i: binary.Instruction, config: Configuration):
+    def i64_trunc_sf64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_trunc_uf64(i: binary.Instruction, config: Configuration):
+    def i64_trunc_uf64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_convert_si32(i: binary.Instruction, config: Configuration):
+    def f32_convert_si32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_convert_ui32(i: binary.Instruction, config: Configuration):
+    def f32_convert_ui32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_convert_si64(i: binary.Instruction, config: Configuration):
+    def f32_convert_si64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_convert_ui64(i: binary.Instruction, config: Configuration):
+    def f32_convert_ui64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_demote_f64(i: binary.Instruction, config: Configuration):
+    def f32_demote_f64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_convert_si32(i: binary.Instruction, config: Configuration):
+    def f64_convert_si32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_convert_ui32(i: binary.Instruction, config: Configuration):
+    def f64_convert_ui32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_convert_si64(i: binary.Instruction, config: Configuration):
+    def f64_convert_si64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_convert_ui64(i: binary.Instruction, config: Configuration):
+    def f64_convert_ui64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_promote_f32(i: binary.Instruction, config: Configuration):
+    def f64_promote_f32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i32_reinterpret_f32(i: binary.Instruction, config: Configuration):
+    def i32_reinterpret_f32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def i64_reinterpret_f64(i: binary.Instruction, config: Configuration):
+    def i64_reinterpret_f64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f32_reinterpret_i32(i: binary.Instruction, config: Configuration):
+    def f32_reinterpret_i32(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
-    def f64_reinterpret_i64(i: binary.Instruction, config: Configuration):
+    def f64_reinterpret_i64(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
 
@@ -1375,8 +1383,6 @@ class Machine:
                 arity=len(function.type.rets.data),
             )
             conf.frame_stack.add(frame)
-            conf.current_frame = frame
-            conf.execute()
-            return Result([])
+            return conf.execute()
         else:
             raise Exception(f'pywasm: unknown function type: {type(function)}')
