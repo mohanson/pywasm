@@ -14,7 +14,25 @@ class Runtime:
 
     def __init__(self, module: binary.Module, imps: typing.Dict = None):
         self.machine = execution.Machine()
-        self.machine.instantiate(module)
+
+        imps = imps if imps else {}
+        extern_value_list: typing.List[execution.ExternValue] = []
+        for e in module.import_list:
+            if e.module not in imps or e.name not in imps[e.module]:
+                raise Exception(f'pywasm: missing import {e.module}.{e.name}')
+            if isinstance(e.desc, binary.TypeIndex):
+                a = execution.HostFunc(module.type_list[e.desc], imps[e.module][e.name])
+                addr = self.machine.store.allocate_host_function(a)
+                extern_value_list.append(addr)
+                continue
+            if isinstance(e.desc, binary.TableType):
+                raise NotImplementedError
+            if isinstance(e.desc, binary.MemoryType):
+                raise NotImplementedError
+            if isinstance(e.desc, binary.GlobalType):
+                raise NotImplementedError
+
+        self.machine.instantiate(module, extern_value_list)
 
     def func_addr(self, name: str) -> execution.FunctionAddress:
         # Get a function address denoted by the function name
@@ -37,7 +55,7 @@ class Runtime:
                 convention.f64: execution.Value.from_f64,
             }[e](args[i])
             func_args.append(v)
-        return self.machine.invocate(func_addr, func_args)
+        return self.machine.invocate(func_addr, func_args).data[0].val()
 
 
 # Using the pywasm API.

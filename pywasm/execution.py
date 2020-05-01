@@ -1295,41 +1295,66 @@ class Machine:
     # def init_data(self):
     #     pass
 
-    def instantiate(self, module: binary.Module, imps: typing.Dict[str, typing.Dict[str, typing.Any]] = None):
-        log.debugln('instantiate')
+    def instantiate(self, module: binary.Module, extern_value_list: typing.List[ExternValue]):
+        log.debugln('instantiate module')
         self.module.type_list = module.type_list
-        imps = imps if imps else {}
-        extern_value_list: typing.List[ExternValue] = []
-        for e in module.import_list:
-            if e.module not in imps or e.name not in imps[e.module]:
-                raise Exception(f'pywasm: missing import {e.module}.{e.name}')
-            if isinstance(e.desc, binary.TypeIndex):
-                a = HostFunc(self.module.type_list[e.desc], imps[e.module][e.name])
-                addr = self.store.allocate_host_function(a)
-                extern_value_list.append(addr)
-                continue
-            if isinstance(e.desc, binary.TableType):
-                raise NotImplementedError
-            if isinstance(e.desc, binary.MemoryType):
-                raise NotImplementedError
-            if isinstance(e.desc, binary.GlobalType):
-                raise NotImplementedError
 
         # [TODO] If module is not valid, then panic
 
-        # [TODO] Assert: module is valid with external types classifying its imports
+        # Assert: module is valid with external types classifying its imports
+        for e in extern_value_list:
+            if isinstance(e, FunctionAddress):
+                assert e < len(self.store.function_list)
+            if isinstance(e, TableAddress):
+                assert e < len(self.store.table_list)
+            if isinstance(e, MemoryAddress):
+                assert e < len(self.store.memory_list)
+            if isinstance(e, GlobalAddress):
+                assert e < len(self.store.global_list)
 
-        # [TODO] If the number m of imports is not equal to the number n of provided external values, then fail
+        # If the number m of imports is not equal to the number n of provided external values, then fail
+        assert len(module.import_list) == len(extern_value_list)
 
-        # [TODO] For each external value and external type, do:
+        # For each external value and external type, do:
         # If externval is not valid with an external type in store S, then fail
         # If externtype does not match externtype, then fail
+        for i, e in enumerate(extern_value_list):
+            if isinstance(e, FunctionAddress):
+                a = module.type_list[module.import_list[i]]
+                b = self.store.function_list[e].function_type
+                assert match_function(a, b)
+            if isinstance(e, TableAddress):
+                a = module.import_list[i].desc
+                b = self.store.table_list[e].type
+                assert match_table(a, b)
+            if isinstance(e, MemoryAddress):
+                a = module.import_list[i].desc
+                b = self.store.memory_list[e].type
+                assert match_memory(a, b)
+            if isinstance(e, GlobalAddress):
+                a = module.import_list[i].desc
+                b = self.store.global_list[e].type
+                assert match_global(a, b)
 
-        # [TODO] Let vals be the vector of global initialization values determined by module and externvaln
+        # Let vals be the vector of global initialization values determined by module and externvaln
+        global_values: typing.List[Value] = []
+        aux = ModuleInstance()
+        aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
+        for e in module.global_list:
+            config = Configuration(store=self.store)
+            frame = Frame(
+                module=aux,
+                local_list=[],
+                instruction_list=e.expr.data,
+                arity=1,
+            )
+            config.frame_stack.add(frame)
+            r = config.execute().data[0]
+            global_values.append(r)
 
         # Let moduleinst be a new module instance allocated from module in store S with imports externval and global
         # initializer values, and let S be the extended store produced by module allocation.
-        self.allocate(module, extern_value_list, [])
+        self.allocate(module, extern_value_list, global_values)
 
     def allocate(
         self,
