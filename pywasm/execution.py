@@ -290,7 +290,10 @@ class Label:
     #
     # Intuitively, instr∗ is the continuation to execute when the branch is taken, in place of the original control
     # construct.
-    def __init__(self, opcode: int, instruction_list: typing.List[binary.Instruction], arity: int):
+    def __init__(self,
+                 opcode: int,
+                 instruction_list: typing.List[binary.Instruction],
+                 arity: int):
         # Mark which instruction is replaced by Label, usefull in loop
         self.opcode = opcode
         self.instruction_list = instruction_list
