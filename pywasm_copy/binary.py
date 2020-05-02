@@ -231,10 +231,35 @@ class Instruction:
         if o.opcode in [
             instruction.block,
             instruction.loop,
-            instruction.if_,
         ]:
             block_type = BlockType.from_reader(r)
-            o.args = [block_type]
+            instr: typing.List[Instruction] = []
+            while True:
+                a = r.read(1)
+                if a == 0x0b:
+                    break
+                r.seek(-1, 1)
+                instr.append(Instruction.from_reader(r))
+            o.args = [block_type, instr]
+            return o
+        if o.opcode == instruction.if_:
+            block_type = BlockType.from_reader(r)
+            instr1: typing.List[Instruction] = []
+            instr2: typing.List[Instruction] = []
+            idx = 1
+            while True:
+                a = r.read(1)
+                if a == 0x05:
+                    idx = 2
+                    continue
+                if a == 0x0b:
+                    break
+                r.seek(-1, 1)
+                if idx == 1:
+                    instr1.append(Instruction.from_reader(r))
+                else:
+                    instr2.append(Instruction.from_reader(r))
+            o.args = [block_type, instr1, instr2]
             return o
         if o.opcode in [
             instruction.br,
@@ -261,10 +286,8 @@ class Instruction:
         ]:
             o.args = [LocalIndex(leb128.u.decode_reader(r)[0])]
             return o
-        if o.opcode in [
-            instruction.get_global,
-            instruction.set_global,
-        ]:
+        if o.opcode in [instruction.get_global,
+                        instruction.set_global]:
             o.args = [GlobalIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode in [
