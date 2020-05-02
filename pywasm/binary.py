@@ -645,11 +645,11 @@ class Expression:
     def from_reader(cls, r: typing.BinaryIO):
         o = Expression()
         while True:
-            n = ord(r.read(1))
-            if n == 0x0b:
+            try:
+                o.data.append(Instruction.from_reader(r))
+            except:
                 break
-            r.seek(-1, 1)
-            o.data.append(Instruction.from_reader(r))
+        o.data.pop()
         return o
 
 
