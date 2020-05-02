@@ -264,27 +264,31 @@ class Instruction:
         if o.opcode in [
             instruction.br,
             instruction.br_if,
-            instruction.call
         ]:
-            o.args = [leb128.u.decode_reader(r)[0]]
+            o.args = [LabelIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode == instruction.br_table:
             n = leb128.u.decode_reader(r)[0]
-            a = [leb128.u.decode_reader(r)[0] for _ in range(n)]
-            b = leb128.u.decode_reader(r)[0]
+            a = [LabelIndex(leb128.u.decode_reader(r)[0]) for _ in range(n)]
+            b = LabelIndex(leb128.u.decode_reader(r)[0])
             o.args = [a, b]
             return o
+        if o.opcode == instruction.call:
+            o.args = [FunctionIndex(leb128.u.decode_reader(r)[0])]
+            return o
         if o.opcode == instruction.call_indirect:
-            o.args = [leb128.u.decode_reader(r)[0], r.read(1)]
+            o.args = [TypeIndex(leb128.u.decode_reader(r)[0], r.read(1))]
             return o
         if o.opcode in [
             instruction.get_local,
             instruction.set_local,
             instruction.tee_local,
-            instruction.get_global,
-            instruction.set_global
         ]:
-            o.args = [leb128.u.decode_reader(r)[0]]
+            o.args = [LocalIndex(leb128.u.decode_reader(r)[0])]
+            return o
+        if o.opcode in [instruction.get_global,
+                        instruction.set_global]:
+            o.args = [GlobalIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode in [
             instruction.i32_load,
@@ -317,7 +321,7 @@ class Instruction:
             instruction.current_memory,
             instruction.grow_memory
         ]:
-            o.args = [r.read(1) for _ in range(2)]
+            o.args = [r.read(1)]
             return o
         if o.opcode == instruction.i32_const:
             o.args = [leb128.i.decode_reader(r)[0]]
