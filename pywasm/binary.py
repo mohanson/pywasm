@@ -643,10 +643,17 @@ class Expression:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Expression()
+        d = 1
         while True:
-            try:
-                o.data.append(Instruction.from_reader(r))
-            except:
+            i = Instruction.from_reader(r)
+            if not i:
+                break
+            o.data.append(i)
+            if i.opcode in [instruction.block, instruction.loop, instruction.if_]:
+                d += 1
+            if i.opcode == instruction.end:
+                d -= 1
+            if d == 0:
                 break
         if o.data.pop().opcode != instruction.end:
             raise Exception('pywasm: expression did not end with 0xb')

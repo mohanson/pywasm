@@ -1408,13 +1408,13 @@ class Machine:
                 table_instance.element_list[offset + i] = e
 
         for data_segment in module.data_list:
-            frame = Frame(self, [], element_segment.offset, 1)
+            frame = Frame(self, [], data_segment.offset, 1)
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
             offset = r.val()
             memory_addr = self.module.memory_addr_list[data_segment.memory_index]
             memory_instance = self.store.memory_list[memory_addr]
-            memory_instance.data[offset.n: offset.n + len(data_segment.init)] = data_segment.init
+            memory_instance.data[offset: offset + len(data_segment.init)] = data_segment.init
 
         # [TODO] Assert: due to validation, the frame F is now on the top of the stack.
 
