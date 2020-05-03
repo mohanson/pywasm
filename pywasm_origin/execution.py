@@ -942,9 +942,6 @@ def exec_expr(
         if opcode >= convention.i64_clz and opcode <= convention.i64_popcnt:
             a = stack.pop().n
             if opcode == convention.i64_clz:
-                if a < 0:
-                    stack.add(Value.from_i32(0))
-                    continue
                 c = 1
                 while c < 63 and (a & 0x4000000000000000) == 0:
                     c += 1

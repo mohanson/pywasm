@@ -1223,15 +1223,31 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_clz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        c = 0
+        while c < 32 and (a & 0x80000000) == 0:
+            c += 1
+            a = a << 1
+        config.stack.append(Value.from_i32(c))
 
     @staticmethod
     def i32_ctz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        c = 0
+        while c < 32 and (a & 0x01) == 0:
+            c += 1
+            a = a >> 1
+        config.stack.append(Value.from_i32(c))
 
     @staticmethod
     def i32_popcnt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        c = 0
+        for _ in range(32):
+            if a & 0x01:
+                c += 1
+            a = a >> 1
+        config.stack.append(Value.from_i32(c))
 
     @staticmethod
     def i32_add(config: Configuration, i: binary.Instruction):
@@ -1242,79 +1258,153 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_sub(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a - b)
+        config.stack.append(c)
 
     @staticmethod
     def i32_mul(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a * b)
+        config.stack.append(c)
 
     @staticmethod
     def i32_divs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        # Integer division that rounds towards 0 (like C)
+        r = Value.from_i32(a // b if a * b > 0 else (a + (-a % b)) // b)
+        config.stack.append(r)
 
     @staticmethod
     def i32_divu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        r = Value.from_i32(a // b)
+        config.stack.add(r)
 
     @staticmethod
     def i32_rems(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        # Integer remainder that rounds towards 0 (like C)
+        r = Value.from_i32(a % b if a * b > 0 else -(-a % b))
+        config.stack.add(r)
 
     @staticmethod
     def i32_remu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        r = Value.from_i32(a % b)
+        config.stack.add(r)
 
     @staticmethod
     def i32_and(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a & b)
+        config.stack.append(c)
 
     @staticmethod
     def i32_or(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a | b)
+        config.stack.append(c)
 
     @staticmethod
     def i32_xor(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a ^ b)
+        config.stack.append(c)
 
     @staticmethod
     def i32_shl(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a << (b % 0x20))
+        config.stack.append(c)
 
     @staticmethod
     def i32_shrs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(a >> (b % 0x20))
+        config.stack.append(c)
 
     @staticmethod
     def i32_shru(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        c = Value.from_i32(a >> (b % 0x20))
+        config.stack.append(c)
 
     @staticmethod
     def i32_rotl(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+        config.stack.append(c)
 
     @staticmethod
     def i32_rotr(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        c = Value.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+        config.stack.append(c)
 
     @staticmethod
     def i64_clz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        c = 0
+        while c < 64 and (a & 0x8000000000000000) == 0:
+            c += 1
+            a = a << 1
+        config.stack.append(Value.from_i64(c))
 
     @staticmethod
     def i64_ctz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        c = 0
+        while c < 64 and (a & 0x01) == 0:
+            c += 1
+            a = a >> 1
+        config.stack.append(Value.from_i64(c))
 
     @staticmethod
     def i64_popcnt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        c = 0
+        for _ in range(64):
+            if a & 0x01:
+                c += 1
+            a = a >> 1
+        config.stack.append(Value.from_i64(c))
 
     @staticmethod
     def i64_add(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a + b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_sub(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a - b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_mul(config: Configuration, i: binary.Instruction):
@@ -1325,54 +1415,96 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_divs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        r = Value.from_i64(a // b if a * b > 0 else (a + (-a % b)) // b)
+        config.stack.append(r)
 
     @staticmethod
     def i64_divu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        r = Value.from_i64(a // b)
+        config.stack.add(r)
 
     @staticmethod
     def i64_rems(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        # Integer remainder that rounds towards 0 (like C)
+        r = Value.from_i64(a % b if a * b > 0 else -(-a % b))
+        config.stack.add(r)
 
     @staticmethod
     def i64_remu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        if b == 0:
+            raise Exception('pywasm: division by zero')
+        r = Value.from_i64(a % b)
+        config.stack.add(r)
 
     @staticmethod
     def i64_and(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a & b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_or(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a | b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_xor(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a & b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_shl(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a << (b % 0x40))
+        config.stack.append(c)
 
     @staticmethod
     def i64_shrs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a >> (b % 0x40))
+        config.stack.append(c)
 
     @staticmethod
     def i64_shru(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
-        c = Value.from_i64(a >> b)
+        c = Value.from_i64(a >> (b % 0x40))
         config.stack.append(c)
 
     @staticmethod
     def i64_rotl(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+        config.stack.append(c)
 
     @staticmethod
     def i64_rotr(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+        config.stack.append(c)
 
     @staticmethod
     def f32_abs(config: Configuration, i: binary.Instruction):
