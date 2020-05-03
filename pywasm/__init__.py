@@ -71,7 +71,7 @@ def load(name: str, imps: typing.Dict = None) -> Runtime:
         module = binary.Module.from_reader(f)
         return Runtime(module, imps)
 
-
+Ctx = execution.Store
 Memory = execution.MemoryInstance
 Value = execution.Value
 Table = execution.TableInstance

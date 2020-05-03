@@ -10,10 +10,14 @@ pywasm.log.lvl = 1
 # b.instantiate(a)
 # print(b.invocate(0, [pywasm.execution.Value.from_i32(10), pywasm.execution.Value.from_i32(20)]))
 
-runtime = pywasm.load('./examples/add.wasm')
-r = runtime.exec('add', [10, 20])
-assert r == 30
+# runtime = pywasm.load('./examples/add.wasm')
+# r = runtime.exec('add', [10, 20])
+# assert r == 30
 
 runtime = pywasm.load('./examples/fib.wasm')
 r = runtime.exec('fib', [10])
 assert r == 55
+
+# runtime = pywasm.load('./examples/env.wasm')
+# r = runtime.exec('fib', [10])
+# assert r == 55

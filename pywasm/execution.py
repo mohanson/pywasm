@@ -354,7 +354,7 @@ def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
 
 
 def match_function(a: binary.FunctionType, b: binary.FunctionType) -> bool:
-    return a.args.data == b.args and a.rets == b.rets
+    return a.args.data == b.args.data and a.rets.data == b.rets.data
 
 
 def match_table(a: binary.TableType, b: binary.TableType) -> bool:
@@ -1347,8 +1347,8 @@ class Machine:
         # If externtype does not match externtype, then fail
         for i, e in enumerate(extern_value_list):
             if isinstance(e, FunctionAddress):
-                a = module.type_list[module.import_list[i]]
-                b = self.store.function_list[e].function_type
+                a = module.type_list[module.import_list[i].desc]
+                b = self.store.function_list[e].type
                 assert match_function(a, b)
             if isinstance(e, TableAddress):
                 a = module.import_list[i].desc
@@ -1410,6 +1410,20 @@ class Machine:
         extern_value_list: typing.List[ExternValue],
         global_values: typing.List[Value],
     ):
+        # Let funcaddr be the list of function addresses extracted from externval, concatenated with funcaddr
+        # Let tableaddr be the list of table addresses extracted from externval, concatenated with tableaddr
+        # Let memaddr be the list of memory addresses extracted from externval, concatenated with memaddr
+        # Let globaladdr be the list of global addresses extracted from externval, concatenated with globaladdr
+        for e in extern_value_list:
+            if isinstance(e, FunctionAddress):
+                self.module.function_addr_list.append(e)
+            if isinstance(e, TableAddress):
+                self.module.table_addr_list.append(e)
+            if isinstance(e, MemoryAddress):
+                self.module.memory_addr_list.append(e)
+            if isinstance(e, GlobalAddress):
+                self.module.global_addr_list.append(e)
+
         # For each function func in module.funcs, do:
         for e in module.function_list:
             function_addr = self.store.allocate_wasm_function(self.module, e)
@@ -1460,5 +1474,14 @@ class Machine:
             )
             config = Configuration(self.store, frame)
             return config.exec()
-        else:
-            raise Exception(f'pywasm: unknown function type: {type(function)}')
+        if isinstance(function, HostFunc):
+            r = function.hostcode(self.store, *[e.val() for e in function_args])
+            v = {
+                convention.i32: Value.from_i32,
+                convention.i64: Value.from_f64,
+                convention.f32: Value.from_f32,
+                convention.f64: Value.from_f64,
+            }[function.type.rets.data[0]](r)
+            return Result([v])
+
+        raise Exception(f'pywasm: unknown function type: {function}')

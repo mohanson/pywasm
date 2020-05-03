@@ -987,6 +987,9 @@ class Function:
         self.local_list: typing.List[ValueType] = []
         self.expr: Expression = Expression()
 
+    def __repr__(self):
+        return f'function({self.type_index}, {self.local_list})'
+
 
 class Module:
     # The binary encoding of modules is organized into sections. Most sections correspond to one component of a module
