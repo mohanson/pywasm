@@ -15,6 +15,9 @@ class Runtime:
     def __init__(self, module: binary.Module, imps: typing.Dict = None):
         self.machine = execution.Machine()
 
+        # For compatibility with older 0.4.x versions
+        self.store = self.machine.store
+
         imps = imps if imps else {}
         extern_value_list: typing.List[execution.ExternValue] = []
         for e in module.import_list:
@@ -79,3 +82,6 @@ Value = execution.Value
 Table = execution.TableInstance
 Global = execution.GlobalInstance
 Limits = binary.Limits
+
+# For compatibility with older 0.4.x versions
+Ctx = Store

@@ -3,4 +3,4 @@ import pywasm
 
 runtime = pywasm.load('./examples/str.wasm')
 r = runtime.exec('get', [])
-print(runtime.machine.store.memory_list[0].data[r:r + 12].decode())
+print(runtime.store.memory_list[0].data[r:r + 12].decode())
