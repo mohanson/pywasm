@@ -1023,41 +1023,55 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_eqz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_i32(config.stack.pop().i32() == 0))
 
     @staticmethod
     def i32_eq(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def i32_ne(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def i32_lts(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
-        config.stack.append(Value.from_i32(int(a < b)))
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def i32_ltu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def i32_gts(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def i32_gtu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def i32_les(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def i32_leu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def i32_ges(config: Configuration, i: binary.Instruction):
@@ -1067,51 +1081,73 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_geu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u32()
+        a = config.stack.pop().u32()
+        config.stack.append(Value.from_i32(int(a >= b)))
 
     @staticmethod
     def i64_eqz(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_i32(config.stack.pop().i64() == 0))
 
     @staticmethod
     def i64_eq(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def i64_ne(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def i64_lts(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def i64_ltu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def i64_gts(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def i64_gtu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def i64_les(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def i64_leu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def i64_ges(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        config.stack.append(Value.from_i32(a >= b))
 
     @staticmethod
     def i64_geu(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        config.stack.append(Value.from_i32(a >= b))
 
     @staticmethod
     def f32_eq(config: Configuration, i: binary.Instruction):
