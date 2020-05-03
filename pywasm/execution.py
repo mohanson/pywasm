@@ -290,14 +290,9 @@ class Label:
     #
     # Intuitively, instr∗ is the continuation to execute when the branch is taken, in place of the original control
     # construct.
-    def __init__(self,
-                 opcode: int,
-                 instruction_list: typing.List[binary.Instruction],
-                 arity: int):
-        # Mark which instruction is replaced by Label, usefull in loop
-        self.opcode = opcode
-        self.instruction_list = instruction_list
+    def __init__(self, arity: int, continuation: int):
         self.arity = arity
+        self.continuation = continuation
 
     def __repr__(self):
         return f'label({self.arity})'
@@ -390,15 +385,15 @@ class Configuration:
         self.frame = frame
         self.stack = Stack()
         self.stack.append(frame)
+        self.pc = 0
 
     def exec(self) -> Result:
-        pc = 0
         instruction_list = self.frame.expr.data
         instruction_list_len = len(instruction_list)
-        while pc < instruction_list_len:
-            i = instruction_list[pc]
+        while self.pc < instruction_list_len:
+            i = instruction_list[self.pc]
             ArithmeticLogicUnit.exec(self, i)
-            pc += 1
+            self.pc += 1
         r = []
         for _ in range(self.frame.arity):
             r.append(self.stack.pop())
@@ -600,9 +595,12 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def block(config: Configuration, i: binary.Instruction):
-        arity = 1
-        label = Label(i.opcode, i.args[1], arity)
-        config.stack.append(label)
+        if i.args[0] == convention.empty:
+            arity = 0
+        else:
+            arity = 1
+        continuation = config.frame.expr.position[config.pc][1]
+        config.stack.append(Label(arity, continuation))
 
     @staticmethod
     def loop(config: Configuration, i: binary.Instruction):
@@ -614,11 +612,32 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def br(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        l = i.args[0]
+        # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
+        L = [i for i in config.stack.data if isinstance(i, Label)][::-1][l]
+        n = L.arity
+        # Pop the values n from the stack.
+        v = [config.stack.pop() for _ in range(n)]
+        # Repeat l+1 times
+        #     While the top of the stack is a value, pop the value from the stack
+        #     Assert: due to validation, the top of the stack now is a label
+        #     Pop the label from the stack
+        s = 0
+        while s != l + 1:
+            e = config.stack.pop()
+            if isinstance(e, Label):
+                s += 1
+        # Push the values n to the stack
+        for e in v:
+            config.stack.append(v)
+        # Jump to the continuation of L
+        config.pc = L.continuation
 
     @staticmethod
     def br_if(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        if config.stack.pop().i32() == 0:
+            return
+        ArithmeticLogicUnit.br(config, i)
 
     @staticmethod
     def br_table(config: Configuration, i: binary.Instruction):
@@ -767,7 +786,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_const(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_i32(i.args[0]))
 
     @staticmethod
     def i64_const(config: Configuration, i: binary.Instruction):
@@ -819,7 +838,9 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_ges(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(int(a >= b)))
 
     @staticmethod
     def i32_geu(config: Configuration, i: binary.Instruction):
@@ -1282,14 +1303,7 @@ class Machine:
     # which records operand values and control constructs, and an abstract store containing global state.
     def __init__(self):
         self.module: ModuleInstance = ModuleInstance()
-        self.stack: Stack = Stack()
         self.store: Store = Store()
-
-    # def init_elem(self):
-    #     pass
-
-    # def init_data(self):
-    #     pass
 
     def instantiate(self, module: binary.Module, extern_value_list: typing.List[ExternValue]):
         self.module.type_list = module.type_list
@@ -1365,8 +1379,7 @@ class Machine:
             memory_instance = self.store.memory_list[memory_addr]
             memory_instance.data[offset.n: offset.n + len(data_segment.init)] = data_segment.init
 
-        # Assert: due to validation, the frame F is now on the top of the stack.
-        assert self.stack.len() == 0
+        # [TODO] Assert: due to validation, the frame F is now on the top of the stack.
 
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
