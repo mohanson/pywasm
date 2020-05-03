@@ -44,8 +44,12 @@ class Runtime:
                 return e.value
         raise Exception('pywasm: function not found')
 
-    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> execution.Result:
+    def exec_accu(self, name: str, args: typing.List[execution.Value]) -> execution.Result:
         # Invoke a function denoted by the function address with the provided arguments.
+        func_addr = self.func_addr(name)
+        return self.machine.invocate(func_addr, args)
+
+    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> execution.Result:
         func_addr = self.func_addr(name)
         func = self.machine.store.function_list[func_addr]
         func_args = []
@@ -58,7 +62,7 @@ class Runtime:
                 convention.f64: execution.Value.from_f64,
             }[e](args[i])
             func_args.append(v)
-        return self.machine.invocate(func_addr, func_args).data[0].val()
+        return self.exec_accu(name, func_args).data[0].val()
 
 
 # Using the pywasm API.

@@ -8,10 +8,18 @@ num = pywasm.num
 
 
 def parse_val(m):
-    if m['type'] in ['i32', 'i64']:
-        return int(m['value'])
-    if m['type'] in ['f32', 'f64']:
-        return float(m['value'])
+    if m['type'] == 'i32':
+        return pywasm.Value.from_i32(int(m['value']))
+    if m['type'] == 'i64':
+        return pywasm.Value.from_i64(int(m['value']))
+    if m['type'] == 'f32':
+        v = pywasm.Value.from_i32(int(m['value']))
+        v.type = pywasm.binary.ValueType(pywasm.convention.f32)
+        return v
+    if m['type'] == 'f64':
+        v = pywasm.Value.from_i64(int(m['value']))
+        v.type = pywasm.binary.ValueType(pywasm.convention.f64)
+        return v
     raise NotImplementedError
 
 
@@ -33,9 +41,9 @@ def case(path: str):
             if command['action']['type'] == 'invoke':
                 function_name = command['action']['field']
                 args = [parse_val(i) for i in command['action']['args']]
-                r = runtime.exec(function_name, args)
+                r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
-                assert r == expect[0]
+                assert r.data[0].data == expect[0].data
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_trap':
@@ -43,7 +51,7 @@ def case(path: str):
                 function_name = command['action']['field']
                 args = [parse_val(i) for i in command['action']['args']]
                 try:
-                    r = runtime.exec(function_name, args)
+                    r = runtime.exec_accu(function_name, args)
                 except Exception as e:
                     r = str(e)
                 expect = command['text']
@@ -51,6 +59,8 @@ def case(path: str):
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_malformed':
+            if command['filename'].endswith('.wat'):
+                continue
             raise NotImplementedError
         raise NotImplementedError
 
