@@ -945,40 +945,51 @@ class ArithmeticLogicUnit:
         config.stack.add(r)
 
     @staticmethod
+    def mem_store(config: Configuration, i: binary.Instruction, size: int):
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + size > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = config.stack.pop()
+        memory.data[addr:addr + size] = r.data[0:size]
+
+    @staticmethod
     def i32_store(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
     def i64_store(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 8)
 
     @staticmethod
     def f32_store(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
     def f64_store(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 8)
 
     @staticmethod
     def i32_store8(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 1)
 
     @staticmethod
     def i32_store16(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 2)
 
     @staticmethod
     def i64_store8(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
     def i64_store16(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 2)
 
     @staticmethod
     def i64_store32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
     def current_memory(config: Configuration, i: binary.Instruction):

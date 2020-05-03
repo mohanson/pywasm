@@ -111,37 +111,41 @@ class LittleEndian:
     def f64(r: bytes):
         return struct.unpack('<d', r)[0]
 
-    # @staticmethod
-    # def pack_u8(n: u8):
-    #     return struct.pack('<B', n)
+    @staticmethod
+    def pack_i8(n: i8):
+        return struct.pack('<b', n)
 
-    # @staticmethod
-    # def pack_i8(n: i8):
-    #     return struct.pack('<b', n)
-
-    # @staticmethod
-    # def pack_u16(n: u16):
-    #     return struct.pack('<H', n)
-
-    # @staticmethod
-    # def pack_i16(n: i16):
-    #     return struct.pack('<h', n)
-
-    # @staticmethod
-    # def pack_u32(n: u32):
-    #     return struct.pack('<I', n)
+    @staticmethod
+    def pack_i16(n: i16):
+        return struct.pack('<h', n)
 
     @staticmethod
     def pack_i32(n: i32):
         return struct.pack('<i', n)
 
-    # @staticmethod
-    # def pack_u64(n: u64):
-    #     return struct.pack('<Q', n)
 
     @staticmethod
     def pack_i64(n: i64):
         return struct.pack('<q', n)
+
+    # @staticmethod
+    # def pack_u8(n: u8):
+    #     return struct.pack('<B', n)
+
+
+    # @staticmethod
+    # def pack_u16(n: u16):
+    #     return struct.pack('<H', n)
+
+
+
+    # @staticmethod
+    # def pack_u32(n: u32):
+    #     return struct.pack('<I', n)
+
+    # @staticmethod
+    # def pack_u64(n: u64):
+    #     return struct.pack('<Q', n)
 
     @staticmethod
     def pack_f32(n: f32):
