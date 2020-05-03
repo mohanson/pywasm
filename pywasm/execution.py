@@ -993,11 +993,17 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def current_memory(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        r = Value.from_i32(memory.size)
+        config.stack.append(r)
 
     @staticmethod
     def grow_memory(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        r = config.stack.pop().i32()
+        memory.grow(r)
 
     @staticmethod
     def i32_const(config: Configuration, i: binary.Instruction):
@@ -1009,11 +1015,11 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_const(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_f32(i.args[0]))
 
     @staticmethod
     def f64_const(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_f64(i.args[0]))
 
     @staticmethod
     def i32_eqz(config: Configuration, i: binary.Instruction):
