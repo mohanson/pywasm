@@ -1151,51 +1151,75 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_eq(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def f32_ne(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def f32_lt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def f32_gt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def f32_le(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def f32_ge(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a >= b))
 
     @staticmethod
     def f64_eq(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def f64_ne(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def f64_lt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
     def f64_gt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
     def f64_le(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
     def f64_ge(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a >= b))
 
     @staticmethod
     def i32_clz(config: Configuration, i: binary.Instruction):
