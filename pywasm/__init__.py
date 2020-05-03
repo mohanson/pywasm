@@ -65,13 +65,15 @@ class Runtime:
 def on_debug():
     log.lvl = 1
 
+
 def load(name: str, imps: typing.Dict = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
         module = binary.Module.from_reader(f)
         return Runtime(module, imps)
 
-Ctx = execution.Store
+
+Store = execution.Store
 Memory = execution.MemoryInstance
 Value = execution.Value
 Table = execution.TableInstance

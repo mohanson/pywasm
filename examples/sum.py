@@ -1,5 +1,6 @@
 import pywasm
+pywasm.on_debug()
 
-vm = pywasm.load('./examples/sum.wasm')
-r = vm.exec('sum', [100])
+runtime = pywasm.load('./examples/sum.wasm')
+r = runtime.exec('sum', [100])
 print(r) # 1 + 2 + ... + 99 = 4950

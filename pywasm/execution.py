@@ -36,6 +36,14 @@ class Value:
         assert self.type == convention.i64
         return num.LittleEndian.i64(self.data[0:8])
 
+    def u32(self) -> num.u32:
+        assert self.type == convention.i32
+        return num.LittleEndian.u32(self.data[0:4])
+
+    def u64(self) -> num.u64:
+        assert self.type == convention.i64
+        return num.LittleEndian.u64(self.data[0:8])
+
     def f32(self) -> num.f32:
         assert self.type == convention.f32
         return num.LittleEndian.f32(self.data[0:4])
@@ -808,7 +816,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_const(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.append(Value.from_i64(i.args[0]))
 
     @staticmethod
     def f32_const(config: Configuration, i: binary.Instruction):
@@ -832,7 +840,9 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_lts(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
+        config.stack.append(Value.from_i32(int(a < b)))
 
     @staticmethod
     def i32_ltu(config: Configuration, i: binary.Instruction):
@@ -1053,7 +1063,10 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_mul(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().i64()
+        a = config.stack.pop().i64()
+        c = Value.from_i64(a * b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_divs(config: Configuration, i: binary.Instruction):
@@ -1093,7 +1106,10 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_shru(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().u64()
+        a = config.stack.pop().u64()
+        c = Value.from_i64(a >> b)
+        config.stack.append(c)
 
     @staticmethod
     def i64_rotl(config: Configuration, i: binary.Instruction):
@@ -1217,7 +1233,9 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_wrap_i64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        r = Value.from_i32(a)
+        config.stack.append(r)
 
     @staticmethod
     def i32_trunc_sf32(config: Configuration, i: binary.Instruction):
@@ -1241,7 +1259,8 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_extend_ui32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().u32()
+        config.stack.append(Value.from_i64(a))
 
     @staticmethod
     def i64_trunc_sf32(config: Configuration, i: binary.Instruction):

@@ -8,10 +8,10 @@ def _fib(n):
     return _fib(n - 1) + _fib(n - 2)
 
 
-def fib(_: pywasm.Ctx, n: int):
+def fib(_: pywasm.Store, n: int):
     return _fib(n)
 
 
-vm = pywasm.load('./examples/env.wasm', {'env': {'fib': fib}})
-r = vm.exec('get', [10])
+runtime = pywasm.load('./examples/env.wasm', {'env': {'fib': fib}})
+r = runtime.exec('get', [10])
 print(r)  # 55

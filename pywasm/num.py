@@ -3,6 +3,7 @@ import math
 import struct
 
 i32 = i64 = int
+u32 = u64 = int
 f32 = f64 = float
 
 
@@ -85,21 +86,21 @@ class LittleEndian:
     # def i16(r: bytes):
     #     return struct.unpack('<h', r)[0]
 
-    # @staticmethod
-    # def u32(r: bytes):
-    #     return struct.unpack('<I', r)[0]
-
     @staticmethod
     def i32(r: bytes):
         return struct.unpack('<i', r)[0]
 
-    # @staticmethod
-    # def u64(r: bytes):
-    #     return struct.unpack('<Q', r)[0]
-
     @staticmethod
     def i64(r: bytes):
         return struct.unpack('<q', r)[0]
+
+    @staticmethod
+    def u32(r: bytes):
+        return struct.unpack('<I', r)[0]
+
+    @staticmethod
+    def u64(r: bytes):
+        return struct.unpack('<Q', r)[0]
 
     @staticmethod
     def f32(r: bytes):
