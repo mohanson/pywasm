@@ -1,5 +1,5 @@
 import pywasm
-pywasm.on_debug()
+# pywasm.on_debug()
 
 
 def _fib(n):

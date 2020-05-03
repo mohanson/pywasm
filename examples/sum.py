@@ -1,5 +1,5 @@
 import pywasm
-pywasm.on_debug()
+# pywasm.on_debug()
 
 runtime = pywasm.load('./examples/sum.wasm')
 r = runtime.exec('sum', [100])
