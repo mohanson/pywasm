@@ -959,6 +959,8 @@ class Data:
         o.offset = Expression.from_reader(r)
         n = leb128.u.decode_reader(r)[0]
         o.init = bytearray(r.read(n))
+        if len(o.init) != n:
+            raise Exception('pywasm: unexpected end of section or function')
         return o
 
 
@@ -1114,6 +1116,8 @@ class Module:
                 log.debugln(export_section)
                 mod.export_list = export_section.data
             if section_id == convention.start_section:
+                if mod.start:
+                    raise Exception('pywasm: junk after last section')
                 start_section = StartSection.from_reader(section_reader)
                 mod.section_list.append(start_section)
                 log.debugln(start_section)
@@ -1149,5 +1153,7 @@ class Module:
 
         if len(function_section.data) != len(code_section.data):
             raise Exception('pywasm: function and code section have inconsistent lengths')
+        if r.read(1):
+            raise Exception('pywasm: junk after last section')
 
         return mod
