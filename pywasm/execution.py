@@ -658,7 +658,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def end(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        return ArithmeticLogicUnit.else_(config, i)
 
     @staticmethod
     def br(config: Configuration, i: binary.Instruction):
