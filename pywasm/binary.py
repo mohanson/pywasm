@@ -252,7 +252,7 @@ class Instruction:
             o.args = [FunctionIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode == instruction.call_indirect:
-            o.args = [TypeIndex(leb128.u.decode_reader(r)[0], r.read(1))]
+            o.args = [TypeIndex(leb128.u.decode_reader(r)[0]), r.read(1)]
             return o
         if o.opcode in [
             instruction.get_local,

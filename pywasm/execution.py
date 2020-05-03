@@ -686,11 +686,22 @@ class ArithmeticLogicUnit:
     def br_if(config: Configuration, i: binary.Instruction):
         if config.stack.pop().i32() == 0:
             return
-        ArithmeticLogicUnit.br(config, i)
+        j = binary.Instruction()
+        j.opcode = instruction.br
+        j.args = i.args
+        ArithmeticLogicUnit.br(config, j)
 
     @staticmethod
     def br_table(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = i.args[0]
+        l = i.args[1]
+        c = config.stack.pop().i32()
+        if c >= 0 and c < len(a):
+            l = a[c]
+        j = binary.Instruction()
+        j.opcode = instruction.br
+        j.args = [l]
+        ArithmeticLogicUnit.br(config, j)
 
     @staticmethod
     def return_(config: Configuration, i: binary.Instruction):
@@ -707,20 +718,32 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def call(config: Configuration, i: binary.Instruction):
-        machine = Machine()
-        machine.module = config.frame.module
-        machine.store = config.store
         function_addr: binary.FunctionIndex = i.args[0]
         function: FunctionInstance = config.store.function_list[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
+        machine = Machine()
+        machine.module = config.frame.module
+        machine.store = config.store
         r = machine.invocate(function_addr, function_args)
         for e in r.data[::-1]:
             config.stack.append(e)
 
     @staticmethod
     def call_indirect(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        if i.args[1] != 0x00:
+            raise Exception("pywasm: zero byte malformed in call_indirect")
+        ta = config.frame.module.table_addr_list[0]
+        tab = config.store.table_list[ta]
+        function_type_expect = config.frame.module.type_list[i.args[0]]
+        idx = config.stack.pop().i32()
+        if not 0 <= idx < len(tab.elem):
+            raise Exception('pywasm: undefined element index')
+        function_addr = tab.element_list[idx]
+        j = binary.Instruction()
+        j.opcode = instruction.call
+        j.args = [function_addr]
+        ArithmeticLogicUnit.call(config, j)
 
     @staticmethod
     def drop(config: Configuration, i: binary.Instruction):
