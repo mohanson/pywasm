@@ -62,8 +62,12 @@ def case(path: str):
             if command['filename'].endswith('.wat'):
                 continue
             raise NotImplementedError
+        if command['type'] == 'assert_invalid':
+            if command['filename'].endswith('.wasm'):
+                continue
         raise NotImplementedError
 
 
 if __name__ == '__main__':
     case('./res/spectest/address')
+    case('./res/spectest/align')

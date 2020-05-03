@@ -949,11 +949,11 @@ class ArithmeticLogicUnit:
     def mem_store(config: Configuration, i: binary.Instruction, size: int):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
+        r = config.stack.pop()
         offset = i.args[1]
         addr = config.stack.pop().i32() + offset
         if addr + size > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
-        r = config.stack.pop()
         memory.data[addr:addr + size] = r.data[0:size]
 
     @staticmethod
