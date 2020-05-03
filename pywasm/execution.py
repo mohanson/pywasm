@@ -21,12 +21,18 @@ class Value:
     def __repr__(self):
         return f'{self.type} {self.val()}'
 
+    @classmethod
+    def new(cls, type: binary.ValueType):
+        v = Value()
+        v.type = type
+        return v
+
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
             convention.i32: self.i32,
             convention.i64: self.i64,
             convention.f32: self.f32,
-            convention.f64: self.f64
+            convention.f64: self.f64,
         }[self.type]()
 
     def i32(self) -> num.i32:
@@ -643,9 +649,9 @@ class ArithmeticLogicUnit:
         config.stack.append(Label(arity, continuation))
         if c == 0:
             if len(config.frame.expr.position[config.pc]) == 3:
-                pc = config.frame.expr.position[pc][1]
+                config.pc = config.frame.expr.position[config.pc][2]
             else:
-                pc = config.frame.expr.position[pc][2]
+                config.pc = config.frame.expr.position[config.pc][1]
 
     @staticmethod
     def else_(config: Configuration, i: binary.Instruction):
@@ -1993,7 +1999,7 @@ class Machine:
         assert len(function.type.rets.data) < 2
 
         if isinstance(function, WasmFunc):
-            local_list = [Value() for _ in function.code.local_list]
+            local_list = [Value.new(e) for e in function.code.local_list]
             frame = Frame(
                 module=function.module,
                 local_list=function_args + local_list,

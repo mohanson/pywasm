@@ -863,7 +863,7 @@ class Locals:
 
 class Func:
     def __init__(self):
-        self.local_list: typing.List[int] = []
+        self.local_list: typing.List[Locals] = []
         self.expr: Expression = Expression()
 
     def __repr__(self):
@@ -1105,7 +1105,10 @@ class Module:
                 for i, e in enumerate(code_section.data):
                     func = Function()
                     func.type_index = function_section.data[i]
-                    func.local_list = e.func.local_list
+                    func.local_list = []
+                    for f in e.func.local_list:
+                        for _ in range(f.n):
+                            func.local_list.append(f.type)
                     func.expr = e.func.expr
                     mod.function_list.append(func)
             if section_id == convention.data_section:
