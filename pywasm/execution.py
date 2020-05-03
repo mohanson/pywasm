@@ -298,7 +298,6 @@ class Label:
         self.opcode = opcode
         self.instruction_list = instruction_list
         self.arity = arity
-        self.value_stack = Stack()
 
     def __repr__(self):
         return f'label({self.arity})'
@@ -311,14 +310,12 @@ class Frame:
 
     def __init__(self, module: ModuleInstance,
                  local_list: typing.List[Value],
-                 instruction_list: typing.List[binary.Instruction],
+                 expr: binary.Expression,
                  arity: int):
         self.module = module
         self.local_list = local_list
-        self.instruction_list = instruction_list
+        self.expr = expr
         self.arity = arity
-        self.label_stack = Stack()
-        self.value_stack = Stack()
 
     def __repr__(self):
         return f'frame({self.arity}, {self.local_list})'
@@ -339,11 +336,12 @@ class Stack:
     def len(self):
         return len(self.data)
 
+    def append(self, v: typing.Union[Value, Label, Frame]):
+        self.data.append(v)
+
     def pop(self):
         return self.data.pop()
 
-    def add(self, v: typing.Union[Value, Label, Frame]):
-        self.data.append(v)
 
 # ======================================================================================================================
 # Execution Runtime Import Matching
@@ -387,25 +385,24 @@ class Configuration:
     #
     # config ::= store;thread
     # thread ::= frame;instr∗
-    def __init__(self, store: Store):
+    def __init__(self, store: Store, frame: Frame):
         self.store = store
-        self.frame_stack = Stack()
+        self.frame = frame
+        self.stack = Stack()
+        self.stack.append(frame)
 
-    def current_frame(self) -> Frame:
-        return self.frame_stack.data[-1]
-
-    def current_label(self) -> Label:
-        return self.current_frame().label_stack.data[-1]
-
-    def execute(self) -> Result:
-        frame: Frame = self.frame_stack.data[-1]
-        for e in frame.instruction_list:
-            ArithmeticLogicUnit.exec(self, e)
+    def exec(self) -> Result:
+        pc = 0
+        instruction_list = self.frame.expr.data
+        instruction_list_len = len(instruction_list)
+        while pc < instruction_list_len:
+            i = instruction_list[pc]
+            ArithmeticLogicUnit.exec(self, i)
+            pc += 1
         r = []
-        for _ in range(frame.arity):
-            r.append(frame.value_stack.pop())
-        self.frame_stack.pop()
-        assert self.frame_stack.len() == 0
+        for _ in range(self.frame.arity):
+            r.append(self.stack.pop())
+        assert self.stack.pop() == self.frame
         return Result(r)
 
 
@@ -605,17 +602,7 @@ class ArithmeticLogicUnit:
     def block(config: Configuration, i: binary.Instruction):
         arity = 1
         label = Label(i.opcode, i.args[1], arity)
-        config.current_frame().label_stack.add(label)
-        for e in i.args[1]:
-            ArithmeticLogicUnit.exec(config, e)
-        config.current_frame().label_stack.pop()
-        for _ in range(arity):
-            v = label.value_stack.pop()
-            if config.current_frame().label_stack.len():
-                config.current_label().value_stack.add(v)
-            else:
-                config.current_frame().value_stack.add(v)
-        assert label.value_stack.len() == 0
+        config.stack.append(label)
 
     @staticmethod
     def loop(config: Configuration, i: binary.Instruction):
@@ -659,8 +646,8 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def get_local(config: Configuration, i: binary.Instruction):
-        value = config.current_frame().local_list[i.args[0]]
-        config.current_label().value_stack.add(value)
+        value = config.frame.local_list[i.args[0]]
+        config.stack.append(value)
 
     @staticmethod
     def set_local(config: Configuration, i: binary.Instruction):
@@ -944,10 +931,10 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_add(config: Configuration, i: binary.Instruction):
-        b = config.current_label().value_stack.pop().i32()
-        a = config.current_label().value_stack.pop().i32()
+        b = config.stack.pop().i32()
+        a = config.stack.pop().i32()
         c = Value.from_i32(a + b)
-        config.current_label().value_stack.add(c)
+        config.stack.append(c)
 
     @staticmethod
     def i32_sub(config: Configuration, i: binary.Instruction):
@@ -1349,15 +1336,9 @@ class Machine:
         aux = ModuleInstance()
         aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
         for e in module.global_list:
-            config = Configuration(store=self.store)
-            frame = Frame(
-                module=aux,
-                local_list=[],
-                instruction_list=e.expr.data,
-                arity=1,
-            )
-            config.frame_stack.add(frame)
-            r = config.execute().data[0]
+            frame = Frame(aux, [], e.expr, 1)
+            config = Configuration(self.store, frame)
+            r = config.exec().data[0]
             global_values.append(r)
 
         # Let moduleinst be a new module instance allocated from module in store S with imports externval and global
@@ -1366,10 +1347,9 @@ class Machine:
 
         for element_segment in module.element_list:
             # Let F be the frame, push the frame F to the stack
-            frame = Frame(self, [], element_segment.offset.data, arity=1)
-            config = Configuration(store=self.store)
-            config.frame_stack.add(frame)
-            r = config.execute().data[0]
+            frame = Frame(self, [], element_segment.offset, 1)
+            config = Configuration(self.store, frame)
+            r = config.exec().data[0]
             offset = r.val()
             table_addr = self.module.table_addr_list[e.table_index]
             table_instance = self.store.table_list[table_addr]
@@ -1377,10 +1357,9 @@ class Machine:
                 table_instance.element_list[offset + i] = e
 
         for data_segment in module.data_list:
-            frame = Frame(self, [], element_segment.offset.data, arity=1)
-            config = Configuration(store=self.store)
-            config.frame_stack.add(frame)
-            r = config.execute().data[0]
+            frame = Frame(self, [], element_segment.offset, 1)
+            config = Configuration(self.store, frame)
+            r = config.exec().data[0]
             offset = r.val()
             memory_addr = self.module.memory_addr_list[data_segment.memory_index]
             memory_instance = self.store.memory_list[memory_addr]
@@ -1440,22 +1419,15 @@ class Machine:
             assert e.type == t
         assert len(function.type.rets.data) < 2
 
-        conf = Configuration(self.store)
         if isinstance(function, WasmFunc):
             local_list = [Value() for _ in function.code.local_list]
-            body = binary.Instruction()
-            body.opcode = instruction.block
-            if len(function.type.rets.data) == 1:
-                body.args = [binary.BlockType(function.type.rets.data[0]),  function.code.expr.data]
-            else:
-                body.args = [binary.BlockType(convention.empty), function.code.expr.data]
             frame = Frame(
                 module=function.module,
                 local_list=function_args + local_list,
-                instruction_list=[body],
+                expr=function.code.expr,
                 arity=len(function.type.rets.data),
             )
-            conf.frame_stack.add(frame)
-            return conf.execute()
+            config = Configuration(self.store, frame)
+            return config.exec()
         else:
             raise Exception(f'pywasm: unknown function type: {type(function)}')

@@ -614,9 +614,31 @@ class Expression:
     # In some places, validation restricts expressions to be constant, which limits the set of allowable instructions.
     def __init__(self):
         self.data: typing.List[Instruction] = []
+        self.position: typing.Dict[int, typing.List[int]] = {}
 
     def __str__(self):
         return f'expression({self.data})'
+
+    @classmethod
+    def mark(cls, data: typing.List[Instruction]) -> typing.Dict[int, typing.List[int]]:
+        position = {}  # pc => { start, end, else }
+        stack = []
+        for i, e in enumerate(data):
+            if e.opcode in [instruction.block, instruction.loop, instruction.if_]:
+                stack.append([i])
+                continue
+            if e.opcode == instruction.else_:
+                stack[-1].append(i)
+                continue
+            if e.opcode == instruction.end:
+                b = stack.pop()
+                b.insert(1, i)
+                for e in b:
+                    position[e] = b
+                continue
+        if stack:
+            raise Exception('pywasm: expression ended in middle of body')
+        return position
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -626,7 +648,9 @@ class Expression:
                 o.data.append(Instruction.from_reader(r))
             except:
                 break
-        o.data.pop()
+        if o.data.pop().opcode != instruction.end:
+            raise Exception('pywasm: expression did not end with 0xb')
+        o.position = cls.mark(o.data)
         return o
 
 

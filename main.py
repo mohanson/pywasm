@@ -10,6 +10,6 @@ for e in a.function_list[0].expr.data:
 # b.instantiate(a)
 # print(b.invocate(0, [pywasm.execution.Value.from_i32(10), pywasm.execution.Value.from_i32(20)]))
 
-# runtime = pywasm.load('./examples/add.wasm')
-# r = runtime.exec('add', [1, 2])
-# print(r)
+runtime = pywasm.load('./examples/add.wasm')
+r = runtime.exec('add', [1, 2])
+print(r)
