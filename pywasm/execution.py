@@ -645,11 +645,29 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def return_(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        v = [config.stack.pop() for _ in range(config.frame.arity)][::-1]
+        while True:
+            e = config.stack.pop()
+            if isinstance(e, Frame):
+                config.stack.append(e)
+                break
+        for e in v:
+            config.stack.append(e)
+        # Jump to the instruction after the original call that pushed the frame
+        config.pc = len(config.frame.expr.data) - 1
 
     @staticmethod
     def call(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        machine = Machine()
+        machine.module = config.frame.module
+        machine.store = config.store
+        function_addr: binary.FunctionIndex = i.args[0]
+        function: FunctionInstance = config.store.function_list[function_addr]
+        function_type = function.type
+        function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
+        r = machine.invocate(function_addr, function_args)
+        for e in r.data[::-1]:
+            config.stack.append(e)
 
     @staticmethod
     def call_indirect(config: Configuration, i: binary.Instruction):
