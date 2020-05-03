@@ -1594,59 +1594,88 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_abs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(abs(a)))
 
     @staticmethod
     def f64_neg(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(-a))
 
     @staticmethod
     def f64_ceil(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(math.ceil(a)))
 
     @staticmethod
     def f64_floor(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(math.floor(a)))
 
     @staticmethod
     def f64_trunc(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(math.trunc(a)))
 
     @staticmethod
     def f64_nearest(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        r = round(a)
+        config.stack.append(Value.from_f64(r))
 
     @staticmethod
     def f64_sqrt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_f64(math.sqrt(a)))
 
     @staticmethod
     def f64_add(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(a + b)
+        config.stack.append(r)
 
     @staticmethod
     def f64_sub(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(a - b)
+        config.stack.append(r)
 
     @staticmethod
     def f64_mul(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(a * b)
+        config.stack.append(r)
 
     @staticmethod
     def f64_div(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(a / b)
+        config.stack.append(r)
 
     @staticmethod
     def f64_min(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(min(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def f64_max(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(max(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def f64_copysign(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        r = Value.from_f64(math.copysign(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def i32_wrap_i64(config: Configuration, i: binary.Instruction):
@@ -1656,100 +1685,163 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_trunc_sf32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        if a > (1 << 31) - 1 or a < -(1 << 31):
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i32(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i32_trunc_uf32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        if a > (1 << 32) - 1 or a <= -1:
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i32(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i32_trunc_sf64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        if a > (1 << 31) - 1 or a < -(1 << 31):
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i32(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i32_trunc_uf64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        if a > (1 << 32) - 1 or a <= -1:
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i32(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i64_extend_si32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        r = Value.from_i64(a)
+        config.stack.append(r)
 
     @staticmethod
     def i64_extend_ui32(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u32()
-        config.stack.append(Value.from_i64(a))
+        r = Value.from_i64(a)
+        config.stack.append(r)
 
     @staticmethod
     def i64_trunc_sf32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        if a > (1 << 63) - 1 or a < -(1 << 63):
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i64(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i64_trunc_uf32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        if a > (1 << 64) - 1 or a <= -1:
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i64(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i64_trunc_sf64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        if a > (1 << 63) - 1 or a < -(1 << 63):
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i64(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def i64_trunc_uf64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        if a > (1 << 64) - 1 or a <= -1:
+            raise Exception('pywasm: integer overflow')
+        r = Value.from_i64(int(a))
+        config.stack.append(r)
 
     @staticmethod
     def f32_convert_si32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        r = Value.from_f32(a)
+        config.stack.append(r)
 
     @staticmethod
     def f32_convert_ui32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().u32()
+        r = Value.from_f32(a)
+        config.stack.append(r)
 
     @staticmethod
     def f32_convert_si64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        r = Value.from_f32(a)
+        config.stack.append(r)
 
     @staticmethod
     def f32_convert_ui64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().u64()
+        r = Value.from_f32(a)
+        config.stack.append(r)
 
     @staticmethod
     def f32_demote_f64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f64()
+        r = Value.from_f32(a)
+        config.stack.append(r)
 
     @staticmethod
     def f64_convert_si32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i32()
+        r = Value.from_f64(a)
+        config.stack.append(r)
 
     @staticmethod
     def f64_convert_ui32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().u32()
+        r = Value.from_f64(a)
+        config.stack.append(r)
 
     @staticmethod
     def f64_convert_si64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().i64()
+        r = Value.from_f64(a)
+        config.stack.append(r)
 
     @staticmethod
     def f64_convert_ui64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().u64()
+        r = Value.from_f64(a)
+        config.stack.append(r)
 
     @staticmethod
     def f64_promote_f32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        r = Value.from_f64(a)
+        config.stack.append(r)
 
     @staticmethod
     def i32_reinterpret_f32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop()
+        a.type = binary.ValueType(convention.i32)
+        config.stack.append(a)
 
     @staticmethod
     def i64_reinterpret_f64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop()
+        a.type = binary.ValueType(convention.i64)
+        config.stack.append(a)
 
     @staticmethod
     def f32_reinterpret_i32(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop()
+        a.type = binary.ValueType(convention.f32)
+        config.stack.append(a)
 
     @staticmethod
     def f64_reinterpret_i64(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop()
+        a.type = binary.ValueType(convention.f64)
+        config.stack.append(a)
 
 
 class Machine:
