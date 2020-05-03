@@ -1,3 +1,4 @@
+import math
 import typing
 
 from . import binary
@@ -755,9 +756,9 @@ class ArithmeticLogicUnit:
         b = config.stack.pop()
         a = config.stack.pop()
         if c:
-            config.stack.add(a)
+            config.stack.append(a)
         else:
-            config.stack.add(b)
+            config.stack.append(b)
 
     @staticmethod
     def get_local(config: Configuration, i: binary.Instruction):
@@ -799,7 +800,7 @@ class ArithmeticLogicUnit:
         if addr + 4 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i32(num.LittleEndian.i32(memory.data[addr:addr + 4]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load(config: Configuration, i: binary.Instruction):
@@ -810,7 +811,7 @@ class ArithmeticLogicUnit:
         if addr + 8 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.i64(memory.data[addr:addr + 8]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def f32_load(config: Configuration, i: binary.Instruction):
@@ -821,7 +822,7 @@ class ArithmeticLogicUnit:
         if addr + 4 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_f32(num.LittleEndian.f32(memory.data[addr:addr + 4]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def f64_load(config: Configuration, i: binary.Instruction):
@@ -832,7 +833,7 @@ class ArithmeticLogicUnit:
         if addr + 8 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_f64(num.LittleEndian.f64(memory.data[addr:addr + 8]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_load8_s(config: Configuration, i: binary.Instruction):
@@ -843,7 +844,7 @@ class ArithmeticLogicUnit:
         if addr + 1 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i32(num.LittleEndian.i8(memory.data[addr:addr + 1]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_load8_u(config: Configuration, i: binary.Instruction):
@@ -854,7 +855,7 @@ class ArithmeticLogicUnit:
         if addr + 1 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i32(num.LittleEndian.u8(memory.data[addr:addr + 1]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_load16_s(config: Configuration, i: binary.Instruction):
@@ -865,7 +866,7 @@ class ArithmeticLogicUnit:
         if addr + 2 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i32(num.LittleEndian.i16(memory.data[addr:addr + 2]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_load16_u(config: Configuration, i: binary.Instruction):
@@ -876,7 +877,7 @@ class ArithmeticLogicUnit:
         if addr + 2 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i32(num.LittleEndian.u16(memory.data[addr:addr + 2]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load8_s(config: Configuration, i: binary.Instruction):
@@ -887,7 +888,7 @@ class ArithmeticLogicUnit:
         if addr + 1 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.i8(memory.data[addr:addr + 1]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load8_u(config: Configuration, i: binary.Instruction):
@@ -898,7 +899,7 @@ class ArithmeticLogicUnit:
         if addr + 1 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.u8(memory.data[addr:addr + 1]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load16_s(config: Configuration, i: binary.Instruction):
@@ -909,7 +910,7 @@ class ArithmeticLogicUnit:
         if addr + 2 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.i16(memory.data[addr:addr + 2]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load16_u(config: Configuration, i: binary.Instruction):
@@ -920,7 +921,7 @@ class ArithmeticLogicUnit:
         if addr + 2 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.u16(memory.data[addr:addr + 2]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load32_s(config: Configuration, i: binary.Instruction):
@@ -931,7 +932,7 @@ class ArithmeticLogicUnit:
         if addr + 4 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.i32(memory.data[addr:addr + 4]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_load32_u(config: Configuration, i: binary.Instruction):
@@ -942,7 +943,7 @@ class ArithmeticLogicUnit:
         if addr + 4 > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         r = Value.from_i64(num.LittleEndian.u32(memory.data[addr:addr + 4]))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def mem_store(config: Configuration, i: binary.Instruction, size: int):
@@ -1287,7 +1288,7 @@ class ArithmeticLogicUnit:
         if b == 0:
             raise Exception('pywasm: division by zero')
         r = Value.from_i32(a // b)
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_rems(config: Configuration, i: binary.Instruction):
@@ -1297,7 +1298,7 @@ class ArithmeticLogicUnit:
             raise Exception('pywasm: division by zero')
         # Integer remainder that rounds towards 0 (like C)
         r = Value.from_i32(a % b if a * b > 0 else -(-a % b))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_remu(config: Configuration, i: binary.Instruction):
@@ -1306,7 +1307,7 @@ class ArithmeticLogicUnit:
         if b == 0:
             raise Exception('pywasm: division by zero')
         r = Value.from_i32(a % b)
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i32_and(config: Configuration, i: binary.Instruction):
@@ -1429,7 +1430,7 @@ class ArithmeticLogicUnit:
         if b == 0:
             raise Exception('pywasm: division by zero')
         r = Value.from_i64(a // b)
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_rems(config: Configuration, i: binary.Instruction):
@@ -1439,7 +1440,7 @@ class ArithmeticLogicUnit:
             raise Exception('pywasm: division by zero')
         # Integer remainder that rounds towards 0 (like C)
         r = Value.from_i64(a % b if a * b > 0 else -(-a % b))
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_remu(config: Configuration, i: binary.Instruction):
@@ -1448,7 +1449,7 @@ class ArithmeticLogicUnit:
         if b == 0:
             raise Exception('pywasm: division by zero')
         r = Value.from_i64(a % b)
-        config.stack.add(r)
+        config.stack.append(r)
 
     @staticmethod
     def i64_and(config: Configuration, i: binary.Instruction):
@@ -1508,59 +1509,88 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_abs(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(abs(a)))
 
     @staticmethod
     def f32_neg(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(-a))
 
     @staticmethod
     def f32_ceil(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(math.ceil(a)))
 
     @staticmethod
     def f32_floor(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(math.floor(a)))
 
     @staticmethod
     def f32_trunc(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(math.trunc(a)))
 
     @staticmethod
     def f32_nearest(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        r = round(a)
+        config.stack.append(Value.from_f32(r))
 
     @staticmethod
     def f32_sqrt(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_f32(math.sqrt(a)))
 
     @staticmethod
     def f32_add(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(a + b)
+        config.stack.append(r)
 
     @staticmethod
     def f32_sub(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(a - b)
+        config.stack.append(r)
 
     @staticmethod
     def f32_mul(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(a * b)
+        config.stack.append(r)
 
     @staticmethod
     def f32_div(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(a / b)
+        config.stack.append(r)
 
     @staticmethod
     def f32_min(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(min(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def f32_max(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(max(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def f32_copysign(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        r = Value.from_f32(math.copysign(a, b))
+        config.stack.append(r)
 
     @staticmethod
     def f64_abs(config: Configuration, i: binary.Instruction):
