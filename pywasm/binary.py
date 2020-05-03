@@ -252,7 +252,11 @@ class Instruction:
             o.args = [FunctionIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode == instruction.call_indirect:
-            o.args = [TypeIndex(leb128.u.decode_reader(r)[0]), r.read(1)]
+            i = TypeIndex(leb128.u.decode_reader(r)[0])
+            n = r.read(1)
+            if n != 0x00:
+                raise Exception('pywasm: zero flag expected')
+            o.args = [i, n]
             return o
         if o.opcode in [
             instruction.get_local,
@@ -298,7 +302,10 @@ class Instruction:
             instruction.current_memory,
             instruction.grow_memory
         ]:
-            o.args = [r.read(1)]
+            n = r.read(1)
+            if n != 0x00:
+                raise Exception('pywasm: zero flag expected')
+            o.args = [n]
             return o
         if o.opcode == instruction.i32_const:
             o.args = [leb128.i.decode_reader(r)[0]]
@@ -857,6 +864,8 @@ class Locals:
     def from_reader(cls, r: typing.BinaryIO):
         o = Locals()
         o.n = leb128.u.decode_reader(r)[0]
+        if o.n > 0x10000000:
+            raise Exception('pywasm: too many locals')
         o.type = ValueType.from_reader(r)
         return o
 
@@ -903,6 +912,7 @@ class Code:
     def from_reader(cls, r: typing.BinaryIO):
         o = Code()
         o.size = leb128.u.decode_reader(r)[0]
+        r = io.BytesIO(r.read(o.size))
         o.func = Func.from_reader(r)
         return o
 
@@ -1037,9 +1047,22 @@ class Module:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         if list(r.read(4)) != [0x00, 0x61, 0x73, 0x6d]:
-            raise Exception('pywasm: invalid magic number')
+            raise Exception('pywasm: magic header not detected')
         if list(r.read(4)) != [0x01, 0x00, 0x00, 0x00]:
-            raise Exception('pywasm: invalid version')
+            raise Exception('pywasm: unknown binary version')
+
+        type_section = TypeSection()
+        import_section = ImportSection()
+        function_section = FunctionSection()
+        table_section = TableSection()
+        memory_section = MemorySection()
+        global_section = GlobalSection()
+        export_section = ExportSection()
+        start_section = None
+        element_section = ElementSection()
+        code_section = CodeSection()
+        data_section = DataSection()
+
         mod = Module()
         while True:
             section_id_byte = r.read(1)
@@ -1049,7 +1072,7 @@ class Module:
             n = leb128.u.decode_reader(r)[0]
             data = bytearray(r.read(n))
             if len(data) != n:
-                raise Exception('pywasm: invalid section size')
+                raise Exception('pywasm: unexpected end of section or function')
             if section_id == convention.custom_section:
                 custom_section = CustomSection.from_reader(io.BytesIO(data))
                 mod.section_list.append(custom_section)
@@ -1100,6 +1123,8 @@ class Module:
                 mod.element_list = element_section.data
             if section_id == convention.code_section:
                 code_section = CodeSection.from_reader(io.BytesIO(data))
+                if len(function_section.data) != len(code_section.data):
+                    raise Exception('pywasm: function and code section have inconsistent lengths')
                 mod.section_list.append(code_section)
                 log.debugln(code_section)
                 for i, e in enumerate(code_section.data):
@@ -1116,5 +1141,8 @@ class Module:
                 mod.section_list.append(data_section)
                 log.debugln(data_section)
                 mod.data_list = data_section.data
+
+        if len(function_section.data) != len(code_section.data):
+            raise Exception('pywasm: function and code section have inconsistent lengths')
 
         return mod

@@ -7,11 +7,25 @@ import pywasm
 num = pywasm.num
 
 
+def int2i32(i: int) -> int:
+    i = i & 0xffffffff
+    if i & 0x80000000:
+        return i - 0x100000000
+    return i
+
+
+def int2i64(i: int) -> int:
+    i = i & 0xffffffffffffffff
+    if i & 0x8000000000000000:
+        return i - 0x10000000000000000
+    return i
+
+
 def parse_val(m):
     if m['type'] == 'i32':
-        return pywasm.Value.from_i32(int(m['value']))
+        return pywasm.Value.from_i32(int2i32(int(m['value'])))
     if m['type'] == 'i64':
-        return pywasm.Value.from_i64(int(m['value']))
+        return pywasm.Value.from_i64(int2i64(int(m['value'])))
     if m['type'] == 'f32':
         v = pywasm.Value.from_i32(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f32)
@@ -53,13 +67,29 @@ def case(path: str):
                 try:
                     r = runtime.exec_accu(function_name, args)
                 except Exception as e:
-                    r = str(e)
+                    r = str(e)[8:]
                 expect = command['text']
-                assert r[8:] == expect
+                assert r == expect
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_malformed':
             if command['filename'].endswith('.wat'):
+                continue
+            if command['filename'].endswith('.wasm'):
+                filename = command['filename']
+                try:
+                    runtime = pywasm.load(os.path.join(path, filename))
+                except Exception as e:
+                    r = str(e)[8:]
+                else:
+                    assert 0
+
+                if r == 'magic header not detected' and command['text'] == 'unexpected end':
+                    continue
+                if r == 'unknown binary version' and command['text'] == 'unexpected end':
+                    continue
+
+                assert r == command['text']
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_invalid':
@@ -71,3 +101,4 @@ def case(path: str):
 if __name__ == '__main__':
     case('./res/spectest/address')
     case('./res/spectest/align')
+    case('./res/spectest/binary')
