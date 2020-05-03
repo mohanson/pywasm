@@ -747,88 +747,202 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def drop(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        config.stack.pop()
 
     @staticmethod
     def select(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        c = config.stack.pop().i32()
+        b = config.stack.pop()
+        a = config.stack.pop()
+        if c:
+            config.stack.add(a)
+        else:
+            config.stack.add(b)
 
     @staticmethod
     def get_local(config: Configuration, i: binary.Instruction):
-        value = config.frame.local_list[i.args[0]]
-        config.stack.append(value)
+        r = config.frame.local_list[i.args[0]]
+        config.stack.append(r)
 
     @staticmethod
     def set_local(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        r = config.stack.pop()
+        config.frame.local_list[i.args[0]] = r
 
     @staticmethod
     def tee_local(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        r = config.stack.pop()
+        config.stack.append(r)
+        config.stack.append(r)
+        config.frame.local_list[i.args[0]] = r
 
     @staticmethod
     def get_global(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.frame.module.global_addr_list[i.args[0]]
+        glob = config.store.global_list[a]
+        r = glob.value
+        config.stack.append(r)
 
     @staticmethod
     def set_global(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        a = config.frame.module.global_addr_list[i.args[0]]
+        glob = config.store.global_list[a]
+        assert glob.mut == convention.var
+        glob.value = config.stack.pop()
 
     @staticmethod
     def i32_load(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 4 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i32(num.LittleEndian.i32(memory.data[addr:addr + 4]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 8 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.i64(memory.data[addr:addr + 8]))
+        config.stack.add(r)
 
     @staticmethod
     def f32_load(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 4 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_f32(num.LittleEndian.f32(memory.data[addr:addr + 4]))
+        config.stack.add(r)
 
     @staticmethod
     def f64_load(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 8 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_f64(num.LittleEndian.f64(memory.data[addr:addr + 8]))
+        config.stack.add(r)
 
     @staticmethod
     def i32_load8_s(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 1 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i32(num.LittleEndian.i8(memory.data[addr:addr + 1]))
+        config.stack.add(r)
 
     @staticmethod
     def i32_load8_u(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 1 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i32(num.LittleEndian.u8(memory.data[addr:addr + 1]))
+        config.stack.add(r)
 
     @staticmethod
     def i32_load16_s(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 2 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i32(num.LittleEndian.i16(memory.data[addr:addr + 2]))
+        config.stack.add(r)
 
     @staticmethod
     def i32_load16_u(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 2 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i32(num.LittleEndian.u16(memory.data[addr:addr + 2]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load8_s(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 1 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.i8(memory.data[addr:addr + 1]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load8_u(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 1 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.u8(memory.data[addr:addr + 1]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load16_s(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 2 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.i16(memory.data[addr:addr + 2]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load16_u(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 2 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.u16(memory.data[addr:addr + 2]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load32_s(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 4 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.i32(memory.data[addr:addr + 4]))
+        config.stack.add(r)
 
     @staticmethod
     def i64_load32_u(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        memory_addr = config.frame.module.memory_addr_list[0]
+        memory = config.store.memory_list[memory_addr]
+        offset = i.args[0]
+        addr = config.stack().pop().i32() + offset
+        if addr + 4 > len(memory.data):
+            raise Exception('pywasm: out of bounds memory access')
+        r = Value.from_i64(num.LittleEndian.u32(memory.data[addr:addr + 4]))
+        config.stack.add(r)
 
     @staticmethod
     def i32_store(config: Configuration, i: binary.Instruction):

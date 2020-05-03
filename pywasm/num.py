@@ -70,21 +70,14 @@ f32 = f64 = float
 
 
 class LittleEndian:
-    # @staticmethod
-    # def u8(r: bytes):
-    #     return struct.unpack('<B', r)[0]
 
-    # @staticmethod
-    # def i8(r: bytes):
-    #     return struct.unpack('<b', r)[0]
+    @staticmethod
+    def i8(r: bytes):
+        return struct.unpack('<b', r)[0]
 
-    # @staticmethod
-    # def u16(r: bytes):
-    #     return struct.unpack('<H', r)[0]
-
-    # @staticmethod
-    # def i16(r: bytes):
-    #     return struct.unpack('<h', r)[0]
+    @staticmethod
+    def i16(r: bytes):
+        return struct.unpack('<h', r)[0]
 
     @staticmethod
     def i32(r: bytes):
@@ -93,6 +86,14 @@ class LittleEndian:
     @staticmethod
     def i64(r: bytes):
         return struct.unpack('<q', r)[0]
+
+    @staticmethod
+    def u8(r: bytes):
+        return struct.unpack('<B', r)[0]
+
+    @staticmethod
+    def u16(r: bytes):
+        return struct.unpack('<H', r)[0]
 
     @staticmethod
     def u32(r: bytes):

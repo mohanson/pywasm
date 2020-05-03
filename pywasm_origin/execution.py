@@ -625,10 +625,6 @@ def exec_expr(
             stack.add(frame.locals[i.immediate_arguments])
             continue
         if opcode == convention.set_local:
-            if i.immediate_arguments >= len(frame.locals):
-                frame.locals.extend(
-                    [Value.from_i32(0) for _ in range(i.immediate_arguments - len(frame.locals) + 1)]
-                )
             frame.locals[i.immediate_arguments] = stack.pop()
             continue
         if opcode == convention.tee_local:
