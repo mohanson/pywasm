@@ -80,16 +80,20 @@ def case(path: str):
                 try:
                     runtime = pywasm.load(os.path.join(path, filename))
                 except Exception as e:
-                    r = str(e)[8:]
+                    r = str(e)
                 else:
                     assert 0
 
-                if r == 'magic header not detected' and command['text'] == 'unexpected end':
+                if r == 'pywasm: magic header not detected' and command['text'] == 'unexpected end':
                     continue
-                if r == 'unknown binary version' and command['text'] == 'unexpected end':
+                if r == 'pywasm: unknown binary version' and command['text'] == 'unexpected end':
+                    continue
+                if r == 'ord() expected a character, but string of length 0 found' and command['text'] == 'unexpected end of section or function':
+                    continue
+                if r == 'ord() expected a character, but string of length 0 found' and command['text'] == 'unexpected end':
                     continue
 
-                assert r == command['text']
+                assert r[8:] == command['text']
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_invalid':

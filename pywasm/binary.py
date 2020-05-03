@@ -1070,59 +1070,61 @@ class Module:
                 break
             section_id = ord(section_id_byte)
             n = leb128.u.decode_reader(r)[0]
-            data = bytearray(r.read(n))
-            if len(data) != n:
+            section_data = bytearray(r.read(n))
+            if len(section_data) != n:
                 raise Exception('pywasm: unexpected end of section or function')
+            section_reader = io.BytesIO(section_data)
+
             if section_id == convention.custom_section:
-                custom_section = CustomSection.from_reader(io.BytesIO(data))
+                custom_section = CustomSection.from_reader(section_reader)
                 mod.section_list.append(custom_section)
                 log.debugln(custom_section)
             if section_id == convention.type_section:
-                type_section = TypeSection.from_reader(io.BytesIO(data))
+                type_section = TypeSection.from_reader(section_reader)
                 mod.section_list.append(type_section)
                 log.debugln(type_section)
                 mod.type_list = type_section.data
             if section_id == convention.import_section:
-                import_section = ImportSection.from_reader(io.BytesIO(data))
+                import_section = ImportSection.from_reader(section_reader)
                 mod.section_list.append(import_section)
                 log.debugln(import_section)
                 mod.import_list = import_section.data
             if section_id == convention.function_section:
-                function_section = FunctionSection.from_reader(io.BytesIO(data))
+                function_section = FunctionSection.from_reader(section_reader)
                 mod.section_list.append(function_section)
                 log.debugln(function_section)
             if section_id == convention.table_section:
-                table_section = TableSection.from_reader(io.BytesIO(data))
+                table_section = TableSection.from_reader(section_reader)
                 mod.section_list.append(table_section)
                 log.debugln(table_section)
                 mod.table_list = table_section.data
             if section_id == convention.memory_section:
-                memory_section = MemorySection.from_reader(io.BytesIO(data))
+                memory_section = MemorySection.from_reader(section_reader)
                 mod.section_list.append(memory_section)
                 log.debugln(memory_section)
                 mod.memory_list = memory_section.data
             if section_id == convention.global_section:
-                global_section = GlobalSection.from_reader(io.BytesIO(data))
+                global_section = GlobalSection.from_reader(section_reader)
                 mod.section_list.append(global_section)
                 log.debugln(global_section)
                 mod.global_list = global_section.data
             if section_id == convention.export_section:
-                export_section = ExportSection.from_reader(io.BytesIO(data))
+                export_section = ExportSection.from_reader(section_reader)
                 mod.section_list.append(export_section)
                 log.debugln(export_section)
                 mod.export_list = export_section.data
             if section_id == convention.start_section:
-                start_section = StartSection.from_reader(io.BytesIO(data))
+                start_section = StartSection.from_reader(section_reader)
                 mod.section_list.append(start_section)
                 log.debugln(start_section)
                 mod.start = start_section.start
             if section_id == convention.element_section:
-                element_section = ElementSection.from_reader(io.BytesIO(data))
+                element_section = ElementSection.from_reader(section_reader)
                 mod.section_list.append(element_section)
                 log.debugln(element_section)
                 mod.element_list = element_section.data
             if section_id == convention.code_section:
-                code_section = CodeSection.from_reader(io.BytesIO(data))
+                code_section = CodeSection.from_reader(section_reader)
                 if len(function_section.data) != len(code_section.data):
                     raise Exception('pywasm: function and code section have inconsistent lengths')
                 mod.section_list.append(code_section)
@@ -1137,10 +1139,13 @@ class Module:
                     func.expr = e.func.expr
                     mod.function_list.append(func)
             if section_id == convention.data_section:
-                data_section = DataSection.from_reader(io.BytesIO(data))
+                data_section = DataSection.from_reader(section_reader)
                 mod.section_list.append(data_section)
                 log.debugln(data_section)
                 mod.data_list = data_section.data
+
+            if section_reader.read(1):
+                raise Exception('pywasm: section size mismatch')
 
         if len(function_section.data) != len(code_section.data):
             raise Exception('pywasm: function and code section have inconsistent lengths')
