@@ -395,6 +395,17 @@ class Configuration:
         self.stack.append(frame)
         self.pc = 0
 
+    def get_label(self, i: int) -> Label:
+        l = self.stack.len()
+        x = i
+        for a in range(l):
+            j = l - a - 1
+            v = self.stack.data[j]
+            if isinstance(v, Label):
+                if x == 0:
+                    return v
+                x -= 1
+
     def exec(self) -> Result:
         instruction_list = self.frame.expr.data
         instruction_list_len = len(instruction_list)
@@ -402,9 +413,8 @@ class Configuration:
             i = instruction_list[self.pc]
             ArithmeticLogicUnit.exec(self, i)
             self.pc += 1
-        r = []
-        for _ in range(self.frame.arity):
-            r.append(self.stack.pop())
+
+        r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
         assert self.stack.pop() == self.frame
         return Result(r)
 
@@ -425,6 +435,8 @@ class ArithmeticLogicUnit:
             instruction.block: ArithmeticLogicUnit.block,
             instruction.loop: ArithmeticLogicUnit.loop,
             instruction.if_: ArithmeticLogicUnit.if_,
+            instruction.else_: ArithmeticLogicUnit.else_,
+            instruction.end: ArithmeticLogicUnit.end,
             instruction.br: ArithmeticLogicUnit.br,
             instruction.br_if: ArithmeticLogicUnit.br_if,
             instruction.br_table: ArithmeticLogicUnit.br_table,
@@ -612,20 +624,49 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def loop(config: Configuration, i: binary.Instruction):
-        raise NotImplementedError
+        if i.args[0] == convention.empty:
+            arity = 0
+        else:
+            arity = 1
+        continuation = config.frame.expr.position[config.pc][0]
+        config.stack.append(Label(arity, continuation))
 
     @staticmethod
     def if_(config: Configuration, i: binary.Instruction):
+        c = config.stack.pop().i32()
+        if i.args[0] == convention.empty:
+            arity = 0
+        else:
+            arity = 1
+        continuation = config.frame.expr.position[config.pc][-1]
+        config.stack.append(Label(arity, continuation))
+        if c == 0:
+            if len(config.frame.expr.position[config.pc]) == 3:
+                pc = config.frame.expr.position[pc][1]
+            else:
+                pc = config.frame.expr.position[pc][2]
+
+    @staticmethod
+    def else_(config: Configuration, i: binary.Instruction):
+        L = config.get_label(0)
+        v = [config.stack.pop() for _ in range(L.arity)][::-1]
+        while True:
+            if isinstance(config.stack.pop(), Label):
+                break
+        for e in v:
+            config.stack.append(e)
+
+    @staticmethod
+    def end(config: Configuration, i: binary.Instruction):
         raise NotImplementedError
 
     @staticmethod
     def br(config: Configuration, i: binary.Instruction):
         l = i.args[0]
         # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
-        L = [i for i in config.stack.data if isinstance(i, Label)][::-1][l]
-        n = L.arity
+        L = config.get_label(i.args[0])
         # Pop the values n from the stack.
-        v = [config.stack.pop() for _ in range(n)]
+        v = [config.stack.pop() for _ in range(L.arity)][::-1]
         # Repeat l+1 times
         #     While the top of the stack is a value, pop the value from the stack
         #     Assert: due to validation, the top of the stack now is a label
@@ -637,7 +678,7 @@ class ArithmeticLogicUnit:
                 s += 1
         # Push the values n to the stack
         for e in v:
-            config.stack.append(v)
+            config.stack.append(e)
         # Jump to the continuation of L
         config.pc = L.continuation
 
