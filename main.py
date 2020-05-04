@@ -24,9 +24,15 @@ def imps() -> typing.Dict:
             'global_i32': 666,
             'memory': memory,
             'table': table,
+        },
+        'module1': {
+            'shared-table': table,
         }
     }
 
-runtime = pywasm.load('./res/spectest/elem/elem.7.wasm', imps())
-r = runtime.exec('call-7', [])
-print(r)
+runtime = pywasm.load('./res/spectest/elem/elem.38.wasm', imps())
+
+# r = runtime.exec('call-7', [])
+# print(r)
+
+print(runtime.machine.module.export_list)

@@ -316,6 +316,9 @@ class ExportInstance:
         self.name = name
         self.value = value
 
+    def __repr__(self):
+        return f'export_instance({self.name}, {self.value})'
+
 
 class Label:
     # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an

@@ -57,6 +57,9 @@ def imps() -> typing.Dict:
             'global_i32': 666,
             'table': table,
             'memory': memory,
+        },
+        'module1': {
+            'shared-table': table,
         }
     }
 
