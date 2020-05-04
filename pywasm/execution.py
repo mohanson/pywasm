@@ -74,6 +74,20 @@ class Value:
         return o
 
     @classmethod
+    def from_u32(cls, n: num.u32):
+        o = Value()
+        o.type = binary.ValueType(convention.i32)
+        o.data[0:4] = num.LittleEndian.pack_u32(n)
+        return o
+
+    @classmethod
+    def from_u64(cls, n: num.u64):
+        o = Value()
+        o.type = binary.ValueType(convention.i64)
+        o.data[0:8] = num.LittleEndian.pack_u64(n)
+        return o
+
+    @classmethod
     def from_f32(cls, n: num.f32):
         o = Value()
         o.type = binary.ValueType(convention.f32)

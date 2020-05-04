@@ -27,11 +27,11 @@ def parse_val(m):
     if m['type'] == 'i64':
         return pywasm.Value.from_i64(int2i64(int(m['value'])))
     if m['type'] == 'f32':
-        v = pywasm.Value.from_i32(int(m['value']))
+        v = pywasm.Value.from_u32(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f32)
         return v
     if m['type'] == 'f64':
-        v = pywasm.Value.from_i64(int(m['value']))
+        v = pywasm.Value.from_u64(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f64)
         return v
     raise NotImplementedError
@@ -119,10 +119,10 @@ if __name__ == '__main__':
     case('./res/spectest/binary')
     case('./res/spectest/binary-leb128')
     case('./res/spectest/br_if')
-    # case('./res/spectest/br_table')
-    # case('./res/spectest/break-drop')
-    # case('./res/spectest/comments')
-    # case('./res/spectest/const')
+    case('./res/spectest/br_table')
+    case('./res/spectest/break-drop')
+    case('./res/spectest/comments')
+    case('./res/spectest/const')
     # case('./res/spectest/custom')
     # case('./res/spectest/data')
     # case('./res/spectest/elem')
