@@ -37,6 +37,13 @@ def parse_val(m):
     raise NotImplementedError
 
 
+imps = {
+    'spectest': {
+        'print_i32': lambda _: None,
+    }
+}
+
+
 def case(path: str):
     case_name = os.path.basename(path)
     json_path = os.path.join(path, case_name + '.json')
@@ -48,7 +55,7 @@ def case(path: str):
         print(command)
         if command['type'] == 'module':
             filename = command['filename']
-            runtime = pywasm.load(os.path.join(path, filename))
+            runtime = pywasm.load(os.path.join(path, filename), imps)
             continue
         # {'type': 'assert_return', 'line': 104, 'action': {'type': 'invoke', 'field': '8u_good1', 'args': [{'type': 'i32', 'value': '0'}]}, 'expected': [{'type': 'i32', 'value': '97'}]}
         if command['type'] == 'assert_return':
@@ -78,7 +85,7 @@ def case(path: str):
             if command['filename'].endswith('.wasm'):
                 filename = command['filename']
                 try:
-                    runtime = pywasm.load(os.path.join(path, filename))
+                    runtime = pywasm.load(os.path.join(path, filename), imps)
                 except Exception as e:
                     r = str(e)
                 else:
