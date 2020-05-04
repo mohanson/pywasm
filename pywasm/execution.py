@@ -1247,7 +1247,9 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
+        if b == -1 and a == -2**31:
+            raise Exception('pywasm: integer overflow')
         # Integer division that rounds towards 0 (like C)
         r = Value.from_i32(a // b if a * b > 0 else (a + (-a % b)) // b)
         config.stack.append(r)
@@ -1257,7 +1259,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         r = Value.from_i32(a // b)
         config.stack.append(r)
 
@@ -1266,7 +1268,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         # Integer remainder that rounds towards 0 (like C)
         r = Value.from_i32(a % b if a * b > 0 else -(-a % b))
         config.stack.append(r)
@@ -1276,7 +1278,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         r = Value.from_i32(a % b)
         config.stack.append(r)
 
@@ -1390,7 +1392,9 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
+        if b == -1 and a == -2**63:
+            raise Exception('pywasm: integer overflow')
         r = Value.from_i64(a // b if a * b > 0 else (a + (-a % b)) // b)
         config.stack.append(r)
 
@@ -1399,7 +1403,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         r = Value.from_i64(a // b)
         config.stack.append(r)
 
@@ -1408,7 +1412,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         # Integer remainder that rounds towards 0 (like C)
         r = Value.from_i64(a % b if a * b > 0 else -(-a % b))
         config.stack.append(r)
@@ -1418,7 +1422,7 @@ class ArithmeticLogicUnit:
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         if b == 0:
-            raise Exception('pywasm: division by zero')
+            raise Exception('pywasm: integer divide by zero')
         r = Value.from_i64(a % b)
         config.stack.append(r)
 
@@ -1659,7 +1663,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f32()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i32(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1667,7 +1675,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f32()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i32(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1675,7 +1687,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f64()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i32(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1683,7 +1699,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f64()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i32(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1703,7 +1723,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f32()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i64(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1711,7 +1735,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f32()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i64(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1719,7 +1747,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f64()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i64(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
@@ -1727,7 +1759,11 @@ class ArithmeticLogicUnit:
         a = config.stack.pop().f64()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
-        r = Value.from_i64(int(a))
+        try:
+            b = int(a)
+        except:
+            raise Exception('pywasm: invalid conversion to integer')
+        r = Value.from_i64(b)
         config.stack.append(r)
 
     @staticmethod

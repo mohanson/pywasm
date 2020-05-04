@@ -165,7 +165,7 @@ if __name__ == '__main__':
     case('./res/spectest/switch')
     case('./res/spectest/table')
     case('./res/spectest/token')
-    # [TODO] case('./res/spectest/traps')
+    case('./res/spectest/traps')
     case('./res/spectest/type')
     case('./res/spectest/typecheck')
     case('./res/spectest/unreachable')
