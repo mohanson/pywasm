@@ -780,7 +780,7 @@ class ArithmeticLogicUnit:
         function_type_expect = config.frame.module.type_list[i.args[0]]
         idx = config.stack.pop().i32()
         if not 0 <= idx < len(tab.element_list):
-            raise Exception('pywasm: undefined element index')
+            raise Exception('pywasm: undefined element')
         function_addr = tab.element_list[idx]
         if function_addr is None:
             raise Exception('pywasm: uninitialized element')
