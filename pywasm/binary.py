@@ -88,8 +88,8 @@ class Limits:
     def from_reader(cls, r: typing.BinaryIO):
         o = Limits()
         flag = ord(r.read(1))
-        o.n = leb128.u.decode_reader(r)[0]
-        o.m = leb128.u.decode_reader(r)[0] if flag else 0
+        o.n = leb128.u.decode_u32(r)
+        o.m = leb128.u.decode_u32(r) if flag else 0x00
         return o
 
 
@@ -332,7 +332,7 @@ class TypeIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return TypeIndex(leb128.u.decode_reader(r)[0])
+        return TypeIndex(leb128.u.decode_u32(r))
 
 
 class FunctionIndex(int):
@@ -341,7 +341,7 @@ class FunctionIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return FunctionIndex(leb128.u.decode_reader(r)[0])
+        return FunctionIndex(leb128.u.decode_u32(r))
 
 
 class TableIndex(int):
@@ -350,7 +350,7 @@ class TableIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return TableIndex(leb128.u.decode_reader(r)[0])
+        return TableIndex(leb128.u.decode_u32(r))
 
 
 class MemoryIndex(int):
@@ -359,7 +359,7 @@ class MemoryIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return MemoryIndex(leb128.u.decode_reader(r)[0])
+        return MemoryIndex(leb128.u.decode_u32(r))
 
 
 class GlobalIndex(int):
@@ -368,7 +368,7 @@ class GlobalIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return GlobalIndex(leb128.u.decode_reader(r)[0])
+        return GlobalIndex(leb128.u.decode_u32(r))
 
 
 class LocalIndex(int):
@@ -377,7 +377,7 @@ class LocalIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return LocalIndex(leb128.u.decode_reader(r)[0])
+        return LocalIndex(leb128.u.decode_u32(r))
 
 
 class LabelIndex(int):
@@ -386,7 +386,7 @@ class LabelIndex(int):
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
-        return LabelIndex(leb128.u.decode_reader(r)[0])
+        return LabelIndex(leb128.u.decode_u32(r))
 
 
 class Custom:
@@ -957,7 +957,7 @@ class Data:
         o = Data()
         o.memory_index = MemoryIndex.from_reader(r)
         o.offset = Expression.from_reader(r)
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.init = bytearray(r.read(n))
         if len(o.init) != n:
             raise Exception('pywasm: unexpected end of section or function')
@@ -1071,7 +1071,7 @@ class Module:
             if not section_id_byte:
                 break
             section_id = ord(section_id_byte)
-            n = leb128.u.decode_reader(r)[0]
+            n = leb128.u.decode_u32(r)
             section_data = bytearray(r.read(n))
             if len(section_data) != n:
                 raise Exception('pywasm: unexpected end of section or function')

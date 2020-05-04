@@ -38,6 +38,13 @@ class _U:
                 break
         return _U.decode(a), len(a)
 
+    @staticmethod
+    def decode_u32(r: typing.BinaryIO) -> int:
+        n, s = _U.decode_reader(r)
+        if s > 4:
+            raise Exception('pywasm: integer representation too long')
+        return n
+
 
 class _I:
     @staticmethod
