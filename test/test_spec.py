@@ -28,10 +28,14 @@ def parse_val(m):
     if m['type'] == 'i64':
         return pywasm.Value.from_i64(int2i64(int(m['value'])))
     if m['type'] == 'f32':
+        if m['value'].startswith('nan'):
+            return pywasm.Value.from_f32(float('nan'))
         v = pywasm.Value.from_u32(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f32)
         return v
     if m['type'] == 'f64':
+        if m['value'].startswith('nan'):
+            return pywasm.Value.from_f64(float('nan'))
         v = pywasm.Value.from_u64(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f64)
         return v
@@ -73,19 +77,21 @@ def case(path: str):
         if command['type'] == 'module':
             filename = command['filename']
             runtime = pywasm.load(os.path.join(path, filename), imps())
-            continue
         # {'type': 'assert_return', 'line': 104, 'action': {'type': 'invoke', 'field': '8u_good1', 'args': [{'type': 'i32', 'value': '0'}]}, 'expected': [{'type': 'i32', 'value': '97'}]}
-        if command['type'] == 'assert_return':
+        elif command['type'] == 'assert_return':
             if command['action']['type'] == 'invoke':
                 function_name = command['action']['field']
                 args = [parse_val(i) for i in command['action']['args']]
                 r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
                 for i in range(len(expect)):
-                    assert r.data[i].data == expect[i].data
-                continue
-            raise NotImplementedError
-        if command['type'] == 'assert_trap':
+                    if math.isnan(expect[i].val()):
+                        assert math.isnan(r.data[i].val())
+                    else:
+                        assert r.data[i].data == expect[i].data
+            else:
+                raise NotImplementedError
+        elif command['type'] == 'assert_trap':
             if command['action']['type'] == 'invoke':
                 function_name = command['action']['field']
                 args = [parse_val(i) for i in command['action']['args']]
@@ -95,17 +101,18 @@ def case(path: str):
                     r = str(e)[8:]
                 expect = command['text']
                 assert r == expect
-                continue
-            raise NotImplementedError
-        if command['type'] == 'assert_malformed':
+            else:
+                raise NotImplementedError
+        elif command['type'] == 'assert_malformed':
             continue
-        if command['type'] == 'assert_invalid':
+        elif command['type'] == 'assert_invalid':
             continue
-        if command['type'] == 'assert_unlinkable':
+        elif command['type'] == 'assert_unlinkable':
             continue
-        if command['type'] == 'register':
+        elif command['type'] == 'register':
             return
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
 
 
 if __name__ == '__main__':
@@ -123,7 +130,7 @@ if __name__ == '__main__':
     case('./res/spectest/elem')
     case('./res/spectest/endianness')
     # case('./res/spectest/exports')
-    # case('./res/spectest/f32')
+    case('./res/spectest/f32')
     # case('./res/spectest/f32_bitwise')
     # case('./res/spectest/f32_cmp')
     # case('./res/spectest/f64')
