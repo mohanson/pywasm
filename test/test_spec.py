@@ -108,8 +108,7 @@ def case(path: str):
             #     continue
             continue
         if command['type'] == 'assert_invalid':
-            if command['filename'].endswith('.wasm'):
-                continue
+            continue
         raise NotImplementedError
 
 
