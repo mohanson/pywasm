@@ -57,9 +57,6 @@ def imps() -> typing.Dict:
             'global_i32': 666,
             'table': table,
             'memory': memory,
-        },
-        'module1': {
-            'shared-table': table,
         }
     }
 
@@ -101,39 +98,13 @@ def case(path: str):
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_malformed':
-            # if command['filename'].endswith('.wat'):
-            #     continue
-            # if command['filename'].endswith('.wasm'):
-            #     filename = command['filename']
-            #     try:
-            #         runtime = pywasm.load(os.path.join(path, filename), imps)
-            #     except Exception as e:
-            #         r = str(e)
-            #     else:
-            #         r = ''
-
-            #     if r == 'pywasm: magic header not detected' and command['text'] == 'unexpected end':
-            #         continue
-            #     if r == 'pywasm: unknown binary version' and command['text'] == 'unexpected end':
-            #         continue
-            #     if r == 'ord() expected a character, but string of length 0 found' and command['text'] == 'unexpected end of section or function':
-            #         continue
-            #     if r == 'ord() expected a character, but string of length 0 found' and command['text'] == 'unexpected end':
-            #         continue
-            #     if r == 'ord() expected a character, but string of length 0 found' and command['text'] == 'integer representation too long':
-            #         continue
-            #     if r == '' and command['text'] == 'integer representation too long':
-            #         continue
-
-            #     assert r[8:] == command['text']
-            #     continue
             continue
         if command['type'] == 'assert_invalid':
             continue
         if command['type'] == 'assert_unlinkable':
             continue
         if command['type'] == 'register':
-            continue
+            return
         raise NotImplementedError
 
 
