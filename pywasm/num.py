@@ -29,26 +29,26 @@ f32 = f64 = float
 #     return i
 
 
-# def int2u32(i: int) -> u32:
-#     return i & 0xffffffff
+def int2u32(i: int) -> u32:
+    return i & 0xffffffff
 
 
-# def int2i32(i: int) -> i32:
-#     i = i & 0xffffffff
-#     if i & 0x80000000:
-#         return i - 0x100000000
-#     return i
+def int2i32(i: int) -> i32:
+    i = i & 0xffffffff
+    if i & 0x80000000:
+        return i - 0x100000000
+    return i
 
 
-# def int2u64(i: int) -> u64:
-#     return i & 0xffffffffffffffff
+def int2u64(i: int) -> u64:
+    return i & 0xffffffffffffffff
 
 
-# def int2i64(i: int) -> i64:
-#     i = i & 0xffffffffffffffff
-#     if i & 0x8000000000000000:
-#         return i - 0x10000000000000000
-#     return i
+def int2i64(i: int) -> i64:
+    i = i & 0xffffffffffffffff
+    if i & 0x8000000000000000:
+        return i - 0x10000000000000000
+    return i
 
 
 # def i322f32(i: i32) -> f32:

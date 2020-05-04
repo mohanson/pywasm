@@ -66,28 +66,28 @@ class Value:
     def from_i32(cls, n: num.i32):
         o = Value()
         o.type = binary.ValueType(convention.i32)
-        o.data[0:4] = num.LittleEndian.pack_i32(n)
+        o.data[0:4] = num.LittleEndian.pack_i32(num.int2i32(n))
         return o
 
     @classmethod
     def from_i64(cls, n: num.i64):
         o = Value()
         o.type = binary.ValueType(convention.i64)
-        o.data[0:8] = num.LittleEndian.pack_i64(n)
+        o.data[0:8] = num.LittleEndian.pack_i64(num.int2i64(n))
         return o
 
     @classmethod
     def from_u32(cls, n: num.u32):
         o = Value()
         o.type = binary.ValueType(convention.i32)
-        o.data[0:4] = num.LittleEndian.pack_u32(n)
+        o.data[0:4] = num.LittleEndian.pack_u32(num.int2u32(n))
         return o
 
     @classmethod
     def from_u64(cls, n: num.u64):
         o = Value()
         o.type = binary.ValueType(convention.i64)
-        o.data[0:8] = num.LittleEndian.pack_u64(n)
+        o.data[0:8] = num.LittleEndian.pack_u64(num.int2u64(n))
         return o
 
     @classmethod

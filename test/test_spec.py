@@ -121,7 +121,7 @@ if __name__ == '__main__':
     case('./res/spectest/custom')
     case('./res/spectest/data')
     case('./res/spectest/elem')
-    # case('./res/spectest/endianness')
+    case('./res/spectest/endianness')
     # case('./res/spectest/exports')
     # case('./res/spectest/f32')
     # case('./res/spectest/f32_bitwise')
