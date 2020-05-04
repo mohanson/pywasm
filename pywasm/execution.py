@@ -1918,7 +1918,7 @@ class Machine:
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
             offset = r.val()
-            table_addr = self.module.table_addr_list[e.table_index]
+            table_addr = self.module.table_addr_list[element_segment.table_index]
             table_instance = self.store.table_list[table_addr]
             for i, e in enumerate(element_segment.init):
                 table_instance.element_list[offset + i] = e

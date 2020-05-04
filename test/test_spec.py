@@ -106,3 +106,4 @@ if __name__ == '__main__':
     case('./res/spectest/address')
     case('./res/spectest/align')
     case('./res/spectest/binary')
+    case('./res/spectest/binary-leb128')

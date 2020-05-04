@@ -623,7 +623,7 @@ class Expression:
         self.data: typing.List[Instruction] = []
         self.position: typing.Dict[int, typing.List[int]] = {}
 
-    def __str__(self):
+    def __repr__(self):
         return f'expression({self.data})'
 
     @classmethod
@@ -815,13 +815,13 @@ class Element:
         self.init: typing.List[FunctionIndex] = []
 
     def __repr__(self):
-        return f'element({self.table_index, self.offset, self.init})'
+        return f'element({self.table_index}, {self.offset}, {self.init})'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Element()
         o.table_index = TableIndex.from_reader(r)
-        o.expr = Expression.from_reader(r)
+        o.offset = Expression.from_reader(r)
         n = leb128.u.decode_reader(r)[0]
         o.init = [FunctionIndex.from_reader(r) for _ in range(n)]
         return o
