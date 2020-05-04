@@ -64,7 +64,8 @@ def case(path: str):
                 args = [parse_val(i) for i in command['action']['args']]
                 r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
-                assert r.data[0].data == expect[0].data
+                for i in range(len(expect)):
+                    assert r.data[i].data == expect[i].data
                 continue
             raise NotImplementedError
         if command['type'] == 'assert_trap':
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     case('./res/spectest/align')
     case('./res/spectest/binary')
     case('./res/spectest/binary-leb128')
-    # case('./res/spectest/br_if')
+    case('./res/spectest/br_if')
     # case('./res/spectest/br_table')
     # case('./res/spectest/break-drop')
     # case('./res/spectest/comments')

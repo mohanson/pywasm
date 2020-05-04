@@ -62,7 +62,12 @@ class Runtime:
                 convention.f64: execution.Value.from_f64,
             }[e](args[i])
             func_args.append(v)
-        return self.exec_accu(name, func_args).data[0].val()
+        resp = self.exec_accu(name, func_args)
+        if len(resp.data) == 0:
+            return None
+        if len(resp.data) == 1:
+            return resp.data[0].val()
+        return [e.val() for e in resp.data]
 
 
 # Using the pywasm API.
