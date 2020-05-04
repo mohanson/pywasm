@@ -215,12 +215,13 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, size: int):
-        self.size = size
+    def __init__(self, type: binary.MemoryType):
+        self.type = type
         self.data = bytearray()
+        self.grow(type.limits.n)
 
     def grow(self, n: int):
-        if self.size and len(self.data) // convention.memory_page_size + n > self.size:
+        if self.type.limits.m and len(self.data) // convention.memory_page_size + n > self.type.limits.m:
             raise Exception('pywasm: out of memory limit')
         self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
 
@@ -292,8 +293,7 @@ class Store:
 
     def allocate_memory(self, memory_type: binary.MemoryType) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
-        memory_instance = MemoryInstance(memory_type.limits.m)
-        memory_instance.grow(memory_type.limits.n)
+        memory_instance = MemoryInstance(memory_type)
         self.memory_list.append(memory_instance)
         return memory_address
 

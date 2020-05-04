@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import typing
 
 import pywasm
 
@@ -37,11 +38,20 @@ def parse_val(m):
     raise NotImplementedError
 
 
-imps = {
-    'spectest': {
-        'print_i32': lambda _: None,
+def imps() -> typing.Dict:
+    limits = pywasm.Limits()
+    limits.n = 1
+    limits.m = 0
+    memory_type = pywasm.binary.MemoryType()
+    memory_type.limits = limits
+    memory = pywasm.execution.MemoryInstance(memory_type)
+
+    return {
+        'spectest': {
+            'print_i32': lambda _: None,
+            'memory': memory,
+        }
     }
-}
 
 
 def case(path: str):
@@ -55,7 +65,7 @@ def case(path: str):
         print(command)
         if command['type'] == 'module':
             filename = command['filename']
-            runtime = pywasm.load(os.path.join(path, filename), imps)
+            runtime = pywasm.load(os.path.join(path, filename), imps())
             continue
         # {'type': 'assert_return', 'line': 104, 'action': {'type': 'invoke', 'field': '8u_good1', 'args': [{'type': 'i32', 'value': '0'}]}, 'expected': [{'type': 'i32', 'value': '97'}]}
         if command['type'] == 'assert_return':
@@ -123,8 +133,8 @@ if __name__ == '__main__':
     case('./res/spectest/break-drop')
     case('./res/spectest/comments')
     case('./res/spectest/const')
-    # case('./res/spectest/custom')
-    # case('./res/spectest/data')
+    case('./res/spectest/custom')
+    case('./res/spectest/data')
     # case('./res/spectest/elem')
     # case('./res/spectest/endianness')
     # case('./res/spectest/exports')
