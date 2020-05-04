@@ -47,7 +47,7 @@ class ResultType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ResultType()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [ValueType.from_reader(r) for i in range(n)]
         return o
 
@@ -443,7 +443,7 @@ class TypeSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [FunctionType.from_reader(r) for _ in range(n)]
         return o
 
