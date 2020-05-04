@@ -650,7 +650,7 @@ class ArithmeticLogicUnit:
         config.stack.append(Label(arity, continuation))
         if c == 0:
             if len(config.frame.expr.position[config.pc]) == 3:
-                config.pc = config.frame.expr.position[config.pc][1]
+                config.pc = config.frame.expr.position[config.pc][2]
             else:
                 config.pc = config.frame.expr.position[config.pc][1]
                 config.stack.pop()
