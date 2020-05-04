@@ -29,7 +29,11 @@ class Runtime:
                 extern_value_list.append(addr)
                 continue
             if isinstance(e.desc, binary.TableType):
-                raise NotImplementedError
+                addr = execution.TableAddress(len(self.store.table_list))
+                table = imps[e.module][e.name]
+                self.store.table_list.append(table)
+                extern_value_list.append(addr)
+                continue
             if isinstance(e.desc, binary.MemoryType):
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
@@ -38,7 +42,10 @@ class Runtime:
                 extern_value_list.append(addr)
                 continue
             if isinstance(e.desc, binary.GlobalType):
-                addr = self.store.allocate_global(e.desc, execution.Value.new(e.desc.value_type, imps[e.module][e.name]))
+                addr = self.store.allocate_global(
+                    e.desc,
+                    execution.Value.new(e.desc.value_type, imps[e.module][e.name])
+                )
                 extern_value_list.append(addr)
                 continue
 
@@ -93,6 +100,10 @@ Value = execution.Value
 Table = execution.TableInstance
 Global = execution.GlobalInstance
 Limits = binary.Limits
+FunctionAddress = execution.FunctionAddress
+TableAddress = execution.TableAddress
+MemoryAddress = execution.MemoryAddress
+GlobalAddress = execution.GlobalAddress
 
 # For compatibility with older 0.4.x versions
 Ctx = Store

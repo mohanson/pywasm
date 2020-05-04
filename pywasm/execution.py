@@ -199,8 +199,8 @@ class TableInstance:
     # present.
     def __init__(self, element_type: int, limits: binary.Limits):
         self.element_type = element_type
-        self.element_list: typing.List[FunctionAddress] = [FunctionAddress() for _ in range(limits.n)]
-        self.size = limits.m
+        self.element_list: typing.List[typing.Optional[FunctionAddress]] = [None for _ in range(limits.n)]
+        self.limits = limits
 
 
 class MemoryInstance:
@@ -390,10 +390,6 @@ def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
 
 def match_function(a: binary.FunctionType, b: binary.FunctionType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
-
-
-def match_table(a: binary.TableType, b: binary.TableType) -> bool:
-    return match_limits(a.limits, b.limits) and a.element_type == b.element_type
 
 
 def match_memory(a: binary.MemoryType, b: binary.MemoryType) -> bool:
@@ -769,9 +765,11 @@ class ArithmeticLogicUnit:
         tab = config.store.table_list[ta]
         function_type_expect = config.frame.module.type_list[i.args[0]]
         idx = config.stack.pop().i32()
-        if not 0 <= idx < len(tab.elem):
+        if not 0 <= idx < len(tab.element_list):
             raise Exception('pywasm: undefined element index')
         function_addr = tab.element_list[idx]
+        if function_addr is None:
+            raise Exception('pywasm: uninitialized element')
         j = binary.Instruction()
         j.opcode = instruction.call
         j.args = [function_addr]
@@ -1910,9 +1908,9 @@ class Machine:
                 b = module.type_list[module.import_list[i].desc]
                 assert match_function(a, b)
             if isinstance(e, TableAddress):
-                a = self.store.table_list[e].type
-                b = module.import_list[i].desc
-                assert match_table(a, b)
+                a = self.store.table_list[e].limits
+                b = module.import_list[i].desc.limits
+                assert match_limits(a, b)
             if isinstance(e, MemoryAddress):
                 a = self.store.memory_list[e].type
                 b = module.import_list[i].desc

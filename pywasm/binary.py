@@ -253,7 +253,7 @@ class Instruction:
             return o
         if o.opcode == instruction.call_indirect:
             i = TypeIndex(leb128.u.decode_reader(r)[0])
-            n = r.read(1)
+            n = ord(r.read(1))
             o.args = [i, n]
             return o
         if o.opcode in [

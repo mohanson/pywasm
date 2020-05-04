@@ -12,14 +12,21 @@ def imps() -> typing.Dict:
     memory_type.limits = limits
     memory = pywasm.execution.MemoryInstance(memory_type)
 
+    limits = pywasm.Limits()
+    limits.n = 10
+    limits.m = 20
+    table = pywasm.Table(pywasm.execution.FunctionAddress,  limits)
+
+
     return {
         'spectest': {
             'print_i32': lambda _: None,
             'global_i32': 666,
             'memory': memory,
+            'table': table,
         }
     }
 
-runtime = pywasm.load('./res/spectest/data/data.25.wasm', imps())
-# r = runtime.exec('as-if-then', [0, 0])
-# print(r)
+runtime = pywasm.load('./res/spectest/elem/elem.7.wasm', imps())
+r = runtime.exec('call-7', [])
+print(r)

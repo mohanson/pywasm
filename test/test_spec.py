@@ -44,12 +44,18 @@ def imps() -> typing.Dict:
     limits.m = 2
     memory_type = pywasm.binary.MemoryType()
     memory_type.limits = limits
-    memory = pywasm.execution.MemoryInstance(memory_type)
+    memory = pywasm.Memory(memory_type)
+
+    limits = pywasm.Limits()
+    limits.n = 10
+    limits.m = 20
+    table = pywasm.Table(pywasm.FunctionAddress,  limits)
 
     return {
         'spectest': {
             'print_i32': lambda _: None,
             'global_i32': 666,
+            'table': table,
             'memory': memory,
         }
     }
@@ -123,6 +129,8 @@ def case(path: str):
             continue
         if command['type'] == 'assert_unlinkable':
             continue
+        if command['type'] == 'register':
+            continue
         raise NotImplementedError
 
 
@@ -138,7 +146,7 @@ if __name__ == '__main__':
     case('./res/spectest/const')
     case('./res/spectest/custom')
     case('./res/spectest/data')
-    # case('./res/spectest/elem')
+    case('./res/spectest/elem')
     # case('./res/spectest/endianness')
     # case('./res/spectest/exports')
     # case('./res/spectest/f32')
