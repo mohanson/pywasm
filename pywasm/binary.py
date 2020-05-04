@@ -881,7 +881,7 @@ class Func:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Func()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.local_list = [Locals.from_reader(r) for i in range(n)]
         o.expr = Expression.from_reader(r)
         return o
@@ -911,7 +911,7 @@ class Code:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Code()
-        o.size = leb128.u.decode_reader(r)[0]
+        o.size = leb128.u.decode_u32(r)
         r = io.BytesIO(r.read(o.size))
         o.func = Func.from_reader(r)
         return o
