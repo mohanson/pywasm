@@ -401,7 +401,7 @@ class Custom:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Custom()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.name = r.read(n).decode()
         o.data = bytearray(r.read(-1))
         return o
@@ -728,7 +728,7 @@ class Export:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Export()
-        o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        o.name = bytearray(r.read(leb128.u.decode_u32(r))).decode()
         o.type = ord(r.read(1))
         o.desc = {
             convention.extern_function: FunctionIndex.from_reader,
