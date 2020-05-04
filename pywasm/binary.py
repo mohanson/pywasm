@@ -296,7 +296,7 @@ class Instruction:
             instruction.i64_store16,
             instruction.i64_store32,
         ]:
-            o.args = [leb128.u.decode_reader(r)[0] for _ in range(2)]
+            o.args = [leb128.u.decode_reader(r)[0], leb128.u.decode_reader(r)[0]]
             return o
         if o.opcode in [
             instruction.current_memory,
@@ -474,9 +474,9 @@ class Import:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Import()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.module = r.read(n).decode()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.name = r.read(n).decode()
         n = ord(r.read(1))
         o.desc = {
@@ -508,7 +508,7 @@ class ImportSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ImportSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Import.from_reader(r) for _ in range(n)]
         return o
 
@@ -530,7 +530,7 @@ class FunctionSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [TypeIndex.from_reader(r) for _ in range(n)]
         return o
 
@@ -568,7 +568,7 @@ class TableSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Table.from_reader(r) for _ in range(n)]
         return o
 
@@ -607,7 +607,7 @@ class MemorySection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = MemorySection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Memory.from_reader(r) for _ in range(n)]
         return o
 
@@ -703,7 +703,7 @@ class GlobalSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = GlobalSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Global.from_reader(r) for _ in range(n)]
         return o
 
@@ -759,7 +759,7 @@ class ExportSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ExportSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Export.from_reader(r) for _ in range(n)]
         return o
 
@@ -822,7 +822,7 @@ class Element:
         o = Element()
         o.table_index = TableIndex.from_reader(r)
         o.offset = Expression.from_reader(r)
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.init = [FunctionIndex.from_reader(r) for _ in range(n)]
         return o
 
@@ -842,7 +842,7 @@ class ElementSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = ElementSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Element.from_reader(r) for _ in range(n)]
         return o
 
@@ -932,7 +932,7 @@ class CodeSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = CodeSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Code.from_reader(r) for _ in range(n)]
         return o
 
@@ -979,7 +979,7 @@ class DataSection:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = DataSection()
-        n = leb128.u.decode_reader(r)[0]
+        n = leb128.u.decode_u32(r)
         o.data = [Data.from_reader(r) for _ in range(n)]
         return o
 
