@@ -38,7 +38,9 @@ class Runtime:
                 extern_value_list.append(addr)
                 continue
             if isinstance(e.desc, binary.GlobalType):
-                raise NotImplementedError
+                addr = self.store.allocate_global(e.desc, execution.Value.new(e.desc.value_type, imps[e.module][e.name]))
+                extern_value_list.append(addr)
+                continue
 
         self.machine.instantiate(module, extern_value_list)
 
@@ -60,12 +62,7 @@ class Runtime:
         func_args = []
         # Mapping check for python valtype to webAssembly valtype
         for i, e in enumerate(func.type.args.data):
-            v = {
-                convention.i32: execution.Value.from_i32,
-                convention.i64: execution.Value.from_i64,
-                convention.f32: execution.Value.from_f32,
-                convention.f64: execution.Value.from_f64,
-            }[e](args[i])
+            v = execution.Value.new(e, args[i])
             func_args.append(v)
         resp = self.exec_accu(name, func_args)
         if len(resp.data) == 0:

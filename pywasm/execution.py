@@ -22,10 +22,13 @@ class Value:
         return f'{self.type} {self.val()}'
 
     @classmethod
-    def new(cls, type: binary.ValueType):
-        v = Value()
-        v.type = type
-        return v
+    def new(cls, type: binary.ValueType, data: typing.Union[int, float]):
+        return {
+            convention.i32: Value.from_i32,
+            convention.i64: Value.from_i64,
+            convention.f32: Value.from_f32,
+            convention.f64: Value.from_f64,
+        }[type](data)
 
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
@@ -395,10 +398,6 @@ def match_table(a: binary.TableType, b: binary.TableType) -> bool:
 
 def match_memory(a: binary.MemoryType, b: binary.MemoryType) -> bool:
     return match_limits(a.limits, b.limits)
-
-
-def match_global(a: binary.GlobalType, b: binary.GlobalType) -> bool:
-    return a.mut == b.mut and a.value_type == b.value_type
 
 
 # ======================================================================================================================
@@ -1919,9 +1918,8 @@ class Machine:
                 b = self.store.memory_list[e].type
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
-                a = module.import_list[i].desc
-                b = self.store.global_list[e].type
-                assert match_global(a, b)
+                assert module.import_list[i].desc.value_type == self.store.global_list[e].value.type
+                assert module.import_list[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
         global_values: typing.List[Value] = []
@@ -1941,7 +1939,7 @@ class Machine:
         for element_segment in module.element_list:
             log.debugln('init elem')
             # Let F be the frame, push the frame F to the stack
-            frame = Frame(self, [], element_segment.offset, 1)
+            frame = Frame(self.module, [], element_segment.offset, 1)
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
             offset = r.val()
@@ -1952,7 +1950,7 @@ class Machine:
 
         for data_segment in module.data_list:
             log.debugln('init data')
-            frame = Frame(self, [], data_segment.offset, 1)
+            frame = Frame(self.module, [], data_segment.offset, 1)
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
             offset = r.val()
@@ -2028,7 +2026,7 @@ class Machine:
         assert len(function.type.rets.data) < 2
 
         if isinstance(function, WasmFunc):
-            local_list = [Value.new(e) for e in function.code.local_list]
+            local_list = [Value.new(e, 0) for e in function.code.local_list]
             frame = Frame(
                 module=function.module,
                 local_list=function_args + local_list,

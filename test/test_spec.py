@@ -49,6 +49,7 @@ def imps() -> typing.Dict:
     return {
         'spectest': {
             'print_i32': lambda _: None,
+            'global_i32': 666,
             'memory': memory,
         }
     }
