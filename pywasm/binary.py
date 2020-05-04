@@ -634,10 +634,11 @@ class Expression:
                 stack[-1].append(i)
                 continue
             if e.opcode == instruction.end:
-                b = stack.pop()
-                b.insert(1, i)
-                for e in b:
-                    position[e] = b
+                if stack:
+                    b = stack.pop()
+                    b.insert(1, i)
+                    for e in b:
+                        position[e] = b
                 continue
         if stack:
             raise Exception('pywasm: expression ended in middle of body')
@@ -658,7 +659,7 @@ class Expression:
                 d -= 1
             if d == 0:
                 break
-        if o.data.pop().opcode != instruction.end:
+        if o.data[-1].opcode != instruction.end:
             raise Exception('pywasm: expression did not end with 0xb')
         o.position = cls.mark(o.data)
         return o

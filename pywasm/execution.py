@@ -400,6 +400,7 @@ class Configuration:
         self.frame = frame
         self.stack = Stack()
         self.stack.append(frame)
+        self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
         self.pc = 0
 
     def get_label(self, i: int) -> Label:
@@ -435,7 +436,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def exec(config: Configuration, i: binary.Instruction):
-        log.debugln(i)
+        log.debugln('|', i)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
             instruction.nop: ArithmeticLogicUnit.nop,
@@ -663,10 +664,17 @@ class ArithmeticLogicUnit:
                 break
         for e in v:
             config.stack.append(e)
+        config.pc = config.frame.expr.position[config.pc][1]
 
     @staticmethod
     def end(config: Configuration, i: binary.Instruction):
-        return ArithmeticLogicUnit.else_(config, i)
+        L = config.get_label(0)
+        v = [config.stack.pop() for _ in range(L.arity)][::-1]
+        while True:
+            if isinstance(config.stack.pop(), Label):
+                break
+        for e in v:
+            config.stack.append(e)
 
     @staticmethod
     def br(config: Configuration, i: binary.Instruction):
@@ -1903,6 +1911,7 @@ class Machine:
         aux = ModuleInstance()
         aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
         for e in module.global_list:
+            log.debugln(f'init global value')
             frame = Frame(aux, [], e.expr, 1)
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
@@ -1913,6 +1922,7 @@ class Machine:
         self.allocate(module, extern_value_list, global_values)
 
         for element_segment in module.element_list:
+            log.debugln('init elem')
             # Let F be the frame, push the frame F to the stack
             frame = Frame(self, [], element_segment.offset, 1)
             config = Configuration(self.store, frame)
@@ -1924,6 +1934,7 @@ class Machine:
                 table_instance.element_list[offset + i] = e
 
         for data_segment in module.data_list:
+            log.debugln('init data')
             frame = Frame(self, [], data_segment.offset, 1)
             config = Configuration(self.store, frame)
             r = config.exec().data[0]
