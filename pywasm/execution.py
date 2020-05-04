@@ -180,6 +180,9 @@ class HostFunc:
         self.type = function_type
         self.hostcode = hostcode
 
+    def __repr__(self):
+        return self.hostcode.__name__
+
 
 # A function instance is the runtime representation of a function. It effectively is a closure of the original
 # function over the runtime module instance of its originating module. The module instance is used to resolve
@@ -2013,12 +2016,11 @@ class Machine:
             return config.exec()
         if isinstance(function, HostFunc):
             r = function.hostcode(self.store, *[e.val() for e in function_args])
-            v = {
-                convention.i32: Value.from_i32,
-                convention.i64: Value.from_f64,
-                convention.f32: Value.from_f32,
-                convention.f64: Value.from_f64,
-            }[function.type.rets.data[0]](r)
-            return Result([v])
+            l = len(function.type.rets.data)
+            if l == 0:
+                return Result([])
+            if l == 1:
+                return Result([Value.new(function.type.rets.data[0], r)])
+            return [Value.new(e, r[i]) for i, e in enumerate(function.type.rets.data)]
 
         raise Exception(f'pywasm: unknown function type: {function}')

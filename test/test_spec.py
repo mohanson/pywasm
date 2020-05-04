@@ -43,7 +43,7 @@ def imps() -> typing.Dict:
 
     return {
         'spectest': {
-            'print_i32': lambda _: None,
+            'print_i32': lambda _, x: None,
             'global_i32': 666,
             'table': table,
             'memory': memory,
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     # [TODO] case('./res/spectest/float_memory')
     # [TODO] case('./res/spectest/float_misc')
     case('./res/spectest/forward')
-    # [TODO] case('./res/spectest/func_ptrs')
+    case('./res/spectest/func_ptrs')
     # [TODO] case('./res/spectest/global')
     # [TODO] case('./res/spectest/globals')
     case('./res/spectest/imports')
