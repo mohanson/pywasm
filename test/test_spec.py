@@ -41,7 +41,7 @@ def parse_val(m):
 def imps() -> typing.Dict:
     limits = pywasm.Limits()
     limits.n = 1
-    limits.m = 0
+    limits.m = 2
     memory_type = pywasm.binary.MemoryType()
     memory_type.limits = limits
     memory = pywasm.execution.MemoryInstance(memory_type)

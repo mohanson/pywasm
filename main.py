@@ -20,6 +20,6 @@ def imps() -> typing.Dict:
         }
     }
 
-runtime = pywasm.load('./res/spectest/data/data.5.wasm', imps())
+runtime = pywasm.load('./res/spectest/data/data.13.wasm', imps())
 # r = runtime.exec('as-if-then', [0, 0])
 # print(r)

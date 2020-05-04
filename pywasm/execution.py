@@ -1906,16 +1906,16 @@ class Machine:
         # If externtype does not match externtype, then fail
         for i, e in enumerate(extern_value_list):
             if isinstance(e, FunctionAddress):
-                a = module.type_list[module.import_list[i].desc]
-                b = self.store.function_list[e].type
+                a = self.store.function_list[e].type
+                b = module.type_list[module.import_list[i].desc]
                 assert match_function(a, b)
             if isinstance(e, TableAddress):
-                a = module.import_list[i].desc
-                b = self.store.table_list[e].type
+                a = self.store.table_list[e].type
+                b = module.import_list[i].desc
                 assert match_table(a, b)
             if isinstance(e, MemoryAddress):
-                a = module.import_list[i].desc
-                b = self.store.memory_list[e].type
+                a = self.store.memory_list[e].type
+                b = module.import_list[i].desc
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
                 assert module.import_list[i].desc.value_type == self.store.global_list[e].value.type
