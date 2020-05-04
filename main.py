@@ -29,4 +29,4 @@ def imps() -> typing.Dict:
 
 runtime = pywasm.load('./res/spectest/elem/elem.7.wasm', imps())
 r = runtime.exec('call-7', [])
-print(r, '.')
+print(r)
