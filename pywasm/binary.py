@@ -300,7 +300,7 @@ class Instruction:
             instruction.current_memory,
             instruction.grow_memory
         ]:
-            n = r.read(1)
+            n = ord(r.read(1))
             o.args = [n]
             return o
         if o.opcode == instruction.i32_const:

@@ -227,12 +227,14 @@ class MemoryInstance:
     def __init__(self, type: binary.MemoryType):
         self.type = type
         self.data = bytearray()
+        self.size = 0
         self.grow(type.limits.n)
 
     def grow(self, n: int):
-        if self.type.limits.m and len(self.data) // convention.memory_page_size + n > self.type.limits.m:
+        if self.type.limits.m and self.size + n > self.type.limits.m:
             raise Exception('pywasm: out of memory limit')
         self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
+        self.size += n
 
 
 class GlobalInstance:
@@ -810,10 +812,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def tee_local(config: Configuration, i: binary.Instruction):
-        r = config.stack.pop()
-        config.stack.append(r)
-        config.stack.append(r)
-        config.frame.local_list[i.args[0]] = r
+        config.frame.local_list[i.args[0]] = config.stack.data[-1]
 
     @staticmethod
     def get_global(config: Configuration, i: binary.Instruction):
@@ -1041,8 +1040,13 @@ class ArithmeticLogicUnit:
     def grow_memory(config: Configuration, i: binary.Instruction):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
+        size = memory.size
         r = config.stack.pop().i32()
-        memory.grow(r)
+        try:
+            memory.grow(r)
+            config.stack.append(Value.from_i32(size))
+        except Exception:
+            config.stack.append(Value.from_u32(2**32-1))
 
     @staticmethod
     def i32_const(config: Configuration, i: binary.Instruction):

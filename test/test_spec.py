@@ -8,25 +8,11 @@ import pywasm
 num = pywasm.num
 
 
-def int2i32(i: int) -> int:
-    i = i & 0xffffffff
-    if i & 0x80000000:
-        return i - 0x100000000
-    return i
-
-
-def int2i64(i: int) -> int:
-    i = i & 0xffffffffffffffff
-    if i & 0x8000000000000000:
-        return i - 0x10000000000000000
-    return i
-
-
 def parse_val(m):
     if m['type'] == 'i32':
-        return pywasm.Value.from_i32(int2i32(int(m['value'])))
+        return pywasm.Value.from_i32(num.int2i32(int(m['value'])))
     if m['type'] == 'i64':
-        return pywasm.Value.from_i64(int2i64(int(m['value'])))
+        return pywasm.Value.from_i64(num.int2i64(int(m['value'])))
     if m['type'] == 'f32':
         if m['value'].startswith('nan'):
             return pywasm.Value.from_f32(float('nan'))
@@ -85,6 +71,7 @@ def case(path: str):
                 r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
                 for i in range(len(expect)):
+                    print(r.data[i], expect[i])
                     if math.isnan(expect[i].val()):
                         assert math.isnan(r.data[i].val())
                     else:
@@ -161,7 +148,7 @@ if __name__ == '__main__':
     # [TODO] case('./res/spectest/load')
     case('./res/spectest/local_get')
     case('./res/spectest/local_set')
-    # [TODO] case('./res/spectest/local_tee')
+    case('./res/spectest/local_tee')
     # [TODO] case('./res/spectest/memory')
     # [TODO] case('./res/spectest/memory_grow')
     case('./res/spectest/memory_redundancy')
