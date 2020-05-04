@@ -255,6 +255,9 @@ class Store:
         self.memory_list: typing.List[MemoryInstance] = []
         self.global_list: typing.List[GlobalInstance] = []
 
+        # For compatibility with older 0.4.x versions
+        self.mems = self.memory_list
+
     def allocate_wasm_function(self, module: ModuleInstance, function: binary.Function) -> FunctionAddress:
         function_address = FunctionAddress(len(self.function_list))
         function_type = module.type_list[function.type_index]
