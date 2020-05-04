@@ -233,6 +233,9 @@ class MemoryInstance:
     def grow(self, n: int):
         if self.type.limits.m and self.size + n > self.type.limits.m:
             raise Exception('pywasm: out of memory limit')
+        # If len is larger than 2**16, then fail
+        if self.size + n > 65536:
+            raise Exception('pywasm: out of memory limit')
         self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
         self.size += n
 
@@ -459,7 +462,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def exec(config: Configuration, i: binary.Instruction):
-        log.debugln('|', i)
+        log.debugln('|', i, config.stack.data)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
             instruction.nop: ArithmeticLogicUnit.nop,
@@ -829,157 +832,83 @@ class ArithmeticLogicUnit:
         glob.value = config.stack.pop()
 
     @staticmethod
-    def i32_load(config: Configuration, i: binary.Instruction):
+    def mem_load(config: Configuration, i: binary.Instruction, size: int) -> bytearray:
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         offset = i.args[1]
         addr = config.stack.pop().i32() + offset
-        if addr + 4 > len(memory.data):
+        if addr < 0 or addr + size > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i32(num.LittleEndian.i32(memory.data[addr:addr + 4]))
+        return memory.data[addr:addr + size]
+
+    @staticmethod
+    def i32_load(config: Configuration, i: binary.Instruction):
+        r = Value.from_i32(num.LittleEndian.i32(ArithmeticLogicUnit.mem_load(config, i, 4)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 8 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.i64(memory.data[addr:addr + 8]))
+        r = Value.from_i64(num.LittleEndian.i64(ArithmeticLogicUnit.mem_load(config, i, 8)))
         config.stack.append(r)
 
     @staticmethod
     def f32_load(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 4 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_f32(num.LittleEndian.f32(memory.data[addr:addr + 4]))
+        r = Value.from_f32(num.LittleEndian.f32(ArithmeticLogicUnit.mem_load(config, i, 4)))
         config.stack.append(r)
 
     @staticmethod
     def f64_load(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 8 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_f64(num.LittleEndian.f64(memory.data[addr:addr + 8]))
+        r = Value.from_f64(num.LittleEndian.f64(ArithmeticLogicUnit.mem_load(config, i, 8)))
         config.stack.append(r)
 
     @staticmethod
     def i32_load8_s(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 1 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i32(num.LittleEndian.i8(memory.data[addr:addr + 1]))
+        r = Value.from_i32(num.LittleEndian.i8(ArithmeticLogicUnit.mem_load(config, i, 1)))
         config.stack.append(r)
 
     @staticmethod
     def i32_load8_u(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 1 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i32(num.LittleEndian.u8(memory.data[addr:addr + 1]))
+        r = Value.from_i32(num.LittleEndian.u8(ArithmeticLogicUnit.mem_load(config, i, 1)))
         config.stack.append(r)
 
     @staticmethod
     def i32_load16_s(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 2 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i32(num.LittleEndian.i16(memory.data[addr:addr + 2]))
+        r = Value.from_i32(num.LittleEndian.i16(ArithmeticLogicUnit.mem_load(config, i, 2)))
         config.stack.append(r)
 
     @staticmethod
     def i32_load16_u(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 2 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i32(num.LittleEndian.u16(memory.data[addr:addr + 2]))
+        r = Value.from_i32(num.LittleEndian.u16(ArithmeticLogicUnit.mem_load(config, i, 2)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load8_s(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 1 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.i8(memory.data[addr:addr + 1]))
+        r = Value.from_i64(num.LittleEndian.i8(ArithmeticLogicUnit.mem_load(config, i, 1)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load8_u(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 1 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.u8(memory.data[addr:addr + 1]))
+        r = Value.from_i64(num.LittleEndian.u8(ArithmeticLogicUnit.mem_load(config, i, 1)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load16_s(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 2 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.i16(memory.data[addr:addr + 2]))
+        r = Value.from_i64(num.LittleEndian.i16(ArithmeticLogicUnit.mem_load(config, i, 2)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load16_u(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 2 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.u16(memory.data[addr:addr + 2]))
+        r = Value.from_i64(num.LittleEndian.u16(ArithmeticLogicUnit.mem_load(config, i, 2)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load32_s(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 4 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.i32(memory.data[addr:addr + 4]))
+        r = Value.from_i64(num.LittleEndian.i32(ArithmeticLogicUnit.mem_load(config, i, 4)))
         config.stack.append(r)
 
     @staticmethod
     def i64_load32_u(config: Configuration, i: binary.Instruction):
-        memory_addr = config.frame.module.memory_addr_list[0]
-        memory = config.store.memory_list[memory_addr]
-        offset = i.args[1]
-        addr = config.stack.pop().i32() + offset
-        if addr + 4 > len(memory.data):
-            raise Exception('pywasm: out of bounds memory access')
-        r = Value.from_i64(num.LittleEndian.u32(memory.data[addr:addr + 4]))
+        r = Value.from_i64(num.LittleEndian.u32(ArithmeticLogicUnit.mem_load(config, i, 4)))
         config.stack.append(r)
 
     @staticmethod
@@ -989,7 +918,7 @@ class ArithmeticLogicUnit:
         r = config.stack.pop()
         offset = i.args[1]
         addr = config.stack.pop().i32() + offset
-        if addr + size > len(memory.data):
+        if addr < 0 or addr + size > len(memory.data):
             raise Exception('pywasm: out of bounds memory access')
         memory.data[addr:addr + size] = r.data[0:size]
 
@@ -1046,7 +975,7 @@ class ArithmeticLogicUnit:
             memory.grow(r)
             config.stack.append(Value.from_i32(size))
         except Exception:
-            config.stack.append(Value.from_u32(2**32-1))
+            config.stack.append(Value.from_i32(-1))
 
     @staticmethod
     def i32_const(config: Configuration, i: binary.Instruction):

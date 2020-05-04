@@ -1,3 +1,3 @@
 import test_spec
 
-test_spec.case('./res/spectest/local_tee')
+test_spec.case('./res/spectest/memory_trap')
