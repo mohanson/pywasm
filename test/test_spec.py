@@ -121,6 +121,8 @@ def case(path: str):
             continue
         if command['type'] == 'assert_invalid':
             continue
+        if command['type'] == 'assert_unlinkable':
+            continue
         raise NotImplementedError
 
 
