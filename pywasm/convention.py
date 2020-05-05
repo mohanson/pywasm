@@ -30,3 +30,5 @@ code_section = 0x0a
 data_section = 0x0b
 
 memory_page_size = 64 * 1024
+memory_page = 2**16
+call_stack_depth = 128

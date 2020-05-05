@@ -237,7 +237,7 @@ class MemoryInstance:
         if self.type.limits.m and self.size + n > self.type.limits.m:
             raise Exception('pywasm: out of memory limit')
         # If len is larger than 2**16, then fail
-        if self.size + n > 65536:
+        if self.size + n > convention.memory_page:
             raise Exception('pywasm: out of memory limit')
         self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
         self.size += n
@@ -424,12 +424,11 @@ class Configuration:
     #
     # config ::= store;thread
     # thread ::= frame;instr∗
-    def __init__(self, store: Store, frame: Frame):
+    def __init__(self, store: Store):
         self.store = store
-        self.frame = frame
+        self.frame: typing.Optional[Frame] = None
         self.stack = Stack()
-        self.stack.append(frame)
-        self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
+        self.depth = 0
         self.pc = 0
 
     def get_label(self, i: int) -> Label:
@@ -443,14 +442,45 @@ class Configuration:
                     return v
                 x -= 1
 
-    def exec(self) -> Result:
+    def set_frame(self, frame: Frame):
+        self.frame = frame
+        self.stack.append(frame)
+        self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
+
+    def call(self, function_addr: FunctionAddress, function_args: typing.List[Value]) -> Result:
+        function = self.store.function_list[function_addr]
+        log.debugln(f'call {function}({function_args})')
+        for e, t in zip(function_args, function.type.args.data):
+            assert e.type == t
+        assert len(function.type.rets.data) < 2
+
+        if isinstance(function, WasmFunc):
+            local_list = [Value.new(e, 0) for e in function.code.local_list]
+            frame = Frame(
+                module=function.module,
+                local_list=function_args + local_list,
+                expr=function.code.expr,
+                arity=len(function.type.rets.data),
+            )
+            self.set_frame(frame)
+            return self.exec()
+        if isinstance(function, HostFunc):
+            r = function.hostcode(self.store, *[e.val() for e in function_args])
+            l = len(function.type.rets.data)
+            if l == 0:
+                return Result([])
+            if l == 1:
+                return Result([Value.new(function.type.rets.data[0], r)])
+            return [Value.new(e, r[i]) for i, e in enumerate(function.type.rets.data)]
+        raise Exception(f'pywasm: unknown function type: {function}')
+
+    def exec(self):
         instruction_list = self.frame.expr.data
         instruction_list_len = len(instruction_list)
         while self.pc < instruction_list_len:
             i = instruction_list[self.pc]
             ArithmeticLogicUnit.exec(self, i)
             self.pc += 1
-
         r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
         assert self.stack.pop() == self.frame
         return Result(r)
@@ -769,14 +799,17 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def call_function_addr(config: Configuration, function_addr: FunctionAddress):
+        if config.depth > convention.call_stack_depth:
+            raise Exception('pywasm: call stack exhausted')
+
         function: FunctionInstance = config.store.function_list[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
-        machine = Machine()
-        machine.module = config.frame.module
-        machine.store = config.store
-        r = machine.invocate(function_addr, function_args)
-        for e in r.data[::-1]:
+
+        subcnf = Configuration(config.store)
+        subcnf.depth = config.depth + 1
+        r = subcnf.call(function_addr, function_args)
+        for e in r.data:
             config.stack.append(e)
 
     @staticmethod
@@ -1914,7 +1947,8 @@ class Machine:
         for e in module.global_list:
             log.debugln(f'init global value')
             frame = Frame(aux, [], e.expr, 1)
-            config = Configuration(self.store, frame)
+            config = Configuration(self.store)
+            config.set_frame(frame)
             r = config.exec().data[0]
             global_values.append(r)
 
@@ -1926,7 +1960,8 @@ class Machine:
             log.debugln('init elem')
             # Let F be the frame, push the frame F to the stack
             frame = Frame(self.module, [], element_segment.offset, 1)
-            config = Configuration(self.store, frame)
+            config = Configuration(self.store)
+            config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
             table_addr = self.module.table_addr_list[element_segment.table_index]
@@ -1937,7 +1972,8 @@ class Machine:
         for data_segment in module.data_list:
             log.debugln('init data')
             frame = Frame(self.module, [], data_segment.offset, 1)
-            config = Configuration(self.store, frame)
+            config = Configuration(self.store)
+            config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
             memory_addr = self.module.memory_addr_list[data_segment.memory_index]
@@ -2005,29 +2041,5 @@ class Machine:
             self.module.export_list.append(export_inst)
 
     def invocate(self, function_addr: FunctionAddress, function_args: typing.List[Value]) -> Result:
-        function = self.store.function_list[function_addr]
-        log.debugln(f'invocate {function}({function_args})')
-        for e, t in zip(function_args, function.type.args.data):
-            assert e.type == t
-        assert len(function.type.rets.data) < 2
-
-        if isinstance(function, WasmFunc):
-            local_list = [Value.new(e, 0) for e in function.code.local_list]
-            frame = Frame(
-                module=function.module,
-                local_list=function_args + local_list,
-                expr=function.code.expr,
-                arity=len(function.type.rets.data),
-            )
-            config = Configuration(self.store, frame)
-            return config.exec()
-        if isinstance(function, HostFunc):
-            r = function.hostcode(self.store, *[e.val() for e in function_args])
-            l = len(function.type.rets.data)
-            if l == 0:
-                return Result([])
-            if l == 1:
-                return Result([Value.new(function.type.rets.data[0], r)])
-            return [Value.new(e, r[i]) for i, e in enumerate(function.type.rets.data)]
-
-        raise Exception(f'pywasm: unknown function type: {function}')
+        config = Configuration(self.store)
+        return config.call(function_addr, function_args)

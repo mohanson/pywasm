@@ -77,7 +77,7 @@ def case(path: str):
                         assert r.data[i].data == expect[i].data
             else:
                 raise NotImplementedError
-        elif command['type'] == 'assert_trap':
+        elif command['type'] in ['assert_trap', 'assert_exhaustion']:
             if command['action']['type'] == 'invoke':
                 function_name = command['action']['field']
                 args = [parse_val(i) for i in command['action']['args']]
@@ -104,8 +104,6 @@ def case(path: str):
                 runtime.exec_accu(function_name, args)
             else:
                 raise NotImplementedError
-        elif command['type'] == 'assert_exhaustion':
-            continue
         else:
             raise NotImplementedError
 
@@ -159,7 +157,7 @@ if __name__ == '__main__':
     case('./res/spectest/nop')
     case('./res/spectest/return')
     case('./res/spectest/select')
-    # [TODO] case('./res/spectest/skip-stack-guard-page')
+    case('./res/spectest/skip-stack-guard-page')
     case('./res/spectest/stack')
     # [TODO] case('./res/spectest/start')
     case('./res/spectest/store')
