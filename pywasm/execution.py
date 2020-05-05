@@ -676,7 +676,7 @@ class ArithmeticLogicUnit:
             arity = 0
         else:
             arity = 1
-        continuation = config.frame.expr.position[config.pc][-1]
+        continuation = config.frame.expr.position[config.pc][1]
         config.stack.append(Label(arity, continuation))
         if c == 0:
             if len(config.frame.expr.position[config.pc]) == 3:

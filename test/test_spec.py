@@ -71,7 +71,6 @@ def case(path: str):
                 r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
                 for i in range(len(expect)):
-                    print(r.data[i], expect[i])
                     if math.isnan(expect[i].val()):
                         assert math.isnan(r.data[i].val())
                     else:
@@ -142,7 +141,7 @@ if __name__ == '__main__':
     case('./res/spectest/inline-module')
     case('./res/spectest/int_exprs')
     case('./res/spectest/int_literals')
-    # [TODO] case('./res/spectest/labels')
+    case('./res/spectest/labels')
     case('./res/spectest/left-to-right')
     # [TODO] case('./res/spectest/linking')
     # [TODO] case('./res/spectest/load')
