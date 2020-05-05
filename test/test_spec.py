@@ -134,7 +134,7 @@ if __name__ == '__main__':
     case('./res/spectest/f64_cmp')
     # [TODO] case('./res/spectest/float_exprs')
     # [TODO] case('./res/spectest/float_literals')
-    # [TODO] case('./res/spectest/float_memory')
+    case('./res/spectest/float_memory')
     # [TODO] case('./res/spectest/float_misc')
     case('./res/spectest/forward')
     case('./res/spectest/func_ptrs')

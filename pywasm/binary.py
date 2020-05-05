@@ -310,10 +310,12 @@ class Instruction:
             o.args = [leb128.i.decode_reader(r)[0]]
             return o
         if o.opcode == instruction.f32_const:
-            o.args = [num.LittleEndian.f32(r.read(4))]
+            # https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
+            # python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
+            o.args = [num.LittleEndian.i32(r.read(4))]
             return o
         if o.opcode == instruction.f64_const:
-            o.args = [num.LittleEndian.f64(r.read(8))]
+            o.args = [num.LittleEndian.i64(r.read(8))]
             return o
         return o
 

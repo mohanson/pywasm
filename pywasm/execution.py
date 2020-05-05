@@ -1030,11 +1030,15 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_const(config: Configuration, i: binary.Instruction):
-        config.stack.append(Value.from_f32(i.args[0]))
+        r = Value.from_i32(i.args[0])
+        r.type = binary.ValueType(convention.f32)
+        config.stack.append(r)
 
     @staticmethod
     def f64_const(config: Configuration, i: binary.Instruction):
-        config.stack.append(Value.from_f64(i.args[0]))
+        r = Value.from_i64(i.args[0])
+        r.type = binary.ValueType(convention.f64)
+        config.stack.append(r)
 
     @staticmethod
     def i32_eqz(config: Configuration, i: binary.Instruction):
