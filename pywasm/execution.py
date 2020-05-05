@@ -465,7 +465,8 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def exec(config: Configuration, i: binary.Instruction):
-        log.debugln('|', i, config.stack.data)
+        if log.lvl > 0:
+            log.println('|', i, config.stack.data)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
             instruction.nop: ArithmeticLogicUnit.nop,
@@ -706,10 +707,9 @@ class ArithmeticLogicUnit:
             config.stack.append(e)
 
     @staticmethod
-    def br(config: Configuration, i: binary.Instruction):
-        l = i.args[0]
+    def br_label(config: Configuration, l: int):
         # Let L be the l-th label appearing on the stack, starting from the top and counting from zero.
-        L = config.get_label(i.args[0])
+        L = config.get_label(l)
         # Pop the values n from the stack.
         v = [config.stack.pop() for _ in range(L.arity)][::-1]
         # Repeat l+1 times
@@ -717,7 +717,13 @@ class ArithmeticLogicUnit:
         #     Assert: due to validation, the top of the stack now is a label
         #     Pop the label from the stack
         s = 0
-        while s != l + 1:
+        # For loops we keep the label which represents the loop on the stack since the continuation of a loop is
+        # beginning back at the beginning of the loop itself.
+        if L.continuation < config.pc:
+            n = l
+        else:
+            n = l + 1
+        while s != n:
             e = config.stack.pop()
             if isinstance(e, Label):
                 s += 1
@@ -728,13 +734,16 @@ class ArithmeticLogicUnit:
         config.pc = L.continuation
 
     @staticmethod
+    def br(config: Configuration, i: binary.Instruction):
+        l = i.args[0]
+        return ArithmeticLogicUnit.br_label(config, l)
+
+    @staticmethod
     def br_if(config: Configuration, i: binary.Instruction):
         if config.stack.pop().i32() == 0:
             return
-        j = binary.Instruction()
-        j.opcode = instruction.br
-        j.args = i.args
-        ArithmeticLogicUnit.br(config, j)
+        l = i.args[0]
+        return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
     def br_table(config: Configuration, i: binary.Instruction):
@@ -743,10 +752,7 @@ class ArithmeticLogicUnit:
         c = config.stack.pop().i32()
         if c >= 0 and c < len(a):
             l = a[c]
-        j = binary.Instruction()
-        j.opcode = instruction.br
-        j.args = [l]
-        ArithmeticLogicUnit.br(config, j)
+        return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
     def return_(config: Configuration, i: binary.Instruction):
