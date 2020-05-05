@@ -44,6 +44,7 @@ def imps() -> typing.Dict:
     return {
         'spectest': {
             'print_i32': lambda _, x: None,
+            'print': lambda _: None,
             'global_i32': 666,
             'table': table,
             'memory': memory,
@@ -104,6 +105,8 @@ def case(path: str):
                 runtime.exec_accu(function_name, args)
             else:
                 raise NotImplementedError
+        elif command['type'] == 'assert_uninstantiable':
+            continue
         else:
             raise NotImplementedError
 
@@ -159,7 +162,7 @@ if __name__ == '__main__':
     case('./res/spectest/select')
     case('./res/spectest/skip-stack-guard-page')
     case('./res/spectest/stack')
-    # [TODO] case('./res/spectest/start')
+    case('./res/spectest/start')
     case('./res/spectest/store')
     case('./res/spectest/switch')
     case('./res/spectest/table')
