@@ -7,28 +7,6 @@ u32 = u64 = int
 f32 = f64 = float
 
 
-# def int2u8(i: int) -> u8:
-#     return i & 0xff
-
-
-# def int2i8(i: int) -> i8:
-#     i = i & 0xff
-#     if i & 0x80:
-#         return i - 0x100
-#     return i
-
-
-# def int2u16(i: int) -> u16:
-#     return i & 0xffff
-
-
-# def int2i16(i: int) -> i16:
-#     i = i & 0xffff
-#     if i & 0x8000:
-#         return i - 0x10000
-#     return i
-
-
 def int2u32(i: int) -> u32:
     return i & 0xffffffff
 
@@ -49,24 +27,6 @@ def int2i64(i: int) -> i64:
     if i & 0x8000000000000000:
         return i - 0x10000000000000000
     return i
-
-
-# def i322f32(i: i32) -> f32:
-#     i = int2i32(i)
-#     return struct.unpack('<f', struct.pack('<i', i))[0]
-
-
-# def f322i32(f: f32) -> i32:
-#     return struct.unpack('<i', struct.pack('<f', f))[0]
-
-
-# def i642f64(i: i64) -> f64:
-#     i = int2i64(i)
-#     return struct.unpack('<d', struct.pack('<q', i))[0]
-
-
-# def f642i64(f: f64) -> i64:
-#     return struct.unpack('<q', struct.pack('<d', f))[0]
 
 
 class LittleEndian:

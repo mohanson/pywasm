@@ -101,6 +101,12 @@ class Value:
         return o
 
     @classmethod
+    def from_f32_i32(cls, n: num.i32):
+        o = Value.from_i32(n)
+        o.type = binary.ValueType(convention.f32)
+        return o
+
+    @classmethod
     def from_f64(cls, n: num.f64):
         o = Value()
         o.type = binary.ValueType(convention.f64)
@@ -108,6 +114,12 @@ class Value:
             o.data[0:8] = num.LittleEndian.pack_f64(n)
         except OverflowError:
             o.data[0:8] = num.LittleEndian.pack_f64(math.copysign(math.inf, n))
+        return o
+
+    @classmethod
+    def from_f64_i64(cls, n: num.i64):
+        o = Value.from_i64(n)
+        o.type = binary.ValueType(convention.f64)
         return o
 
 

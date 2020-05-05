@@ -1,3 +1,3 @@
 import test_spec
 
-test_spec.case('./res/spectest/linking')
+test_spec.case('./res/spectest/f32')

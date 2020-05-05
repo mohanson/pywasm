@@ -32,3 +32,6 @@ data_section = 0x0b
 memory_page_size = 64 * 1024
 memory_page = 2**16
 call_stack_depth = 128
+
+f32_nan_canonical = 0x7fe00000
+f64_nan_canonical = 0x7ff8000000000000

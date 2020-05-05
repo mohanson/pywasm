@@ -14,18 +14,52 @@ def parse_val(m):
     if m['type'] == 'i64':
         return pywasm.Value.from_i64(num.int2i64(int(m['value'])))
     if m['type'] == 'f32':
-        if m['value'].startswith('nan'):
-            return pywasm.Value.from_f32(float('nan'))
+        if m['value'] == 'nan:canonical':
+            return pywasm.Value.from_f32_i32(pywasm.convention.f32_nan_canonical)
+        if m['value'] == 'nan:arithmetic':
+            return pywasm.Value.from_f32_i32(pywasm.convention.f32_nan_canonical + 1)
         v = pywasm.Value.from_u32(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f32)
         return v
     if m['type'] == 'f64':
-        if m['value'].startswith('nan'):
-            return pywasm.Value.from_f64(float('nan'))
+        if m['value'] == 'nan:canonical':
+            return pywasm.Value.from_f64_i64(pywasm.convention.f64_nan_canonical)
+        if m['value'] == 'nan:arithmetic':
+            return pywasm.Value.from_f64_i64(pywasm.convention.f64_nan_canonical + 1)
         v = pywasm.Value.from_u64(int(m['value']))
         v.type = pywasm.binary.ValueType(pywasm.convention.f64)
         return v
     raise NotImplementedError
+
+
+def asset_val(a, b):
+    if b.type == pywasm.convention.i32:
+        assert a.type == pywasm.convention.i32
+        assert a.data == b.data
+        return
+    if b.type == pywasm.convention.i64:
+        assert a.type == pywasm.convention.i64
+        assert a.data == b.data
+        return
+    if b.type == pywasm.convention.f32:
+        assert a.type == pywasm.convention.f32
+        if math.isnan(b.f32()):
+            b.type = pywasm.binary.ValueType(pywasm.convention.i32)
+            if b.i32() != pywasm.convention.f32_nan_canonical:
+                assert math.isnan(a.f32())
+                return
+        assert a.data == b.data
+        return
+    if b.type == pywasm.convention.f64:
+        assert a.type == pywasm.convention.f64
+        if math.isnan(b.f64()):
+            b.type = pywasm.binary.ValueType(pywasm.convention.i64)
+            if b.i64() != pywasm.convention.f64_nan_canonical:
+                assert math.isnan(a.f64())
+                return
+        assert a.data == b.data
+        return
+    raise Exception
 
 
 def imps() -> typing.Dict:
@@ -72,10 +106,7 @@ def case(path: str):
                 r = runtime.exec_accu(function_name, args)
                 expect = [parse_val(i) for i in command['expected']]
                 for i in range(len(expect)):
-                    if math.isnan(expect[i].val()):
-                        assert math.isnan(r.data[i].val())
-                    else:
-                        assert r.data[i].data == expect[i].data
+                    asset_val(r.data[i], expect[i])
             else:
                 raise NotImplementedError
         elif command['type'] in ['assert_trap', 'assert_exhaustion']:
