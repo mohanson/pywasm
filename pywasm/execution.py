@@ -768,8 +768,7 @@ class ArithmeticLogicUnit:
         config.pc = len(config.frame.expr.data) - 1
 
     @staticmethod
-    def call(config: Configuration, i: binary.Instruction):
-        function_addr: binary.FunctionIndex = i.args[0]
+    def call_function_addr(config: Configuration, function_addr: FunctionAddress):
         function: FunctionInstance = config.store.function_list[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
@@ -779,6 +778,11 @@ class ArithmeticLogicUnit:
         r = machine.invocate(function_addr, function_args)
         for e in r.data[::-1]:
             config.stack.append(e)
+
+    @staticmethod
+    def call(config: Configuration, i: binary.Instruction):
+        function_addr: binary.FunctionIndex = i.args[0]
+        ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
     def call_indirect(config: Configuration, i: binary.Instruction):
@@ -793,10 +797,7 @@ class ArithmeticLogicUnit:
         function_addr = tab.element_list[idx]
         if function_addr is None:
             raise Exception('pywasm: uninitialized element')
-        j = binary.Instruction()
-        j.opcode = instruction.call
-        j.args = [function_addr]
-        ArithmeticLogicUnit.call(config, j)
+        ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
     def drop(config: Configuration, i: binary.Instruction):

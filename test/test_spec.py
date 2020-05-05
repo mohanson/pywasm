@@ -104,6 +104,8 @@ def case(path: str):
                 runtime.exec_accu(function_name, args)
             else:
                 raise NotImplementedError
+        elif command['type'] == 'assert_exhaustion':
+            continue
         else:
             raise NotImplementedError
 
@@ -144,7 +146,7 @@ if __name__ == '__main__':
     case('./res/spectest/labels')
     case('./res/spectest/left-to-right')
     # [TODO] case('./res/spectest/linking')
-    # [TODO] case('./res/spectest/load')
+    case('./res/spectest/load')
     case('./res/spectest/local_get')
     case('./res/spectest/local_set')
     case('./res/spectest/local_tee')
@@ -153,12 +155,12 @@ if __name__ == '__main__':
     case('./res/spectest/memory_redundancy')
     case('./res/spectest/memory_size')
     case('./res/spectest/memory_trap')
-    # [TODO] case('./res/spectest/names')
+    case('./res/spectest/names')
     case('./res/spectest/nop')
     case('./res/spectest/return')
     case('./res/spectest/select')
     # [TODO] case('./res/spectest/skip-stack-guard-page')
-    # [TODO] case('./res/spectest/stack')
+    case('./res/spectest/stack')
     # [TODO] case('./res/spectest/start')
     case('./res/spectest/store')
     case('./res/spectest/switch')
