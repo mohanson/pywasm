@@ -92,8 +92,8 @@ class Value:
         return o
 
     @classmethod
-    def from_f32_i32(cls, n: num.i32):
-        o = Value.from_i32(n)
+    def from_f32_u32(cls, n: num.u32):
+        o = Value.from_u32(n)
         o.type = binary.ValueType(convention.f32)
         return o
 
@@ -105,8 +105,8 @@ class Value:
         return o
 
     @classmethod
-    def from_f64_i64(cls, n: num.i64):
-        o = Value.from_i64(n)
+    def from_f64_u64(cls, n: num.u64):
+        o = Value.from_u64(n)
         o.type = binary.ValueType(convention.f64)
         return o
 
