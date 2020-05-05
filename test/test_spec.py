@@ -44,7 +44,6 @@ def asset_val(a, b):
     if b.type == pywasm.convention.f32:
         assert a.type == pywasm.convention.f32
         if math.isnan(b.f32()):
-            b.type = pywasm.binary.ValueType(pywasm.convention.i32)
             if b.i32() != pywasm.convention.f32_nan_canonical:
                 assert math.isnan(a.f32())
                 return
@@ -53,7 +52,6 @@ def asset_val(a, b):
     if b.type == pywasm.convention.f64:
         assert a.type == pywasm.convention.f64
         if math.isnan(b.f64()):
-            b.type = pywasm.binary.ValueType(pywasm.convention.i64)
             if b.i64() != pywasm.convention.f64_nan_canonical:
                 assert math.isnan(a.f64())
                 return

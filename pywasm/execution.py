@@ -39,27 +39,21 @@ class Value:
         }[self.type]()
 
     def i32(self) -> num.i32:
-        assert self.type == convention.i32
         return num.LittleEndian.i32(self.data[0:4])
 
     def i64(self) -> num.i64:
-        assert self.type == convention.i64
         return num.LittleEndian.i64(self.data[0:8])
 
     def u32(self) -> num.u32:
-        assert self.type == convention.i32
         return num.LittleEndian.u32(self.data[0:4])
 
     def u64(self) -> num.u64:
-        assert self.type == convention.i64
         return num.LittleEndian.u64(self.data[0:8])
 
     def f32(self) -> num.f32:
-        assert self.type == convention.f32
         return num.LittleEndian.f32(self.data[0:4])
 
     def f64(self) -> num.f64:
-        assert self.type == convention.f64
         return num.LittleEndian.f64(self.data[0:8])
 
     @classmethod
@@ -94,10 +88,7 @@ class Value:
     def from_f32(cls, n: num.f32):
         o = Value()
         o.type = binary.ValueType(convention.f32)
-        try:
-            o.data[0:4] = num.LittleEndian.pack_f32(n)
-        except OverflowError:
-            o.data[0:4] = num.LittleEndian.pack_f32(math.copysign(math.inf, n))
+        o.data[0:4] = num.LittleEndian.pack_f32(n)
         return o
 
     @classmethod
@@ -110,10 +101,7 @@ class Value:
     def from_f64(cls, n: num.f64):
         o = Value()
         o.type = binary.ValueType(convention.f64)
-        try:
-            o.data[0:8] = num.LittleEndian.pack_f64(n)
-        except OverflowError:
-            o.data[0:8] = num.LittleEndian.pack_f64(math.copysign(math.inf, n))
+        o.data[0:8] = num.LittleEndian.pack_f64(n)
         return o
 
     @classmethod
