@@ -1,3 +1,3 @@
 import test_spec
 
-test_spec.case('./res/spectest/float_memory')
+test_spec.case('./res/spectest/linking')
