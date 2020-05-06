@@ -33,6 +33,7 @@ def parse_val(m):
 
 
 def asset_val(a, b):
+    print('assert', a.data, b.data)
     if b.type == pywasm.convention.i32:
         assert a.type == pywasm.convention.i32
         assert a.data == b.data

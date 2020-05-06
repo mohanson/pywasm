@@ -2,6 +2,8 @@ import io
 import math
 import struct
 
+from . import convention
+
 i32 = i64 = int
 u32 = u64 = int
 f32 = f64 = float
@@ -110,3 +112,19 @@ class LittleEndian:
     @staticmethod
     def pack_f64(n: f64):
         return struct.pack('<d', n)
+
+
+def f32_rounding(f: f32) -> f32:
+    if f > convention.f32_positive_limit:
+        return +math.inf
+    if f < convention.f32_negative_limit:
+        return -math.inf
+    return f
+
+
+def f64_rounding(f: f64) -> f64:
+    if f > convention.f64_positive_limit:
+        return +math.inf
+    if f < convention.f64_negative_limit:
+        return -math.inf
+    return f

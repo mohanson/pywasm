@@ -88,7 +88,7 @@ class Value:
     def from_f32(cls, n: num.f32):
         o = Value()
         o.type = binary.ValueType(convention.f32)
-        o.data[0:4] = num.LittleEndian.pack_f32(n)
+        o.data[0:4] = num.LittleEndian.pack_f32(num.f32_rounding(n))
         return o
 
     @classmethod
@@ -101,7 +101,7 @@ class Value:
     def from_f64(cls, n: num.f64):
         o = Value()
         o.type = binary.ValueType(convention.f64)
-        o.data[0:8] = num.LittleEndian.pack_f64(n)
+        o.data[0:8] = num.LittleEndian.pack_f64(num.f64_rounding(n))
         return o
 
     @classmethod
