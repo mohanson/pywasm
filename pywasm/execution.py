@@ -1588,24 +1588,99 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_div(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f32()
-        a = config.stack.pop().f32()
-        r = Value.from_f32(a / b)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f32 = b.f32()
+        a_f32 = a.f32()
+        b_sig = b.data[3] & 0x80 != 0x00
+        a_sig = a.data[3] & 0x80 != 0x00
+
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isnan(b_f32):
+            return config.stack.append(b)
+        if math.isinf(a_f32) and math.isinf(b_f32):
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
+        if a_f32 == 0 and b_f32 == 0:
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
+        if math.isinf(a_f32):
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
+        if math.isinf(b_f32):
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+        if a_f32 == 0:
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+        if b_f32 == 0:
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
+        r = Value.from_f32(a_f32 / b_f32)
         config.stack.append(r)
 
     @staticmethod
     def f32_min(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f32()
-        a = config.stack.pop().f32()
-        r = Value.from_f32(min(a, b))
-        config.stack.append(r)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f32 = b.f32()
+        a_f32 = a.f32()
+        b_sig = b.data[3] & 0x80 != 0x00
+        a_sig = a.data[3] & 0x80 != 0x00
+
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isnan(b_f32):
+            return config.stack.append(b)
+        if a.i32() == convention.f32_negative_infinity:
+            return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
+        if b.i32() == convention.f32_negative_infinity:
+            return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
+        if a.i32() == convention.f32_positive_infinity:
+            return config.stack.append(b)
+        if b.i32() == convention.f32_positive_infinity:
+            return config.stack.append(a)
+        if a_f32 == 0 and b_f32 == 0:
+            if a_sig or b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+        config.stack.append(Value.from_f32(min(a_f32, b_f32)))
 
     @staticmethod
     def f32_max(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f32()
-        a = config.stack.pop().f32()
-        r = Value.from_f32(max(a, b))
-        config.stack.append(r)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f32 = b.f32()
+        a_f32 = a.f32()
+        b_sig = b.data[3] & 0x80 != 0x00
+        a_sig = a.data[3] & 0x80 != 0x00
+
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isnan(b_f32):
+            return config.stack.append(b)
+        if a.i32() == convention.f32_positive_infinity:
+            return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
+        if b.i32() == convention.f32_positive_infinity:
+            return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
+        if a.i32() == convention.f32_negative_infinity:
+            return config.stack.append(b)
+        if b.i32() == convention.f32_negative_infinity:
+            return config.stack.append(a)
+        if a_f32 == 0 and b_f32 == 0:
+            if a_sig and b_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+        config.stack.append(Value.from_f32(max(a_f32, b_f32)))
 
     @staticmethod
     def f32_copysign(config: Configuration, i: binary.Instruction):
