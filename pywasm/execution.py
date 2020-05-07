@@ -1566,14 +1566,39 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_trunc(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(math.trunc(a)))
+        a = config.stack.pop()
+        a_f32 = a.f32()
+        a_sig = a.data[3] & 0x80 != 0x00
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isinf(a_f32):
+            return config.stack.append(a)
+        if a_f32 == 0:
+            return config.stack.append(a)
+        if 0 < abs(a_f32) < 1:
+            if a_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+        config.stack.append(Value.from_f32(math.trunc(a_f32)))
 
     @staticmethod
     def f32_nearest(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        r = round(a)
-        config.stack.append(Value.from_f32(r))
+        a = config.stack.pop()
+        a_f32 = a.f32()
+        a_sig = a.data[3] & 0x80 != 0x00
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isinf(a_f32):
+            return config.stack.append(a)
+        if a_f32 == 0:
+            return config.stack.append(a)
+        if 0 < abs(a_f32) <= 0.5:
+            if a_sig:
+                return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+            else:
+                return config.stack.append(Value.from_f32_u32(convention.f32_positive_zero))
+        config.stack.append(Value.from_f32(round(a_f32)))
 
     @staticmethod
     def f32_sqrt(config: Configuration, i: binary.Instruction):
