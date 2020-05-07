@@ -1551,7 +1551,7 @@ class ArithmeticLogicUnit:
         a_f32 = a.f32()
         a_sig = a.data[3] & 0x80 != 0x00
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isinf(a_f32):
             return config.stack.append(a)
         if a_sig and a_f32 > -1:
@@ -1563,7 +1563,7 @@ class ArithmeticLogicUnit:
         a = config.stack.pop()
         a_f32 = a.f32()
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isinf(a_f32):
             return config.stack.append(a)
         if a_f32 == 0:
@@ -1576,7 +1576,7 @@ class ArithmeticLogicUnit:
         a_f32 = a.f32()
         a_sig = a.data[3] & 0x80 != 0x00
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isinf(a_f32):
             return config.stack.append(a)
         if a_f32 == 0:
@@ -1594,7 +1594,7 @@ class ArithmeticLogicUnit:
         a_f32 = a.f32()
         a_sig = a.data[3] & 0x80 != 0x00
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isinf(a_f32):
             return config.stack.append(a)
         if a_f32 == 0:
@@ -1612,7 +1612,7 @@ class ArithmeticLogicUnit:
         a_f32 = a.f32()
         a_sig = a.data[3] & 0x80 != 0x00
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if a_sig and a_f32 != 0:
             return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if a_f32 == 0:
@@ -1691,9 +1691,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[3] & 0x80 != 0x00
 
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isnan(b_f32):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if a.i32() == convention.f32_negative_infinity:
             return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
         if b.i32() == convention.f32_negative_infinity:
@@ -1719,9 +1719,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[3] & 0x80 != 0x00
 
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isnan(b_f32):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if a.i32() == convention.f32_positive_infinity:
             return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
         if b.i32() == convention.f32_positive_infinity:
@@ -1765,7 +1765,7 @@ class ArithmeticLogicUnit:
         a_f64 = a.f64()
         a_sig = a.data[7] & 0x80 != 0x00
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isinf(a_f64):
             return config.stack.append(a)
         if a_sig and a_f64 > -1:
@@ -1777,7 +1777,7 @@ class ArithmeticLogicUnit:
         a = config.stack.pop()
         a_f64 = a.f64()
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isinf(a_f64):
             return config.stack.append(a)
         if a_f64 == 0:
@@ -1790,7 +1790,7 @@ class ArithmeticLogicUnit:
         a_f64 = a.f64()
         a_sig = a.data[7] & 0x80 != 0x00
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isinf(a_f64):
             return config.stack.append(a)
         if a_f64 == 0:
@@ -1808,7 +1808,7 @@ class ArithmeticLogicUnit:
         a_f64 = a.f64()
         a_sig = a.data[7] & 0x80 != 0x00
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isinf(a_f64):
             return config.stack.append(a)
         if a_f64 == 0:
@@ -1826,7 +1826,7 @@ class ArithmeticLogicUnit:
         a_f64 = a.f64()
         a_sig = a.data[7] & 0x80 != 0x00
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if a_sig and a_f64 != 0:
             return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if a_f64 == 0:
@@ -1905,9 +1905,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[7] & 0x80 != 0x00
 
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isnan(b_f64):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if a.i64() == convention.f64_negative_infinity:
             return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
         if b.i64() == convention.f64_negative_infinity:
@@ -1933,9 +1933,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[7] & 0x80 != 0x00
 
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isnan(b_f64):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if a.i64() == convention.f64_positive_infinity:
             return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
         if b.i64() == convention.f64_positive_infinity:
