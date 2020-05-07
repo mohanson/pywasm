@@ -169,7 +169,7 @@ if __name__ == '__main__':
     case('./res/spectest/float_exprs')
     case('./res/spectest/float_literals')
     case('./res/spectest/float_memory')
-    # [TODO] case('./res/spectest/float_misc')
+    case('./res/spectest/float_misc')
     case('./res/spectest/forward')
     case('./res/spectest/func_ptrs')
     case('./res/spectest/global')

@@ -2,6 +2,8 @@ import copy
 import math
 import typing
 
+import numpy
+
 from . import binary
 from . import convention
 from . import instruction
@@ -30,6 +32,13 @@ class Value:
             convention.f32: Value.from_f32,
             convention.f64: Value.from_f64,
         }[type](data)
+
+    @classmethod
+    def raw(cls, type: binary.ValueType, data: bytearray):
+        o = Value()
+        o.type = type
+        o.data = data
+        return o
 
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
@@ -1623,9 +1632,9 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_add(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f32()
-        a = config.stack.pop().f32()
-        r = Value.from_f32(a + b)
+        b = numpy.frombuffer(config.stack.pop().data, numpy.float32)
+        a = numpy.frombuffer(config.stack.pop().data, numpy.float32)
+        r = Value.raw(binary.ValueType(convention.f32), bytearray((a + b).tobytes()))
         config.stack.append(r)
 
     @staticmethod
