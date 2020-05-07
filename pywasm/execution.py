@@ -1562,8 +1562,18 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_sqrt(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(math.sqrt(a)))
+        a = config.stack.pop()
+        a_f32 = a.f32()
+        a_sig = a.data[3] & 0x80 != 0x00
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if a_sig and a_f32 != 0:
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
+        if a_f32 == 0:
+            return config.stack.append(a)
+        if math.isinf(a_f32):
+            return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
+        config.stack.append(Value.from_f32(math.sqrt(a_f32)))
 
     @staticmethod
     def f32_add(config: Configuration, i: binary.Instruction):
