@@ -1171,31 +1171,15 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_eq(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop()
-        a = config.stack.pop()
-        b_f32 = b.f32()
-        a_f32 = a.f32()
-        b_nan = math.isnan(b_f32)
-        a_nan = math.isnan(a_f32)
-        if a_nan:
-            return config.stack.append(Value.from_i32(0))
-        if b_nan:
-            return config.stack.append(Value.from_i32(0))
-        config.stack.append(Value.from_i32(a_f32 == b_f32))
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def f32_ne(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop()
-        a = config.stack.pop()
-        b_f32 = b.f32()
-        a_f32 = a.f32()
-        b_nan = math.isnan(b_f32)
-        a_nan = math.isnan(a_f32)
-        if a_nan:
-            return config.stack.append(Value.from_i32(1))
-        if b_nan:
-            return config.stack.append(Value.from_i32(1))
-        config.stack.append(Value.from_i32(a_f32 != b_f32))
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def f32_lt(config: Configuration, i: binary.Instruction):
@@ -1223,31 +1207,15 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_eq(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop()
-        a = config.stack.pop()
-        b_f64 = b.f64()
-        a_f64 = a.f64()
-        b_nan = math.isnan(b_f64)
-        a_nan = math.isnan(a_f64)
-        if a_nan:
-            return config.stack.append(Value.from_i32(0))
-        if b_nan:
-            return config.stack.append(Value.from_i32(0))
-        config.stack.append(Value.from_i32(a_f64 == b_f64))
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a == b))
 
     @staticmethod
     def f64_ne(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop()
-        a = config.stack.pop()
-        b_f64 = b.f64()
-        a_f64 = a.f64()
-        b_nan = math.isnan(b_f64)
-        a_nan = math.isnan(a_f64)
-        if a_nan:
-            return config.stack.append(Value.from_i32(1))
-        if b_nan:
-            return config.stack.append(Value.from_i32(1))
-        config.stack.append(Value.from_i32(a_f64 != b_f64))
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
     def f64_lt(config: Configuration, i: binary.Instruction):
@@ -1684,9 +1652,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[3] & 0x80 != 0x00
 
         if math.isnan(a_f32):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isnan(b_f32):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if math.isinf(a_f32) and math.isinf(b_f32):
             return config.stack.append(Value.from_f32_u32(convention.f32_nan_canonical))
         if a_f32 == 0 and b_f32 == 0:
@@ -1898,9 +1866,9 @@ class ArithmeticLogicUnit:
         a_sig = a.data[7] & 0x80 != 0x00
 
         if math.isnan(a_f64):
-            return config.stack.append(a)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isnan(b_f64):
-            return config.stack.append(b)
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if math.isinf(a_f64) and math.isinf(b_f64):
             return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
         if a_f64 == 0 and b_f64 == 0:
