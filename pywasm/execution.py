@@ -1,3 +1,4 @@
+import copy
 import math
 import typing
 
@@ -849,7 +850,7 @@ class ArithmeticLogicUnit:
     @staticmethod
     def get_local(config: Configuration, i: binary.Instruction):
         r = config.frame.local_list[i.args[0]]
-        config.stack.append(r)
+        config.stack.append(copy.deepcopy(r))
 
     @staticmethod
     def set_local(config: Configuration, i: binary.Instruction):
@@ -858,7 +859,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def tee_local(config: Configuration, i: binary.Instruction):
-        config.frame.local_list[i.args[0]] = config.stack.data[-1]
+        config.frame.local_list[i.args[0]] = copy.deepcopy(config.stack.data[-1])
 
     @staticmethod
     def get_global(config: Configuration, i: binary.Instruction):
