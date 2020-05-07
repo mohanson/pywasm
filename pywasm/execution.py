@@ -1751,29 +1751,79 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_ceil(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(math.ceil(a)))
+        a = config.stack.pop()
+        a_f64 = a.f64()
+        a_sig = a.data[7] & 0x80 != 0x00
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isinf(a_f64):
+            return config.stack.append(a)
+        if a_sig and a_f64 > -1:
+            return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+        config.stack.append(Value.from_f64(math.ceil(a_f64)))
 
     @staticmethod
     def f64_floor(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(math.floor(a)))
+        a = config.stack.pop()
+        a_f64 = a.f64()
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isinf(a_f64):
+            return config.stack.append(a)
+        if a_f64 == 0:
+            return config.stack.append(a)
+        config.stack.append(Value.from_f64(math.floor(a_f64)))
 
     @staticmethod
     def f64_trunc(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(math.trunc(a)))
+        a = config.stack.pop()
+        a_f64 = a.f64()
+        a_sig = a.data[7] & 0x80 != 0x00
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isinf(a_f64):
+            return config.stack.append(a)
+        if a_f64 == 0:
+            return config.stack.append(a)
+        if 0 < abs(a_f64) < 1:
+            if a_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+        config.stack.append(Value.from_f64(math.trunc(a_f64)))
 
     @staticmethod
     def f64_nearest(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        r = round(a)
-        config.stack.append(Value.from_f64(r))
+        a = config.stack.pop()
+        a_f64 = a.f64()
+        a_sig = a.data[7] & 0x80 != 0x00
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isinf(a_f64):
+            return config.stack.append(a)
+        if a_f64 == 0:
+            return config.stack.append(a)
+        if 0 < abs(a_f64) <= 0.5:
+            if a_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+        config.stack.append(Value.from_f64(round(a_f64)))
 
     @staticmethod
     def f64_sqrt(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(math.sqrt(a)))
+        a = config.stack.pop()
+        a_f64 = a.f64()
+        a_sig = a.data[7] & 0x80 != 0x00
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if a_sig and a_f64 != 0:
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
+        if a_f64 == 0:
+            return config.stack.append(a)
+        if math.isinf(a_f64):
+            return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
+        config.stack.append(Value.from_f64(math.sqrt(a_f64)))
 
     @staticmethod
     def f64_add(config: Configuration, i: binary.Instruction):
@@ -1798,24 +1848,99 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_div(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f64()
-        a = config.stack.pop().f64()
-        r = Value.from_f64(a / b)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f64 = b.f64()
+        a_f64 = a.f64()
+        b_sig = b.data[7] & 0x80 != 0x00
+        a_sig = a.data[7] & 0x80 != 0x00
+
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isnan(b_f64):
+            return config.stack.append(b)
+        if math.isinf(a_f64) and math.isinf(b_f64):
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
+        if a_f64 == 0 and b_f64 == 0:
+            return config.stack.append(Value.from_f64_u64(convention.f64_nan_canonical))
+        if math.isinf(a_f64):
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
+        if math.isinf(b_f64):
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+        if a_f64 == 0:
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+        if b_f64 == 0:
+            if a_sig == b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
+        r = Value.from_f64(a_f64 / b_f64)
         config.stack.append(r)
 
     @staticmethod
     def f64_min(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f64()
-        a = config.stack.pop().f64()
-        r = Value.from_f64(min(a, b))
-        config.stack.append(r)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f64 = b.f64()
+        a_f64 = a.f64()
+        b_sig = b.data[7] & 0x80 != 0x00
+        a_sig = a.data[7] & 0x80 != 0x00
+
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isnan(b_f64):
+            return config.stack.append(b)
+        if a.i64() == convention.f64_negative_infinity:
+            return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
+        if b.i64() == convention.f64_negative_infinity:
+            return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
+        if a.i64() == convention.f64_positive_infinity:
+            return config.stack.append(b)
+        if b.i64() == convention.f64_positive_infinity:
+            return config.stack.append(a)
+        if a_f64 == 0 and b_f64 == 0:
+            if a_sig or b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+        config.stack.append(Value.from_f64(min(a_f64, b_f64)))
 
     @staticmethod
     def f64_max(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f64()
-        a = config.stack.pop().f64()
-        r = Value.from_f64(max(a, b))
-        config.stack.append(r)
+        b = config.stack.pop()
+        a = config.stack.pop()
+        b_f64 = b.f64()
+        a_f64 = a.f64()
+        b_sig = b.data[7] & 0x80 != 0x00
+        a_sig = a.data[7] & 0x80 != 0x00
+
+        if math.isnan(a_f64):
+            return config.stack.append(a)
+        if math.isnan(b_f64):
+            return config.stack.append(b)
+        if a.i64() == convention.f64_positive_infinity:
+            return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
+        if b.i64() == convention.f64_positive_infinity:
+            return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
+        if a.i64() == convention.f64_negative_infinity:
+            return config.stack.append(b)
+        if b.i64() == convention.f64_negative_infinity:
+            return config.stack.append(a)
+        if a_f64 == 0 and b_f64 == 0:
+            if a_sig and b_sig:
+                return config.stack.append(Value.from_f64_u64(convention.f64_negative_zero))
+            else:
+                return config.stack.append(Value.from_f64_u64(convention.f64_positive_zero))
+        config.stack.append(Value.from_f64(max(a_f64, b_f64)))
 
     @staticmethod
     def f64_copysign(config: Configuration, i: binary.Instruction):
