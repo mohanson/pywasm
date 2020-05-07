@@ -1541,13 +1541,28 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_ceil(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(math.ceil(a)))
+        a = config.stack.pop()
+        a_f32 = a.f32()
+        a_sig = a.data[3] & 0x80 != 0x00
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isinf(a_f32):
+            return config.stack.append(a)
+        if a_sig and a_f32 > -1:
+            return config.stack.append(Value.from_f32_u32(convention.f32_negative_zero))
+        config.stack.append(Value.from_f32(math.ceil(a_f32)))
 
     @staticmethod
     def f32_floor(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(math.floor(a)))
+        a = config.stack.pop()
+        a_f32 = a.f32()
+        if math.isnan(a_f32):
+            return config.stack.append(a)
+        if math.isinf(a_f32):
+            return config.stack.append(a)
+        if a_f32 == 0:
+            return config.stack.append(a)
+        config.stack.append(Value.from_f32(math.floor(a_f32)))
 
     @staticmethod
     def f32_trunc(config: Configuration, i: binary.Instruction):
