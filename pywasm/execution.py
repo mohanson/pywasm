@@ -1531,13 +1531,18 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_abs(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(abs(a)))
+        a = config.stack.pop()
+        a.data[3] = a.data[3] & 0x7f
+        config.stack.append(a)
 
     @staticmethod
     def f32_neg(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f32()
-        config.stack.append(Value.from_f32(-a))
+        a = config.stack.pop()
+        if a.data[3] & 0x80 != 0x00:
+            a.data[3] = a.data[3] & 0x7f
+        else:
+            a.data[3] = a.data[3] | 0x80
+        config.stack.append(a)
 
     @staticmethod
     def f32_ceil(config: Configuration, i: binary.Instruction):
@@ -1673,8 +1678,7 @@ class ArithmeticLogicUnit:
                 return config.stack.append(Value.from_f32_u32(convention.f32_positive_infinity))
             else:
                 return config.stack.append(Value.from_f32_u32(convention.f32_negative_infinity))
-        r = Value.from_f32(a_f32 / b_f32)
-        config.stack.append(r)
+        config.stack.append(Value.from_f32(a_f32 / b_f32))
 
     @staticmethod
     def f32_min(config: Configuration, i: binary.Instruction):
@@ -1741,13 +1745,18 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_abs(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(abs(a)))
+        a = config.stack.pop()
+        a.data[7] = a.data[7] & 0x7f
+        config.stack.append(a)
 
     @staticmethod
     def f64_neg(config: Configuration, i: binary.Instruction):
-        a = config.stack.pop().f64()
-        config.stack.append(Value.from_f64(-a))
+        a = config.stack.pop()
+        if a.data[7] & 0x80 != 0x00:
+            a.data[7] = a.data[7] & 0x7f
+        else:
+            a.data[7] = a.data[7] | 0x80
+        config.stack.append(a)
 
     @staticmethod
     def f64_ceil(config: Configuration, i: binary.Instruction):
@@ -1883,8 +1892,7 @@ class ArithmeticLogicUnit:
                 return config.stack.append(Value.from_f64_u64(convention.f64_positive_infinity))
             else:
                 return config.stack.append(Value.from_f64_u64(convention.f64_negative_infinity))
-        r = Value.from_f64(a_f64 / b_f64)
-        config.stack.append(r)
+        config.stack.append(Value.from_f64(a_f64 / b_f64))
 
     @staticmethod
     def f64_min(config: Configuration, i: binary.Instruction):

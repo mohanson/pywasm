@@ -1,3 +1,3 @@
 import test_spec
 
-test_spec.case('./res/spectest/f64')
+test_spec.case('./res/spectest/float_misc')
