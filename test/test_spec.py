@@ -186,7 +186,7 @@ if __name__ == '__main__':
     case('./res/spectest/local_set')
     case('./res/spectest/local_tee')
     case('./res/spectest/memory')
-    # case('./res/spectest/memory_grow')
+    case('./res/spectest/memory_grow')
     case('./res/spectest/memory_redundancy')
     case('./res/spectest/memory_size')
     case('./res/spectest/memory_trap')

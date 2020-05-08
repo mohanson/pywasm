@@ -1,9 +1,5 @@
 import typing
 
-from . import binary
-from . import leb128
-from . import num
-
 opcode: typing.Dict[int, typing.Tuple[str]] = {}
 
 

@@ -59,5 +59,6 @@ def validate(module: binary.Module):
         label_list=(),
         return_list=(),
     )
+    _ = context
 
     # [TODO]

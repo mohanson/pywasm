@@ -1,10 +1,9 @@
-import io
-import math
 import struct
 
 import numpy
 
-from . import convention
+
+numpy.seterr(all='ignore')
 
 i32 = i64 = int
 u32 = u64 = int
