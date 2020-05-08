@@ -2,11 +2,14 @@ import io
 import math
 import struct
 
+import numpy
+
 from . import convention
 
 i32 = i64 = int
 u32 = u64 = int
-f32 = f64 = float
+f32 = numpy.float32
+f64 = numpy.float64
 
 
 def int2u32(i: int) -> u32:
@@ -67,11 +70,11 @@ class LittleEndian:
 
     @staticmethod
     def f32(r: bytes):
-        return struct.unpack('<f', r)[0]
+        return numpy.frombuffer(r, f32)[0]
 
     @staticmethod
     def f64(r: bytes):
-        return struct.unpack('<d', r)[0]
+        return numpy.frombuffer(r, f64)[0]
 
     @staticmethod
     def pack_i8(n: i8):
@@ -107,24 +110,8 @@ class LittleEndian:
 
     @staticmethod
     def pack_f32(n: f32):
-        return struct.pack('<f', n)
+        return n.tobytes()
 
     @staticmethod
     def pack_f64(n: f64):
-        return struct.pack('<d', n)
-
-
-def f32_rounding(f: f32) -> f32:
-    if f > convention.f32_positive_limit:
-        return +math.inf
-    if f < convention.f32_negative_limit:
-        return -math.inf
-    return f
-
-
-def f64_rounding(f: f64) -> f64:
-    if f > convention.f64_positive_limit:
-        return +math.inf
-    if f < convention.f64_negative_limit:
-        return -math.inf
-    return f
+        return n.tobytes()
