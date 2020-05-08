@@ -5,7 +5,7 @@
 # bytes. LEB128 is used in the DWARF debug file format and the WebAssembly
 # binary encoding for all integer literals.
 
-import io
+import typing
 
 
 class _U:
@@ -29,7 +29,7 @@ class _U:
         return r
 
     @staticmethod
-    def decode_reader(r: io.BytesIO) -> (int, int):
+    def decode_reader(r: typing.BinaryIO) -> (int, int):
         a = bytearray()
         while True:
             b = ord(r.read(1))
@@ -61,7 +61,7 @@ class _I:
         return r
 
     @staticmethod
-    def decode_reader(r: io.BytesIO) -> (int, int):
+    def decode_reader(r: typing.BinaryIO) -> (int, int):
         a = bytearray()
         while True:
             b = ord(r.read(1))

@@ -8,9 +8,6 @@ def debugln(*args):
     if lvl:
         println(*args)
 
-def verboseln(*args):
-    if lvl >= 2:
-        println(*args)
 
 def println(*args):
     pre = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
