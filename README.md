@@ -59,4 +59,4 @@ Tested in the following environments:
 
 # License
 
-[WTFPL](./LICENSE)
+[MIT](./LICENSE)
