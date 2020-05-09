@@ -507,7 +507,7 @@ class ArithmeticLogicUnit:
     @staticmethod
     def exec(config: Configuration, i: binary.Instruction):
         if log.lvl > 0:
-            log.println('|', i, config.stack.data)
+            log.println('|', i)
         func = {
             instruction.unreachable: ArithmeticLogicUnit.unreachable,
             instruction.nop: ArithmeticLogicUnit.nop,

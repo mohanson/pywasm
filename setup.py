@@ -9,7 +9,7 @@ with open(os.path.join(root, 'requirements.txt')) as f:
 
 setuptools.setup(
     name='pywasm',
-    version='1.0.0',
+    version='1.0.1',
     url='https://github.com/mohanson/pywasm',
     license='WTFPL',
     author='mohanson',
