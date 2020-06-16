@@ -834,7 +834,6 @@ class ArithmeticLogicUnit:
             raise Exception("pywasm: zero byte malformed in call_indirect")
         ta = config.frame.module.table_addr_list[0]
         tab = config.store.table_list[ta]
-        function_type_expect = config.frame.module.type_list[i.args[0]]
         idx = config.stack.pop().i32()
         if not 0 <= idx < len(tab.element_list):
             raise Exception('pywasm: undefined element')
