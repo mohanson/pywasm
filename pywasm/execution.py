@@ -8,6 +8,7 @@ from . import convention
 from . import instruction
 from . import log
 from . import num
+from . import option
 
 # ======================================================================================================================
 # Execution Runtime Structure
@@ -441,6 +442,7 @@ class Configuration:
         self.stack = Stack()
         self.depth = 0
         self.pc = 0
+        self.opts: option.Option = option.Option()
 
     def get_label(self, i: int) -> Label:
         l = self.stack.len()
@@ -490,6 +492,11 @@ class Configuration:
         instruction_list_len = len(instruction_list)
         while self.pc < instruction_list_len:
             i = instruction_list[self.pc]
+            if self.opts.cycle_limit > 0:
+                c = self.opts.cycle + self.opts.instruction_cycle_func(i)
+                if c > self.opts.cycle_limit:
+                    raise Exception(f'pywasm: out of cycles')
+                self.opts.cycle = c
             ArithmeticLogicUnit.exec(self, i)
             self.pc += 1
         r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
@@ -819,6 +826,7 @@ class ArithmeticLogicUnit:
 
         subcnf = Configuration(config.store)
         subcnf.depth = config.depth + 1
+        subcnf.opts = config.opts
         r = subcnf.call(function_addr, function_args)
         for e in r.data:
             config.stack.append(e)
@@ -1935,6 +1943,7 @@ class Machine:
     def __init__(self):
         self.module: ModuleInstance = ModuleInstance()
         self.store: Store = Store()
+        self.opts: option.Option = option.Option()
 
     def instantiate(self, module: binary.Module, extern_value_list: typing.List[ExternValue]):
         self.module.type_list = module.type_list
@@ -1983,6 +1992,7 @@ class Machine:
             log.debugln(f'init global value')
             frame = Frame(aux, [], e.expr, 1)
             config = Configuration(self.store)
+            config.opts = self.opts
             config.set_frame(frame)
             r = config.exec().data[0]
             global_values.append(r)
@@ -1996,6 +2006,7 @@ class Machine:
             # Let F be the frame, push the frame F to the stack
             frame = Frame(self.module, [], element_segment.offset, 1)
             config = Configuration(self.store)
+            config.opts = self.opts
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
@@ -2008,6 +2019,7 @@ class Machine:
             log.debugln('init data')
             frame = Frame(self.module, [], data_segment.offset, 1)
             config = Configuration(self.store)
+            config.opts = self.opts
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
@@ -2077,4 +2089,5 @@ class Machine:
 
     def invocate(self, function_addr: FunctionAddress, function_args: typing.List[Value]) -> Result:
         config = Configuration(self.store)
+        config.opts = self.opts
         return config.call(function_addr, function_args)

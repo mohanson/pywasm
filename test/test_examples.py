@@ -8,6 +8,7 @@ else:
 
 def test_examples():
     assert subprocess.getoutput(f'{py} examples/add.py') == '9'
+    assert subprocess.getoutput(f'{py} examples/cycle.py') == '4'
     assert subprocess.getoutput(f'{py} examples/env.py') == '55'
     assert subprocess.getoutput(f'{py} examples/fib.py') == '55'
     assert subprocess.getoutput(f'{py} examples/str.py') == 'Hello World!'

@@ -7,13 +7,16 @@ from . import instruction
 from . import leb128
 from . import log
 from . import num
+from . import option
+from . import validation
 
 
 class Runtime:
     # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
 
-    def __init__(self, module: binary.Module, imps: typing.Dict = None):
+    def __init__(self, module: binary.Module, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None):
         self.machine = execution.Machine()
+        self.machine.opts = opts or option.Option()
 
         # For compatibility with older 0.4.x versions
         self.store = self.machine.store
@@ -87,11 +90,11 @@ def on_debug():
     log.lvl = 1
 
 
-def load(name: str, imps: typing.Dict = None) -> Runtime:
+def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
         module = binary.Module.from_reader(f)
-        return Runtime(module, imps)
+        return Runtime(module, imps, opts)
 
 
 Store = execution.Store
@@ -104,6 +107,7 @@ FunctionAddress = execution.FunctionAddress
 TableAddress = execution.TableAddress
 MemoryAddress = execution.MemoryAddress
 GlobalAddress = execution.GlobalAddress
+Option = option.Option
 
 # For compatibility with older 0.4.x versions
 Ctx = Store
