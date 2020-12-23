@@ -40,6 +40,8 @@ class Runtime:
             if isinstance(e.desc, binary.MemoryType):
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
+                if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
+                    raise Exception('pywasm: out of memory limit')
                 memory.grow(e.desc.limits.n)
                 self.store.memory_list.append(memory)
                 extern_value_list.append(addr)

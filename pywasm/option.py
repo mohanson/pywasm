@@ -10,3 +10,5 @@ class Option:
         self.cycle_limit = 0
         # Count the currently used cycles
         self.cycle = 0
+        # Memory page limit. 1 page = 65536 bytes
+        self.pages_limit = 0

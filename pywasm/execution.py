@@ -1032,6 +1032,8 @@ class ArithmeticLogicUnit:
         memory = config.store.memory_list[memory_addr]
         size = memory.size
         r = config.stack.pop().i32()
+        if config.opts.pages_limit > 0 and memory.size + r > config.opts.pages_limit:
+            raise Exception('pywasm: out of memory limit')
         try:
             memory.grow(r)
             config.stack.append(Value.from_i32(size))
