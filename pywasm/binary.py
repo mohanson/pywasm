@@ -66,7 +66,8 @@ class FunctionType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionType()
-        assert ord(r.read(1)) == convention.sign
+        i = r.read(1)
+        assert ord(i) == convention.sign
         o.args = ResultType.from_reader(r)
         o.rets = ResultType.from_reader(r)
         return o
