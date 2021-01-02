@@ -1,4 +1,3 @@
-import copy
 import typing
 
 import numpy
@@ -18,7 +17,7 @@ from . import option
 class Value:
     # Values are represented by themselves.
     def __init__(self):
-        self.type: binary.ValueType = binary.ValueType()
+        self.type: binary.ValueType
         self.data: bytearray = bytearray(8)
 
     def __repr__(self):
@@ -867,7 +866,10 @@ class ArithmeticLogicUnit:
     @staticmethod
     def get_local(config: Configuration, i: binary.Instruction):
         r = config.frame.local_list[i.args[0]]
-        config.stack.append(copy.deepcopy(r))
+        o = Value()
+        o.type = r.type
+        o.data = r.data.copy()
+        config.stack.append(o)
 
     @staticmethod
     def set_local(config: Configuration, i: binary.Instruction):
@@ -876,7 +878,11 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def tee_local(config: Configuration, i: binary.Instruction):
-        config.frame.local_list[i.args[0]] = copy.deepcopy(config.stack.data[-1])
+        r = config.stack.data[-1]
+        o = Value()
+        o.type = r.type
+        o.data = r.data.copy()
+        config.frame.local_list[i.args[0]] = o
 
     @staticmethod
     def get_global(config: Configuration, i: binary.Instruction):
