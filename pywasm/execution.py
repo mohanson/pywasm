@@ -935,7 +935,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_load8_u(config: Configuration, i: binary.Instruction):
-        r = Value.from_i32(num.LittleEndian.u8(ArithmeticLogicUnit.mem_load(config, i, 1)))
+        r = Value.from_i32(ArithmeticLogicUnit.mem_load(config, i, 1)[0])
         config.stack.append(r)
 
     @staticmethod
@@ -955,7 +955,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i64_load8_u(config: Configuration, i: binary.Instruction):
-        r = Value.from_i64(num.LittleEndian.u8(ArithmeticLogicUnit.mem_load(config, i, 1)))
+        r = Value.from_i64(ArithmeticLogicUnit.mem_load(config, i, 1)[0])
         config.stack.append(r)
 
     @staticmethod
