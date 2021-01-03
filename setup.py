@@ -7,7 +7,7 @@ with open(os.path.join(root, 'README.md')) as f:
 
 setuptools.setup(
     name='pywasm',
-    version='1.0.5',
+    version='1.0.7',
     url='https://github.com/mohanson/pywasm',
     license='MIT',
     author='mohanson',

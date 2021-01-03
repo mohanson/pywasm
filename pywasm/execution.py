@@ -499,7 +499,8 @@ class Configuration:
             ArithmeticLogicUnit.exec(self, i)
             self.pc += 1
         r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
-        assert self.stack.pop() == self.frame
+        l = self.stack.pop()
+        assert l == self.frame
         return Result(r)
 
 
