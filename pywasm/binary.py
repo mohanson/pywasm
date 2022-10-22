@@ -318,6 +318,8 @@ class Instruction:
         if o.opcode == instruction.f64_const:
             o.args = [num.LittleEndian.i64(r.read(8))]
             return o
+        if o.opcode not in instruction.opcode:
+            raise Exception("unsupported opcode", o.opcode)
         return o
 
 # ======================================================================================================================
