@@ -211,3 +211,4 @@ if __name__ == '__main__':
     case('./res/spectest/utf8-import-field')
     case('./res/spectest/utf8-import-module')
     case('./res/spectest/utf8-invalid-encoding')
+    case('./res/regression/rsh')

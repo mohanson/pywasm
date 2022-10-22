@@ -1228,14 +1228,14 @@ class ArithmeticLogicUnit:
     @staticmethod
     def i32_rotl(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
-        a = config.stack.pop().i32()
+        a = config.stack.pop().u32()
         c = Value.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
         config.stack.append(c)
 
     @staticmethod
     def i32_rotr(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
-        a = config.stack.pop().i32()
+        a = config.stack.pop().u32()
         c = Value.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
         config.stack.append(c)
 
@@ -1372,15 +1372,15 @@ class ArithmeticLogicUnit:
     @staticmethod
     def i64_rotl(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
-        a = config.stack.pop().i64()
-        c = Value.from_i64((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+        a = config.stack.pop().u64()
+        c = Value.from_i64((((a << (b % 0x40)) & 0xffffffffffffffff) | (a >> (0x40 - (b % 0x40)))))
         config.stack.append(c)
 
     @staticmethod
     def i64_rotr(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
-        a = config.stack.pop().i64()
-        c = Value.from_i64(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+        a = config.stack.pop().u64()
+        c = Value.from_i64(((a >> (b % 0x40)) | ((a << (0x40 - (b % 0x40))) & 0xffffffffffffffff)))
         config.stack.append(c)
 
     @staticmethod
