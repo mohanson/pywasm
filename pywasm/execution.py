@@ -1,3 +1,4 @@
+import math
 import typing
 
 import numpy
@@ -59,11 +60,11 @@ class Value:
     def u64(self) -> num.u64:
         return num.LittleEndian.u64(self.data[0:8])
 
-    def f32(self) -> num.f32:
-        return num.LittleEndian.f32(self.data[0:4])
+    def f32(self) -> float:
+        return num.LittleEndian.decode_f32(self.data[0:4])
 
     def f64(self) -> num.f64:
-        return num.LittleEndian.f64(self.data[0:8])
+        return num.LittleEndian.decode_f64(self.data[0:8])
 
     @classmethod
     def from_i32(cls, n: num.i32):
@@ -98,7 +99,7 @@ class Value:
         assert isinstance(n, num.f32)
         o = Value()
         o.type = binary.ValueType(convention.f32)
-        o.data[0:4] = num.LittleEndian.pack_f32(n)
+        o.data[0:4] = num.LittleEndian.encode_f32(n)
         return o
 
     @classmethod
@@ -112,7 +113,7 @@ class Value:
         assert isinstance(n, num.f64)
         o = Value()
         o.type = binary.ValueType(convention.f64)
-        o.data[0:8] = num.LittleEndian.pack_f64(n)
+        o.data[0:8] = num.LittleEndian.encode_f64(n)
         return o
 
     @classmethod
@@ -748,12 +749,12 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_load(config: Configuration, i: binary.Instruction):
-        r = Value.from_f32(num.LittleEndian.f32(ArithmeticLogicUnit.mem_load(config, i, 4)))
+        r = Value.from_f32(num.LittleEndian.decode_f32(ArithmeticLogicUnit.mem_load(config, i, 4)))
         config.stack.append(r)
 
     @staticmethod
     def f64_load(config: Configuration, i: binary.Instruction):
-        r = Value.from_f64(num.LittleEndian.f64(ArithmeticLogicUnit.mem_load(config, i, 8)))
+        r = Value.from_f64(num.LittleEndian.decode_f64(ArithmeticLogicUnit.mem_load(config, i, 8)))
         config.stack.append(r)
 
     @staticmethod
@@ -1451,9 +1452,25 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_div(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f32()
-        a = config.stack.pop().f32()
-        r = Value.from_f32(a / b)
+        bb = config.stack.pop()
+        aa = config.stack.pop()
+        b = bb.f32()
+        a = aa.f32()
+        if math.isnan(a) or math.isnan(b):
+            r = Value.from_u32(convention.f32_nan_canonical)
+            r.type = binary.ValueType(convention.f32)
+        elif a == 0 and b == 0:
+            r = Value.from_u32(convention.f32_nan_canonical)
+            r.type = binary.ValueType(convention.f32)
+        elif b == 0:
+            if aa.data[3] & 0x80 == bb.data[3] & 0x80:
+                r = Value.from_u32(convention.f32_positive_infinity)
+                r.type = binary.ValueType(convention.f32)
+            else:
+                r = Value.from_u32(convention.f32_negative_infinity)
+                r.type = binary.ValueType(convention.f32)
+        else:
+            r = Value.from_f32(a / b)
         config.stack.append(r)
 
     @staticmethod
@@ -1547,9 +1564,25 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_div(config: Configuration, i: binary.Instruction):
-        b = config.stack.pop().f64()
-        a = config.stack.pop().f64()
-        r = Value.from_f64(a / b)
+        bb = config.stack.pop()
+        aa = config.stack.pop()
+        b = bb.f64()
+        a = aa.f64()
+        if math.isnan(a) or math.isnan(b):
+            r = Value.from_u64(convention.f64_nan_canonical)
+            r.type = binary.ValueType(convention.f64)
+        elif a == 0 and b == 0:
+            r = Value.from_u64(convention.f64_nan_canonical)
+            r.type = binary.ValueType(convention.f64)
+        elif b == 0:
+            if aa.data[7] & 0x80 == bb.data[7] & 0x80:
+                r = Value.from_u64(convention.f64_positive_infinity)
+                r.type = binary.ValueType(convention.f64)
+            else:
+                r = Value.from_u64(convention.f64_negative_infinity)
+                r.type = binary.ValueType(convention.f64)
+        else:
+            r = Value.from_f64(a / b)
         config.stack.append(r)
 
     @staticmethod

@@ -1,14 +1,9 @@
 import struct
 
-import numpy
-
-
-numpy.seterr(all='ignore')
-
 i32 = i64 = int
 u32 = u64 = int
-f32 = numpy.float32
-f64 = numpy.float64
+f32 = float
+f64 = float
 
 
 def int2u32(i: int) -> u32:
@@ -68,12 +63,12 @@ class LittleEndian:
         return struct.unpack('<Q', r)[0]
 
     @staticmethod
-    def f32(r: bytes):
-        return numpy.frombuffer(r, f32)[0]
+    def decode_f32(r: bytearray) -> float:
+        return struct.unpack('f', r)[0]
 
     @staticmethod
-    def f64(r: bytes):
-        return numpy.frombuffer(r, f64)[0]
+    def decode_f64(r: bytes):
+        return struct.unpack('d', r)[0]
 
     @staticmethod
     def pack_i8(n: i8):
@@ -108,9 +103,9 @@ class LittleEndian:
         return struct.pack('<Q', n)
 
     @staticmethod
-    def pack_f32(n: f32):
-        return n.tobytes()
+    def encode_f32(n: float) -> bytearray:
+        return struct.pack('f', n)
 
     @staticmethod
-    def pack_f64(n: f64):
-        return n.tobytes()
+    def encode_f64(n: float) -> bytearray:
+        return struct.pack('d', n)
