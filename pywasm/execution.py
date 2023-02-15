@@ -1452,25 +1452,20 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f32_div(config: Configuration, i: binary.Instruction):
-        bb = config.stack.pop()
-        aa = config.stack.pop()
-        b = bb.f32()
-        a = aa.f32()
-        if math.isnan(a) or math.isnan(b):
-            r = Value.from_u32(convention.f32_nan_canonical)
-            r.type = binary.ValueType(convention.f32)
-        elif a == 0 and b == 0:
-            r = Value.from_u32(convention.f32_nan_canonical)
-            r.type = binary.ValueType(convention.f32)
-        elif b == 0:
-            if aa.data[3] & 0x80 == bb.data[3] & 0x80:
-                r = Value.from_u32(convention.f32_positive_infinity)
-                r.type = binary.ValueType(convention.f32)
+        b = config.stack.pop().f32()
+        a = config.stack.pop().f32()
+        try:
+            c = a / b
+        except ZeroDivisionError:
+            if math.isnan(a):
+                c = math.nan
+            elif a == 0:
+                c = math.nan
+            elif math.copysign(a, b) == a:
+                c = math.inf
             else:
-                r = Value.from_u32(convention.f32_negative_infinity)
-                r.type = binary.ValueType(convention.f32)
-        else:
-            r = Value.from_f32(a / b)
+                c = math.inf * -1
+        r = Value.from_f32(c)
         config.stack.append(r)
 
     @staticmethod
@@ -1564,25 +1559,20 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def f64_div(config: Configuration, i: binary.Instruction):
-        bb = config.stack.pop()
-        aa = config.stack.pop()
-        b = bb.f64()
-        a = aa.f64()
-        if math.isnan(a) or math.isnan(b):
-            r = Value.from_u64(convention.f64_nan_canonical)
-            r.type = binary.ValueType(convention.f64)
-        elif a == 0 and b == 0:
-            r = Value.from_u64(convention.f64_nan_canonical)
-            r.type = binary.ValueType(convention.f64)
-        elif b == 0:
-            if aa.data[7] & 0x80 == bb.data[7] & 0x80:
-                r = Value.from_u64(convention.f64_positive_infinity)
-                r.type = binary.ValueType(convention.f64)
+        b = config.stack.pop().f64()
+        a = config.stack.pop().f64()
+        try:
+            c = a / b
+        except ZeroDivisionError:
+            if math.isnan(a):
+                c = math.nan
+            elif a == 0:
+                c = math.nan
+            elif math.copysign(a, b) == a:
+                c = math.inf
             else:
-                r = Value.from_u64(convention.f64_negative_infinity)
-                r.type = binary.ValueType(convention.f64)
-        else:
-            r = Value.from_f64(a / b)
+                c = math.inf * -1
+        r = Value.from_f64(c)
         config.stack.append(r)
 
     @staticmethod
