@@ -1488,7 +1488,7 @@ class ArithmeticLogicUnit:
     def f32_copysign(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().f32()
         a = config.stack.pop().f32()
-        r = Value.from_f32(numpy.copysign(a, b))
+        r = Value.from_f32(math.copysign(a, b))
         config.stack.append(r)
 
     @staticmethod
@@ -1595,7 +1595,7 @@ class ArithmeticLogicUnit:
     def f64_copysign(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().f64()
         a = config.stack.pop().f64()
-        r = Value.from_f64(numpy.copysign(a, b))
+        r = Value.from_f64(math.copysign(a, b))
         config.stack.append(r)
 
     @staticmethod
