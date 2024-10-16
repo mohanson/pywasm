@@ -8,7 +8,6 @@ def op(code: int, name: str):
     return code
 
 
-# control Instructions
 unreachable = op(0x00, 'unreachable')
 nop = op(0x01, 'nop')
 block = op(0x02, 'block')
@@ -22,16 +21,13 @@ br_table = op(0x0e, 'br_table')
 return_ = op(0x0f, 'return')
 call = op(0x10, 'call')
 call_indirect = op(0x11, 'call_indirect')
-# parametric Instructions
 drop = op(0x1a, 'drop')
 select = op(0x1b, 'select')
-# variable instructions
 get_local = op(0x20, 'local.get')
 set_local = op(0x21, 'local.set')
 tee_local = op(0x22, 'local.tee')
 get_global = op(0x23, 'global.get')
 set_global = op(0x24, 'global.set')
-# memory instructions
 i32_load = op(0x28, 'i32.load')
 i64_load = op(0x29, 'i64.load')
 f32_load = op(0x2a, 'f32.load')
@@ -57,7 +53,6 @@ i64_store16 = op(0x3d, 'i64.store16')
 i64_store32 = op(0x3e, 'i64.store32')
 current_memory = op(0x3f, 'memory.size')
 grow_memory = op(0x40, 'memory.grow')
-# numeric instructions
 i32_const = op(0x41, 'i32.const')
 i64_const = op(0x42, 'i64.const')
 f32_const = op(0x43, 'f32.const')
