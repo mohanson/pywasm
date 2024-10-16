@@ -692,7 +692,7 @@ class ArithmeticLogicUnit:
             config.stack.append(b)
 
     @staticmethod
-    def get_local(config: Configuration, i: binary.Instruction):
+    def local_get(config: Configuration, i: binary.Instruction):
         r = config.frame.local_list[i.args[0]]
         o = Value()
         o.type = r.type
@@ -700,12 +700,12 @@ class ArithmeticLogicUnit:
         config.stack.append(o)
 
     @staticmethod
-    def set_local(config: Configuration, i: binary.Instruction):
+    def local_set(config: Configuration, i: binary.Instruction):
         r = config.stack.pop()
         config.frame.local_list[i.args[0]] = r
 
     @staticmethod
-    def tee_local(config: Configuration, i: binary.Instruction):
+    def local_tee(config: Configuration, i: binary.Instruction):
         r = config.stack.data[-1]
         o = Value()
         o.type = r.type
@@ -713,14 +713,14 @@ class ArithmeticLogicUnit:
         config.frame.local_list[i.args[0]] = o
 
     @staticmethod
-    def get_global(config: Configuration, i: binary.Instruction):
+    def global_get(config: Configuration, i: binary.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
         r = glob.value
         config.stack.append(r)
 
     @staticmethod
-    def set_global(config: Configuration, i: binary.Instruction):
+    def global_set(config: Configuration, i: binary.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
         assert glob.mut == convention.var
@@ -854,14 +854,14 @@ class ArithmeticLogicUnit:
         ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
-    def current_memory(config: Configuration, i: binary.Instruction):
+    def memory_size(config: Configuration, i: binary.Instruction):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         r = Value.from_i32(memory.size)
         config.stack.append(r)
 
     @staticmethod
-    def grow_memory(config: Configuration, i: binary.Instruction):
+    def memory_grow(config: Configuration, i: binary.Instruction):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         size = memory.size
@@ -911,49 +911,49 @@ class ArithmeticLogicUnit:
         config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
-    def i32_lts(config: Configuration, i: binary.Instruction):
+    def i32_lt_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
-    def i32_ltu(config: Configuration, i: binary.Instruction):
+    def i32_lt_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
-    def i32_gts(config: Configuration, i: binary.Instruction):
+    def i32_gt_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
-    def i32_gtu(config: Configuration, i: binary.Instruction):
+    def i32_gt_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
-    def i32_les(config: Configuration, i: binary.Instruction):
+    def i32_le_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
-    def i32_leu(config: Configuration, i: binary.Instruction):
+    def i32_le_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
-    def i32_ges(config: Configuration, i: binary.Instruction):
+    def i32_ge_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         config.stack.append(Value.from_i32(int(a >= b)))
 
     @staticmethod
-    def i32_geu(config: Configuration, i: binary.Instruction):
+    def i32_ge_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         config.stack.append(Value.from_i32(int(a >= b)))
@@ -975,49 +975,49 @@ class ArithmeticLogicUnit:
         config.stack.append(Value.from_i32(a != b))
 
     @staticmethod
-    def i64_lts(config: Configuration, i: binary.Instruction):
+    def i64_lt_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
-    def i64_ltu(config: Configuration, i: binary.Instruction):
+    def i64_lt_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         config.stack.append(Value.from_i32(a < b))
 
     @staticmethod
-    def i64_gts(config: Configuration, i: binary.Instruction):
+    def i64_gt_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
-    def i64_gtu(config: Configuration, i: binary.Instruction):
+    def i64_gt_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         config.stack.append(Value.from_i32(a > b))
 
     @staticmethod
-    def i64_les(config: Configuration, i: binary.Instruction):
+    def i64_le_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
-    def i64_leu(config: Configuration, i: binary.Instruction):
+    def i64_le_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         config.stack.append(Value.from_i32(a <= b))
 
     @staticmethod
-    def i64_ges(config: Configuration, i: binary.Instruction):
+    def i64_ge_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         config.stack.append(Value.from_i32(a >= b))
 
     @staticmethod
-    def i64_geu(config: Configuration, i: binary.Instruction):
+    def i64_ge_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         config.stack.append(Value.from_i32(a >= b))
@@ -1144,7 +1144,7 @@ class ArithmeticLogicUnit:
         config.stack.append(c)
 
     @staticmethod
-    def i32_divs(config: Configuration, i: binary.Instruction):
+    def i32_div_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         if b == 0:
@@ -1156,7 +1156,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_divu(config: Configuration, i: binary.Instruction):
+    def i32_div_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         if b == 0:
@@ -1165,7 +1165,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_rems(config: Configuration, i: binary.Instruction):
+    def i32_rem_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         if b == 0:
@@ -1175,7 +1175,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_remu(config: Configuration, i: binary.Instruction):
+    def i32_rem_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         if b == 0:
@@ -1212,14 +1212,14 @@ class ArithmeticLogicUnit:
         config.stack.append(c)
 
     @staticmethod
-    def i32_shrs(config: Configuration, i: binary.Instruction):
+    def i32_shr_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i32()
         a = config.stack.pop().i32()
         c = Value.from_i32(a >> (b % 0x20))
         config.stack.append(c)
 
     @staticmethod
-    def i32_shru(config: Configuration, i: binary.Instruction):
+    def i32_shr_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u32()
         a = config.stack.pop().u32()
         c = Value.from_i32(a >> (b % 0x20))
@@ -1289,7 +1289,7 @@ class ArithmeticLogicUnit:
         config.stack.append(c)
 
     @staticmethod
-    def i64_divs(config: Configuration, i: binary.Instruction):
+    def i64_div_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         if b == 0:
@@ -1300,7 +1300,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_divu(config: Configuration, i: binary.Instruction):
+    def i64_div_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         if b == 0:
@@ -1309,7 +1309,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_rems(config: Configuration, i: binary.Instruction):
+    def i64_rem_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         if b == 0:
@@ -1319,7 +1319,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_remu(config: Configuration, i: binary.Instruction):
+    def i64_rem_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         if b == 0:
@@ -1356,14 +1356,14 @@ class ArithmeticLogicUnit:
         config.stack.append(c)
 
     @staticmethod
-    def i64_shrs(config: Configuration, i: binary.Instruction):
+    def i64_shr_s(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().i64()
         a = config.stack.pop().i64()
         c = Value.from_i64(a >> (b % 0x40))
         config.stack.append(c)
 
     @staticmethod
-    def i64_shru(config: Configuration, i: binary.Instruction):
+    def i64_shr_u(config: Configuration, i: binary.Instruction):
         b = config.stack.pop().u64()
         a = config.stack.pop().u64()
         c = Value.from_i64(a >> (b % 0x40))
@@ -1581,7 +1581,7 @@ class ArithmeticLogicUnit:
         config.stack.append(Value.from_i32(a))
 
     @staticmethod
-    def i32_trunc_sf32(config: Configuration, i: binary.Instruction):
+    def i32_trunc_f32_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f32()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
@@ -1593,7 +1593,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_uf32(config: Configuration, i: binary.Instruction):
+    def i32_trunc_f32_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f32()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1605,7 +1605,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_sf64(config: Configuration, i: binary.Instruction):
+    def i32_trunc_f64_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f64()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
@@ -1617,7 +1617,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_uf64(config: Configuration, i: binary.Instruction):
+    def i32_trunc_f64_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f64()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1629,19 +1629,19 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_extend_si32(config: Configuration, i: binary.Instruction):
+    def i64_extend_i32_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().i32()
         r = Value.from_i64(a)
         config.stack.append(r)
 
     @staticmethod
-    def i64_extend_ui32(config: Configuration, i: binary.Instruction):
+    def i64_extend_i32_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u32()
         r = Value.from_i64(a)
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_sf32(config: Configuration, i: binary.Instruction):
+    def i64_trunc_f32_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f32()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
@@ -1653,7 +1653,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_uf32(config: Configuration, i: binary.Instruction):
+    def i64_trunc_f32_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f32()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1665,7 +1665,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_sf64(config: Configuration, i: binary.Instruction):
+    def i64_trunc_f64_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f64()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
@@ -1677,7 +1677,7 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_uf64(config: Configuration, i: binary.Instruction):
+    def i64_trunc_f64_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().f64()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1689,25 +1689,25 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_si32(config: Configuration, i: binary.Instruction):
+    def f32_convert_i32_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().i32()
         r = Value.from_f32(num.f32(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_ui32(config: Configuration, i: binary.Instruction):
+    def f32_convert_i32_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u32()
         r = Value.from_f32(num.f32(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_si64(config: Configuration, i: binary.Instruction):
+    def f32_convert_i64_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().i64()
         r = Value.from_f32(num.f32(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_ui64(config: Configuration, i: binary.Instruction):
+    def f32_convert_i64_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u64()
         r = Value.from_f32(num.f32(a))
         config.stack.append(r)
@@ -1719,25 +1719,25 @@ class ArithmeticLogicUnit:
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_si32(config: Configuration, i: binary.Instruction):
+    def f64_convert_i32_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().i32()
         r = Value.from_f64(num.f64(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_ui32(config: Configuration, i: binary.Instruction):
+    def f64_convert_i32_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u32()
         r = Value.from_f64(num.f64(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_si64(config: Configuration, i: binary.Instruction):
+    def f64_convert_i64_s(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().i64()
         r = Value.from_f64(num.f64(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_ui64(config: Configuration, i: binary.Instruction):
+    def f64_convert_i64_u(config: Configuration, i: binary.Instruction):
         a = config.stack.pop().u64()
         r = Value.from_f64(num.f64(a))
         config.stack.append(r)
@@ -1791,11 +1791,11 @@ def _make_instruction_table():
     table[instruction.call_indirect] = ArithmeticLogicUnit.call_indirect
     table[instruction.drop] = ArithmeticLogicUnit.drop
     table[instruction.select] = ArithmeticLogicUnit.select
-    table[instruction.get_local] = ArithmeticLogicUnit.get_local
-    table[instruction.set_local] = ArithmeticLogicUnit.set_local
-    table[instruction.tee_local] = ArithmeticLogicUnit.tee_local
-    table[instruction.get_global] = ArithmeticLogicUnit.get_global
-    table[instruction.set_global] = ArithmeticLogicUnit.set_global
+    table[instruction.local_get] = ArithmeticLogicUnit.local_get
+    table[instruction.local_set] = ArithmeticLogicUnit.local_set
+    table[instruction.local_tee] = ArithmeticLogicUnit.local_tee
+    table[instruction.global_get] = ArithmeticLogicUnit.global_get
+    table[instruction.global_set] = ArithmeticLogicUnit.global_set
     table[instruction.i32_load] = ArithmeticLogicUnit.i32_load
     table[instruction.i64_load] = ArithmeticLogicUnit.i64_load
     table[instruction.f32_load] = ArithmeticLogicUnit.f32_load
@@ -1819,8 +1819,8 @@ def _make_instruction_table():
     table[instruction.i64_store8] = ArithmeticLogicUnit.i64_store8
     table[instruction.i64_store16] = ArithmeticLogicUnit.i64_store16
     table[instruction.i64_store32] = ArithmeticLogicUnit.i64_store32
-    table[instruction.current_memory] = ArithmeticLogicUnit.current_memory
-    table[instruction.grow_memory] = ArithmeticLogicUnit.grow_memory
+    table[instruction.memory_size] = ArithmeticLogicUnit.memory_size
+    table[instruction.memory_grow] = ArithmeticLogicUnit.memory_grow
     table[instruction.i32_const] = ArithmeticLogicUnit.i32_const
     table[instruction.i64_const] = ArithmeticLogicUnit.i64_const
     table[instruction.f32_const] = ArithmeticLogicUnit.f32_const
@@ -1828,25 +1828,25 @@ def _make_instruction_table():
     table[instruction.i32_eqz] = ArithmeticLogicUnit.i32_eqz
     table[instruction.i32_eq] = ArithmeticLogicUnit.i32_eq
     table[instruction.i32_ne] = ArithmeticLogicUnit.i32_ne
-    table[instruction.i32_lts] = ArithmeticLogicUnit.i32_lts
-    table[instruction.i32_ltu] = ArithmeticLogicUnit.i32_ltu
-    table[instruction.i32_gts] = ArithmeticLogicUnit.i32_gts
-    table[instruction.i32_gtu] = ArithmeticLogicUnit.i32_gtu
-    table[instruction.i32_les] = ArithmeticLogicUnit.i32_les
-    table[instruction.i32_leu] = ArithmeticLogicUnit.i32_leu
-    table[instruction.i32_ges] = ArithmeticLogicUnit.i32_ges
-    table[instruction.i32_geu] = ArithmeticLogicUnit.i32_geu
+    table[instruction.i32_lt_s] = ArithmeticLogicUnit.i32_lt_s
+    table[instruction.i32_lt_u] = ArithmeticLogicUnit.i32_lt_u
+    table[instruction.i32_gt_s] = ArithmeticLogicUnit.i32_gt_s
+    table[instruction.i32_gt_u] = ArithmeticLogicUnit.i32_gt_u
+    table[instruction.i32_le_s] = ArithmeticLogicUnit.i32_le_s
+    table[instruction.i32_le_u] = ArithmeticLogicUnit.i32_le_u
+    table[instruction.i32_ge_s] = ArithmeticLogicUnit.i32_ge_s
+    table[instruction.i32_ge_u] = ArithmeticLogicUnit.i32_ge_u
     table[instruction.i64_eqz] = ArithmeticLogicUnit.i64_eqz
     table[instruction.i64_eq] = ArithmeticLogicUnit.i64_eq
     table[instruction.i64_ne] = ArithmeticLogicUnit.i64_ne
-    table[instruction.i64_lts] = ArithmeticLogicUnit.i64_lts
-    table[instruction.i64_ltu] = ArithmeticLogicUnit.i64_ltu
-    table[instruction.i64_gts] = ArithmeticLogicUnit.i64_gts
-    table[instruction.i64_gtu] = ArithmeticLogicUnit.i64_gtu
-    table[instruction.i64_les] = ArithmeticLogicUnit.i64_les
-    table[instruction.i64_leu] = ArithmeticLogicUnit.i64_leu
-    table[instruction.i64_ges] = ArithmeticLogicUnit.i64_ges
-    table[instruction.i64_geu] = ArithmeticLogicUnit.i64_geu
+    table[instruction.i64_lt_s] = ArithmeticLogicUnit.i64_lt_s
+    table[instruction.i64_lt_u] = ArithmeticLogicUnit.i64_lt_u
+    table[instruction.i64_gt_s] = ArithmeticLogicUnit.i64_gt_s
+    table[instruction.i64_gt_u] = ArithmeticLogicUnit.i64_gt_u
+    table[instruction.i64_le_s] = ArithmeticLogicUnit.i64_le_s
+    table[instruction.i64_le_u] = ArithmeticLogicUnit.i64_le_u
+    table[instruction.i64_ge_s] = ArithmeticLogicUnit.i64_ge_s
+    table[instruction.i64_ge_u] = ArithmeticLogicUnit.i64_ge_u
     table[instruction.f32_eq] = ArithmeticLogicUnit.f32_eq
     table[instruction.f32_ne] = ArithmeticLogicUnit.f32_ne
     table[instruction.f32_lt] = ArithmeticLogicUnit.f32_lt
@@ -1865,16 +1865,16 @@ def _make_instruction_table():
     table[instruction.i32_add] = ArithmeticLogicUnit.i32_add
     table[instruction.i32_sub] = ArithmeticLogicUnit.i32_sub
     table[instruction.i32_mul] = ArithmeticLogicUnit.i32_mul
-    table[instruction.i32_divs] = ArithmeticLogicUnit.i32_divs
-    table[instruction.i32_divu] = ArithmeticLogicUnit.i32_divu
-    table[instruction.i32_rems] = ArithmeticLogicUnit.i32_rems
-    table[instruction.i32_remu] = ArithmeticLogicUnit.i32_remu
+    table[instruction.i32_div_s] = ArithmeticLogicUnit.i32_div_s
+    table[instruction.i32_div_u] = ArithmeticLogicUnit.i32_div_u
+    table[instruction.i32_rem_s] = ArithmeticLogicUnit.i32_rem_s
+    table[instruction.i32_rem_u] = ArithmeticLogicUnit.i32_rem_u
     table[instruction.i32_and] = ArithmeticLogicUnit.i32_and
     table[instruction.i32_or] = ArithmeticLogicUnit.i32_or
     table[instruction.i32_xor] = ArithmeticLogicUnit.i32_xor
     table[instruction.i32_shl] = ArithmeticLogicUnit.i32_shl
-    table[instruction.i32_shrs] = ArithmeticLogicUnit.i32_shrs
-    table[instruction.i32_shru] = ArithmeticLogicUnit.i32_shru
+    table[instruction.i32_shr_s] = ArithmeticLogicUnit.i32_shr_s
+    table[instruction.i32_shr_u] = ArithmeticLogicUnit.i32_shr_u
     table[instruction.i32_rotl] = ArithmeticLogicUnit.i32_rotl
     table[instruction.i32_rotr] = ArithmeticLogicUnit.i32_rotr
     table[instruction.i64_clz] = ArithmeticLogicUnit.i64_clz
@@ -1883,16 +1883,16 @@ def _make_instruction_table():
     table[instruction.i64_add] = ArithmeticLogicUnit.i64_add
     table[instruction.i64_sub] = ArithmeticLogicUnit.i64_sub
     table[instruction.i64_mul] = ArithmeticLogicUnit.i64_mul
-    table[instruction.i64_divs] = ArithmeticLogicUnit.i64_divs
-    table[instruction.i64_divu] = ArithmeticLogicUnit.i64_divu
-    table[instruction.i64_rems] = ArithmeticLogicUnit.i64_rems
-    table[instruction.i64_remu] = ArithmeticLogicUnit.i64_remu
+    table[instruction.i64_div_s] = ArithmeticLogicUnit.i64_div_s
+    table[instruction.i64_div_u] = ArithmeticLogicUnit.i64_div_u
+    table[instruction.i64_rem_s] = ArithmeticLogicUnit.i64_rem_s
+    table[instruction.i64_rem_u] = ArithmeticLogicUnit.i64_rem_u
     table[instruction.i64_and] = ArithmeticLogicUnit.i64_and
     table[instruction.i64_or] = ArithmeticLogicUnit.i64_or
     table[instruction.i64_xor] = ArithmeticLogicUnit.i64_xor
     table[instruction.i64_shl] = ArithmeticLogicUnit.i64_shl
-    table[instruction.i64_shrs] = ArithmeticLogicUnit.i64_shrs
-    table[instruction.i64_shru] = ArithmeticLogicUnit.i64_shru
+    table[instruction.i64_shr_s] = ArithmeticLogicUnit.i64_shr_s
+    table[instruction.i64_shr_u] = ArithmeticLogicUnit.i64_shr_u
     table[instruction.i64_rotl] = ArithmeticLogicUnit.i64_rotl
     table[instruction.i64_rotr] = ArithmeticLogicUnit.i64_rotr
     table[instruction.f32_abs] = ArithmeticLogicUnit.f32_abs
@@ -1924,25 +1924,25 @@ def _make_instruction_table():
     table[instruction.f64_max] = ArithmeticLogicUnit.f64_max
     table[instruction.f64_copysign] = ArithmeticLogicUnit.f64_copysign
     table[instruction.i32_wrap_i64] = ArithmeticLogicUnit.i32_wrap_i64
-    table[instruction.i32_trunc_sf32] = ArithmeticLogicUnit.i32_trunc_sf32
-    table[instruction.i32_trunc_uf32] = ArithmeticLogicUnit.i32_trunc_uf32
-    table[instruction.i32_trunc_sf64] = ArithmeticLogicUnit.i32_trunc_sf64
-    table[instruction.i32_trunc_uf64] = ArithmeticLogicUnit.i32_trunc_uf64
-    table[instruction.i64_extend_si32] = ArithmeticLogicUnit.i64_extend_si32
-    table[instruction.i64_extend_ui32] = ArithmeticLogicUnit.i64_extend_ui32
-    table[instruction.i64_trunc_sf32] = ArithmeticLogicUnit.i64_trunc_sf32
-    table[instruction.i64_trunc_uf32] = ArithmeticLogicUnit.i64_trunc_uf32
-    table[instruction.i64_trunc_sf64] = ArithmeticLogicUnit.i64_trunc_sf64
-    table[instruction.i64_trunc_uf64] = ArithmeticLogicUnit.i64_trunc_uf64
-    table[instruction.f32_convert_si32] = ArithmeticLogicUnit.f32_convert_si32
-    table[instruction.f32_convert_ui32] = ArithmeticLogicUnit.f32_convert_ui32
-    table[instruction.f32_convert_si64] = ArithmeticLogicUnit.f32_convert_si64
-    table[instruction.f32_convert_ui64] = ArithmeticLogicUnit.f32_convert_ui64
+    table[instruction.i32_trunc_f32_s] = ArithmeticLogicUnit.i32_trunc_f32_s
+    table[instruction.i32_trunc_f32_u] = ArithmeticLogicUnit.i32_trunc_f32_u
+    table[instruction.i32_trunc_f64_s] = ArithmeticLogicUnit.i32_trunc_f64_s
+    table[instruction.i32_trunc_f64_u] = ArithmeticLogicUnit.i32_trunc_f64_u
+    table[instruction.i64_extend_i32_s] = ArithmeticLogicUnit.i64_extend_i32_s
+    table[instruction.i64_extend_i32_u] = ArithmeticLogicUnit.i64_extend_i32_u
+    table[instruction.i64_trunc_f32_s] = ArithmeticLogicUnit.i64_trunc_f32_s
+    table[instruction.i64_trunc_f32_u] = ArithmeticLogicUnit.i64_trunc_f32_u
+    table[instruction.i64_trunc_f64_s] = ArithmeticLogicUnit.i64_trunc_f64_s
+    table[instruction.i64_trunc_f64_u] = ArithmeticLogicUnit.i64_trunc_f64_u
+    table[instruction.f32_convert_i32_s] = ArithmeticLogicUnit.f32_convert_i32_s
+    table[instruction.f32_convert_i32_u] = ArithmeticLogicUnit.f32_convert_i32_u
+    table[instruction.f32_convert_i64_s] = ArithmeticLogicUnit.f32_convert_i64_s
+    table[instruction.f32_convert_i64_u] = ArithmeticLogicUnit.f32_convert_i64_u
     table[instruction.f32_demote_f64] = ArithmeticLogicUnit.f32_demote_f64
-    table[instruction.f64_convert_si32] = ArithmeticLogicUnit.f64_convert_si32
-    table[instruction.f64_convert_ui32] = ArithmeticLogicUnit.f64_convert_ui32
-    table[instruction.f64_convert_si64] = ArithmeticLogicUnit.f64_convert_si64
-    table[instruction.f64_convert_ui64] = ArithmeticLogicUnit.f64_convert_ui64
+    table[instruction.f64_convert_i32_s] = ArithmeticLogicUnit.f64_convert_i32_s
+    table[instruction.f64_convert_i32_u] = ArithmeticLogicUnit.f64_convert_i32_u
+    table[instruction.f64_convert_i64_s] = ArithmeticLogicUnit.f64_convert_i64_s
+    table[instruction.f64_convert_i64_u] = ArithmeticLogicUnit.f64_convert_i64_u
     table[instruction.f64_promote_f32] = ArithmeticLogicUnit.f64_promote_f32
     table[instruction.i32_reinterpret_f32] = ArithmeticLogicUnit.i32_reinterpret_f32
     table[instruction.i64_reinterpret_f64] = ArithmeticLogicUnit.i64_reinterpret_f64
