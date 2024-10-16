@@ -2,10 +2,10 @@ import io
 import typing
 
 from . import convention
-from . import instruction
 from . import leb128
 from . import log
 from . import num
+from . import opcode
 
 # ======================================================================================================================
 # Binary Format Types
@@ -222,7 +222,7 @@ class Instruction:
         self.args: typing.List[typing.Any] = []
 
     def __repr__(self):
-        return f'{instruction.opcode[self.opcode][0]} {self.args}'
+        return f'{opcode.name[self.opcode][0]} {self.args}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -230,95 +230,95 @@ class Instruction:
         o.opcode = ord(r.read(1))
         o.args = []
         if o.opcode in [
-            instruction.block,
-            instruction.loop,
-            instruction.if_,
+            opcode.block,
+            opcode.loop,
+            opcode.if_then,
         ]:
             block_type = BlockType.from_reader(r)
             o.args = [block_type]
             return o
         if o.opcode in [
-            instruction.br,
-            instruction.br_if,
+            opcode.br,
+            opcode.br_if,
         ]:
             o.args = [LabelIndex(leb128.u.decode_reader(r)[0])]
             return o
-        if o.opcode == instruction.br_table:
+        if o.opcode == opcode.br_table:
             n = leb128.u.decode_reader(r)[0]
             a = [LabelIndex(leb128.u.decode_reader(r)[0]) for _ in range(n)]
             b = LabelIndex(leb128.u.decode_reader(r)[0])
             o.args = [a, b]
             return o
-        if o.opcode == instruction.call:
+        if o.opcode == opcode.call:
             o.args = [FunctionIndex(leb128.u.decode_reader(r)[0])]
             return o
-        if o.opcode == instruction.call_indirect:
+        if o.opcode == opcode.call_indirect:
             i = TypeIndex(leb128.u.decode_reader(r)[0])
             n = ord(r.read(1))
             o.args = [i, n]
             return o
         if o.opcode in [
-            instruction.local_get,
-            instruction.local_set,
-            instruction.local_tee,
+            opcode.local_get,
+            opcode.local_set,
+            opcode.local_tee,
         ]:
             o.args = [LocalIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode in [
-            instruction.global_get,
-            instruction.global_set,
+            opcode.global_get,
+            opcode.global_set,
         ]:
             o.args = [GlobalIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode in [
-            instruction.i32_load,
-            instruction.i64_load,
-            instruction.f32_load,
-            instruction.f64_load,
-            instruction.i32_load8_s,
-            instruction.i32_load8_u,
-            instruction.i32_load16_s,
-            instruction.i32_load16_u,
-            instruction.i64_load8_s,
-            instruction.i64_load8_u,
-            instruction.i64_load16_s,
-            instruction.i64_load16_u,
-            instruction.i64_load32_s,
-            instruction.i64_load32_u,
-            instruction.i32_store,
-            instruction.i64_store,
-            instruction.f32_store,
-            instruction.f64_store,
-            instruction.i32_store8,
-            instruction.i32_store16,
-            instruction.i64_store8,
-            instruction.i64_store16,
-            instruction.i64_store32,
+            opcode.i32_load,
+            opcode.i64_load,
+            opcode.f32_load,
+            opcode.f64_load,
+            opcode.i32_load8_s,
+            opcode.i32_load8_u,
+            opcode.i32_load16_s,
+            opcode.i32_load16_u,
+            opcode.i64_load8_s,
+            opcode.i64_load8_u,
+            opcode.i64_load16_s,
+            opcode.i64_load16_u,
+            opcode.i64_load32_s,
+            opcode.i64_load32_u,
+            opcode.i32_store,
+            opcode.i64_store,
+            opcode.f32_store,
+            opcode.f64_store,
+            opcode.i32_store8,
+            opcode.i32_store16,
+            opcode.i64_store8,
+            opcode.i64_store16,
+            opcode.i64_store32,
         ]:
             o.args = [leb128.u.decode_reader(r)[0], leb128.u.decode_reader(r)[0]]
             return o
         if o.opcode in [
-            instruction.memory_size,
-            instruction.memory_grow
+            opcode.memory_size,
+            opcode.memory_grow
         ]:
             n = ord(r.read(1))
             o.args = [n]
             return o
-        if o.opcode == instruction.i32_const:
+        if o.opcode == opcode.i32_const:
             o.args = [leb128.i.decode_reader(r)[0]]
             return o
-        if o.opcode == instruction.i64_const:
+        if o.opcode == opcode.i64_const:
             o.args = [leb128.i.decode_reader(r)[0]]
             return o
-        if o.opcode == instruction.f32_const:
+        if o.opcode == opcode.f32_const:
             # https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
             # python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
             o.args = [num.LittleEndian.i32(r.read(4))]
             return o
-        if o.opcode == instruction.f64_const:
+        if o.opcode == opcode.f64_const:
             o.args = [num.LittleEndian.i64(r.read(8))]
             return o
-        if o.opcode not in instruction.opcode:
+        if o.opcode not in opcode.name:
             raise Exception("unsupported opcode", o.opcode)
         return o
 
@@ -632,13 +632,13 @@ class Expression:
         position = {}  # pc => { start, end, else }
         stack = []
         for i, e in enumerate(data):
-            if e.opcode in [instruction.block, instruction.loop, instruction.if_]:
+            if e.opcode in [opcode.block, opcode.loop, opcode.if_then]:
                 stack.append([i])
                 continue
-            if e.opcode == instruction.else_:
+            if e.opcode == opcode.else_fi:
                 stack[-1].append(i)
                 continue
-            if e.opcode == instruction.end:
+            if e.opcode == opcode.end:
                 if stack:
                     b = stack.pop()
                     b.insert(1, i)
@@ -658,13 +658,13 @@ class Expression:
             if not i:
                 break
             o.data.append(i)
-            if i.opcode in [instruction.block, instruction.loop, instruction.if_]:
+            if i.opcode in [opcode.block, opcode.loop, opcode.if_then]:
                 d += 1
-            if i.opcode == instruction.end:
+            if i.opcode == opcode.end:
                 d -= 1
             if d == 0:
                 break
-        if o.data[-1].opcode != instruction.end:
+        if o.data[-1].opcode != opcode.end:
             raise Exception('pywasm: expression did not end with 0xb')
         o.position = cls.mark(o.data)
         return o

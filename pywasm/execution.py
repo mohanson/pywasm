@@ -4,9 +4,9 @@ import numpy
 
 from . import binary
 from . import convention
-from . import instruction
 from . import log
 from . import num
+from . import opcode
 from . import option
 
 # ======================================================================================================================
@@ -545,7 +545,7 @@ class ArithmeticLogicUnit:
         config.stack.append(Label(arity, continuation))
 
     @staticmethod
-    def if_(config: Configuration, i: binary.Instruction):
+    def if_then(config: Configuration, i: binary.Instruction):
         c = config.stack.pop().i32()
         if i.args[0] == convention.empty:
             arity = 0
@@ -561,7 +561,7 @@ class ArithmeticLogicUnit:
                 config.stack.pop()
 
     @staticmethod
-    def else_(config: Configuration, i: binary.Instruction):
+    def else_fi(config: Configuration, i: binary.Instruction):
         L = config.get_label(0)
         v = [config.stack.pop() for _ in range(L.arity)][::-1]
         while True:
@@ -630,7 +630,7 @@ class ArithmeticLogicUnit:
         return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
-    def return_(config: Configuration, i: binary.Instruction):
+    def return_call(config: Configuration, i: binary.Instruction):
         v = [config.stack.pop() for _ in range(config.frame.arity)][::-1]
         while True:
             e = config.stack.pop()
@@ -1774,180 +1774,180 @@ class ArithmeticLogicUnit:
 
 
 def _make_instruction_table():
-    table = [None for i in range(max(instruction.opcode) + 1)]
+    table = [None for i in range(max(opcode.name) + 1)]
 
-    table[instruction.unreachable] = ArithmeticLogicUnit.unreachable
-    table[instruction.nop] = ArithmeticLogicUnit.nop
-    table[instruction.block] = ArithmeticLogicUnit.block
-    table[instruction.loop] = ArithmeticLogicUnit.loop
-    table[instruction.if_] = ArithmeticLogicUnit.if_
-    table[instruction.else_] = ArithmeticLogicUnit.else_
-    table[instruction.end] = ArithmeticLogicUnit.end
-    table[instruction.br] = ArithmeticLogicUnit.br
-    table[instruction.br_if] = ArithmeticLogicUnit.br_if
-    table[instruction.br_table] = ArithmeticLogicUnit.br_table
-    table[instruction.return_] = ArithmeticLogicUnit.return_
-    table[instruction.call] = ArithmeticLogicUnit.call
-    table[instruction.call_indirect] = ArithmeticLogicUnit.call_indirect
-    table[instruction.drop] = ArithmeticLogicUnit.drop
-    table[instruction.select] = ArithmeticLogicUnit.select
-    table[instruction.local_get] = ArithmeticLogicUnit.local_get
-    table[instruction.local_set] = ArithmeticLogicUnit.local_set
-    table[instruction.local_tee] = ArithmeticLogicUnit.local_tee
-    table[instruction.global_get] = ArithmeticLogicUnit.global_get
-    table[instruction.global_set] = ArithmeticLogicUnit.global_set
-    table[instruction.i32_load] = ArithmeticLogicUnit.i32_load
-    table[instruction.i64_load] = ArithmeticLogicUnit.i64_load
-    table[instruction.f32_load] = ArithmeticLogicUnit.f32_load
-    table[instruction.f64_load] = ArithmeticLogicUnit.f64_load
-    table[instruction.i32_load8_s] = ArithmeticLogicUnit.i32_load8_s
-    table[instruction.i32_load8_u] = ArithmeticLogicUnit.i32_load8_u
-    table[instruction.i32_load16_s] = ArithmeticLogicUnit.i32_load16_s
-    table[instruction.i32_load16_u] = ArithmeticLogicUnit.i32_load16_u
-    table[instruction.i64_load8_s] = ArithmeticLogicUnit.i64_load8_s
-    table[instruction.i64_load8_u] = ArithmeticLogicUnit.i64_load8_u
-    table[instruction.i64_load16_s] = ArithmeticLogicUnit.i64_load16_s
-    table[instruction.i64_load16_u] = ArithmeticLogicUnit.i64_load16_u
-    table[instruction.i64_load32_s] = ArithmeticLogicUnit.i64_load32_s
-    table[instruction.i64_load32_u] = ArithmeticLogicUnit.i64_load32_u
-    table[instruction.i32_store] = ArithmeticLogicUnit.i32_store
-    table[instruction.i64_store] = ArithmeticLogicUnit.i64_store
-    table[instruction.f32_store] = ArithmeticLogicUnit.f32_store
-    table[instruction.f64_store] = ArithmeticLogicUnit.f64_store
-    table[instruction.i32_store8] = ArithmeticLogicUnit.i32_store8
-    table[instruction.i32_store16] = ArithmeticLogicUnit.i32_store16
-    table[instruction.i64_store8] = ArithmeticLogicUnit.i64_store8
-    table[instruction.i64_store16] = ArithmeticLogicUnit.i64_store16
-    table[instruction.i64_store32] = ArithmeticLogicUnit.i64_store32
-    table[instruction.memory_size] = ArithmeticLogicUnit.memory_size
-    table[instruction.memory_grow] = ArithmeticLogicUnit.memory_grow
-    table[instruction.i32_const] = ArithmeticLogicUnit.i32_const
-    table[instruction.i64_const] = ArithmeticLogicUnit.i64_const
-    table[instruction.f32_const] = ArithmeticLogicUnit.f32_const
-    table[instruction.f64_const] = ArithmeticLogicUnit.f64_const
-    table[instruction.i32_eqz] = ArithmeticLogicUnit.i32_eqz
-    table[instruction.i32_eq] = ArithmeticLogicUnit.i32_eq
-    table[instruction.i32_ne] = ArithmeticLogicUnit.i32_ne
-    table[instruction.i32_lt_s] = ArithmeticLogicUnit.i32_lt_s
-    table[instruction.i32_lt_u] = ArithmeticLogicUnit.i32_lt_u
-    table[instruction.i32_gt_s] = ArithmeticLogicUnit.i32_gt_s
-    table[instruction.i32_gt_u] = ArithmeticLogicUnit.i32_gt_u
-    table[instruction.i32_le_s] = ArithmeticLogicUnit.i32_le_s
-    table[instruction.i32_le_u] = ArithmeticLogicUnit.i32_le_u
-    table[instruction.i32_ge_s] = ArithmeticLogicUnit.i32_ge_s
-    table[instruction.i32_ge_u] = ArithmeticLogicUnit.i32_ge_u
-    table[instruction.i64_eqz] = ArithmeticLogicUnit.i64_eqz
-    table[instruction.i64_eq] = ArithmeticLogicUnit.i64_eq
-    table[instruction.i64_ne] = ArithmeticLogicUnit.i64_ne
-    table[instruction.i64_lt_s] = ArithmeticLogicUnit.i64_lt_s
-    table[instruction.i64_lt_u] = ArithmeticLogicUnit.i64_lt_u
-    table[instruction.i64_gt_s] = ArithmeticLogicUnit.i64_gt_s
-    table[instruction.i64_gt_u] = ArithmeticLogicUnit.i64_gt_u
-    table[instruction.i64_le_s] = ArithmeticLogicUnit.i64_le_s
-    table[instruction.i64_le_u] = ArithmeticLogicUnit.i64_le_u
-    table[instruction.i64_ge_s] = ArithmeticLogicUnit.i64_ge_s
-    table[instruction.i64_ge_u] = ArithmeticLogicUnit.i64_ge_u
-    table[instruction.f32_eq] = ArithmeticLogicUnit.f32_eq
-    table[instruction.f32_ne] = ArithmeticLogicUnit.f32_ne
-    table[instruction.f32_lt] = ArithmeticLogicUnit.f32_lt
-    table[instruction.f32_gt] = ArithmeticLogicUnit.f32_gt
-    table[instruction.f32_le] = ArithmeticLogicUnit.f32_le
-    table[instruction.f32_ge] = ArithmeticLogicUnit.f32_ge
-    table[instruction.f64_eq] = ArithmeticLogicUnit.f64_eq
-    table[instruction.f64_ne] = ArithmeticLogicUnit.f64_ne
-    table[instruction.f64_lt] = ArithmeticLogicUnit.f64_lt
-    table[instruction.f64_gt] = ArithmeticLogicUnit.f64_gt
-    table[instruction.f64_le] = ArithmeticLogicUnit.f64_le
-    table[instruction.f64_ge] = ArithmeticLogicUnit.f64_ge
-    table[instruction.i32_clz] = ArithmeticLogicUnit.i32_clz
-    table[instruction.i32_ctz] = ArithmeticLogicUnit.i32_ctz
-    table[instruction.i32_popcnt] = ArithmeticLogicUnit.i32_popcnt
-    table[instruction.i32_add] = ArithmeticLogicUnit.i32_add
-    table[instruction.i32_sub] = ArithmeticLogicUnit.i32_sub
-    table[instruction.i32_mul] = ArithmeticLogicUnit.i32_mul
-    table[instruction.i32_div_s] = ArithmeticLogicUnit.i32_div_s
-    table[instruction.i32_div_u] = ArithmeticLogicUnit.i32_div_u
-    table[instruction.i32_rem_s] = ArithmeticLogicUnit.i32_rem_s
-    table[instruction.i32_rem_u] = ArithmeticLogicUnit.i32_rem_u
-    table[instruction.i32_and] = ArithmeticLogicUnit.i32_and
-    table[instruction.i32_or] = ArithmeticLogicUnit.i32_or
-    table[instruction.i32_xor] = ArithmeticLogicUnit.i32_xor
-    table[instruction.i32_shl] = ArithmeticLogicUnit.i32_shl
-    table[instruction.i32_shr_s] = ArithmeticLogicUnit.i32_shr_s
-    table[instruction.i32_shr_u] = ArithmeticLogicUnit.i32_shr_u
-    table[instruction.i32_rotl] = ArithmeticLogicUnit.i32_rotl
-    table[instruction.i32_rotr] = ArithmeticLogicUnit.i32_rotr
-    table[instruction.i64_clz] = ArithmeticLogicUnit.i64_clz
-    table[instruction.i64_ctz] = ArithmeticLogicUnit.i64_ctz
-    table[instruction.i64_popcnt] = ArithmeticLogicUnit.i64_popcnt
-    table[instruction.i64_add] = ArithmeticLogicUnit.i64_add
-    table[instruction.i64_sub] = ArithmeticLogicUnit.i64_sub
-    table[instruction.i64_mul] = ArithmeticLogicUnit.i64_mul
-    table[instruction.i64_div_s] = ArithmeticLogicUnit.i64_div_s
-    table[instruction.i64_div_u] = ArithmeticLogicUnit.i64_div_u
-    table[instruction.i64_rem_s] = ArithmeticLogicUnit.i64_rem_s
-    table[instruction.i64_rem_u] = ArithmeticLogicUnit.i64_rem_u
-    table[instruction.i64_and] = ArithmeticLogicUnit.i64_and
-    table[instruction.i64_or] = ArithmeticLogicUnit.i64_or
-    table[instruction.i64_xor] = ArithmeticLogicUnit.i64_xor
-    table[instruction.i64_shl] = ArithmeticLogicUnit.i64_shl
-    table[instruction.i64_shr_s] = ArithmeticLogicUnit.i64_shr_s
-    table[instruction.i64_shr_u] = ArithmeticLogicUnit.i64_shr_u
-    table[instruction.i64_rotl] = ArithmeticLogicUnit.i64_rotl
-    table[instruction.i64_rotr] = ArithmeticLogicUnit.i64_rotr
-    table[instruction.f32_abs] = ArithmeticLogicUnit.f32_abs
-    table[instruction.f32_neg] = ArithmeticLogicUnit.f32_neg
-    table[instruction.f32_ceil] = ArithmeticLogicUnit.f32_ceil
-    table[instruction.f32_floor] = ArithmeticLogicUnit.f32_floor
-    table[instruction.f32_trunc] = ArithmeticLogicUnit.f32_trunc
-    table[instruction.f32_nearest] = ArithmeticLogicUnit.f32_nearest
-    table[instruction.f32_sqrt] = ArithmeticLogicUnit.f32_sqrt
-    table[instruction.f32_add] = ArithmeticLogicUnit.f32_add
-    table[instruction.f32_sub] = ArithmeticLogicUnit.f32_sub
-    table[instruction.f32_mul] = ArithmeticLogicUnit.f32_mul
-    table[instruction.f32_div] = ArithmeticLogicUnit.f32_div
-    table[instruction.f32_min] = ArithmeticLogicUnit.f32_min
-    table[instruction.f32_max] = ArithmeticLogicUnit.f32_max
-    table[instruction.f32_copysign] = ArithmeticLogicUnit.f32_copysign
-    table[instruction.f64_abs] = ArithmeticLogicUnit.f64_abs
-    table[instruction.f64_neg] = ArithmeticLogicUnit.f64_neg
-    table[instruction.f64_ceil] = ArithmeticLogicUnit.f64_ceil
-    table[instruction.f64_floor] = ArithmeticLogicUnit.f64_floor
-    table[instruction.f64_trunc] = ArithmeticLogicUnit.f64_trunc
-    table[instruction.f64_nearest] = ArithmeticLogicUnit.f64_nearest
-    table[instruction.f64_sqrt] = ArithmeticLogicUnit.f64_sqrt
-    table[instruction.f64_add] = ArithmeticLogicUnit.f64_add
-    table[instruction.f64_sub] = ArithmeticLogicUnit.f64_sub
-    table[instruction.f64_mul] = ArithmeticLogicUnit.f64_mul
-    table[instruction.f64_div] = ArithmeticLogicUnit.f64_div
-    table[instruction.f64_min] = ArithmeticLogicUnit.f64_min
-    table[instruction.f64_max] = ArithmeticLogicUnit.f64_max
-    table[instruction.f64_copysign] = ArithmeticLogicUnit.f64_copysign
-    table[instruction.i32_wrap_i64] = ArithmeticLogicUnit.i32_wrap_i64
-    table[instruction.i32_trunc_f32_s] = ArithmeticLogicUnit.i32_trunc_f32_s
-    table[instruction.i32_trunc_f32_u] = ArithmeticLogicUnit.i32_trunc_f32_u
-    table[instruction.i32_trunc_f64_s] = ArithmeticLogicUnit.i32_trunc_f64_s
-    table[instruction.i32_trunc_f64_u] = ArithmeticLogicUnit.i32_trunc_f64_u
-    table[instruction.i64_extend_i32_s] = ArithmeticLogicUnit.i64_extend_i32_s
-    table[instruction.i64_extend_i32_u] = ArithmeticLogicUnit.i64_extend_i32_u
-    table[instruction.i64_trunc_f32_s] = ArithmeticLogicUnit.i64_trunc_f32_s
-    table[instruction.i64_trunc_f32_u] = ArithmeticLogicUnit.i64_trunc_f32_u
-    table[instruction.i64_trunc_f64_s] = ArithmeticLogicUnit.i64_trunc_f64_s
-    table[instruction.i64_trunc_f64_u] = ArithmeticLogicUnit.i64_trunc_f64_u
-    table[instruction.f32_convert_i32_s] = ArithmeticLogicUnit.f32_convert_i32_s
-    table[instruction.f32_convert_i32_u] = ArithmeticLogicUnit.f32_convert_i32_u
-    table[instruction.f32_convert_i64_s] = ArithmeticLogicUnit.f32_convert_i64_s
-    table[instruction.f32_convert_i64_u] = ArithmeticLogicUnit.f32_convert_i64_u
-    table[instruction.f32_demote_f64] = ArithmeticLogicUnit.f32_demote_f64
-    table[instruction.f64_convert_i32_s] = ArithmeticLogicUnit.f64_convert_i32_s
-    table[instruction.f64_convert_i32_u] = ArithmeticLogicUnit.f64_convert_i32_u
-    table[instruction.f64_convert_i64_s] = ArithmeticLogicUnit.f64_convert_i64_s
-    table[instruction.f64_convert_i64_u] = ArithmeticLogicUnit.f64_convert_i64_u
-    table[instruction.f64_promote_f32] = ArithmeticLogicUnit.f64_promote_f32
-    table[instruction.i32_reinterpret_f32] = ArithmeticLogicUnit.i32_reinterpret_f32
-    table[instruction.i64_reinterpret_f64] = ArithmeticLogicUnit.i64_reinterpret_f64
-    table[instruction.f32_reinterpret_i32] = ArithmeticLogicUnit.f32_reinterpret_i32
-    table[instruction.f64_reinterpret_i64] = ArithmeticLogicUnit.f64_reinterpret_i64
+    table[opcode.unreachable] = ArithmeticLogicUnit.unreachable
+    table[opcode.nop] = ArithmeticLogicUnit.nop
+    table[opcode.block] = ArithmeticLogicUnit.block
+    table[opcode.loop] = ArithmeticLogicUnit.loop
+    table[opcode.if_then] = ArithmeticLogicUnit.if_then
+    table[opcode.else_fi] = ArithmeticLogicUnit.else_fi
+    table[opcode.end] = ArithmeticLogicUnit.end
+    table[opcode.br] = ArithmeticLogicUnit.br
+    table[opcode.br_if] = ArithmeticLogicUnit.br_if
+    table[opcode.br_table] = ArithmeticLogicUnit.br_table
+    table[opcode.return_call] = ArithmeticLogicUnit.return_call
+    table[opcode.call] = ArithmeticLogicUnit.call
+    table[opcode.call_indirect] = ArithmeticLogicUnit.call_indirect
+    table[opcode.drop] = ArithmeticLogicUnit.drop
+    table[opcode.select] = ArithmeticLogicUnit.select
+    table[opcode.local_get] = ArithmeticLogicUnit.local_get
+    table[opcode.local_set] = ArithmeticLogicUnit.local_set
+    table[opcode.local_tee] = ArithmeticLogicUnit.local_tee
+    table[opcode.global_get] = ArithmeticLogicUnit.global_get
+    table[opcode.global_set] = ArithmeticLogicUnit.global_set
+    table[opcode.i32_load] = ArithmeticLogicUnit.i32_load
+    table[opcode.i64_load] = ArithmeticLogicUnit.i64_load
+    table[opcode.f32_load] = ArithmeticLogicUnit.f32_load
+    table[opcode.f64_load] = ArithmeticLogicUnit.f64_load
+    table[opcode.i32_load8_s] = ArithmeticLogicUnit.i32_load8_s
+    table[opcode.i32_load8_u] = ArithmeticLogicUnit.i32_load8_u
+    table[opcode.i32_load16_s] = ArithmeticLogicUnit.i32_load16_s
+    table[opcode.i32_load16_u] = ArithmeticLogicUnit.i32_load16_u
+    table[opcode.i64_load8_s] = ArithmeticLogicUnit.i64_load8_s
+    table[opcode.i64_load8_u] = ArithmeticLogicUnit.i64_load8_u
+    table[opcode.i64_load16_s] = ArithmeticLogicUnit.i64_load16_s
+    table[opcode.i64_load16_u] = ArithmeticLogicUnit.i64_load16_u
+    table[opcode.i64_load32_s] = ArithmeticLogicUnit.i64_load32_s
+    table[opcode.i64_load32_u] = ArithmeticLogicUnit.i64_load32_u
+    table[opcode.i32_store] = ArithmeticLogicUnit.i32_store
+    table[opcode.i64_store] = ArithmeticLogicUnit.i64_store
+    table[opcode.f32_store] = ArithmeticLogicUnit.f32_store
+    table[opcode.f64_store] = ArithmeticLogicUnit.f64_store
+    table[opcode.i32_store8] = ArithmeticLogicUnit.i32_store8
+    table[opcode.i32_store16] = ArithmeticLogicUnit.i32_store16
+    table[opcode.i64_store8] = ArithmeticLogicUnit.i64_store8
+    table[opcode.i64_store16] = ArithmeticLogicUnit.i64_store16
+    table[opcode.i64_store32] = ArithmeticLogicUnit.i64_store32
+    table[opcode.memory_size] = ArithmeticLogicUnit.memory_size
+    table[opcode.memory_grow] = ArithmeticLogicUnit.memory_grow
+    table[opcode.i32_const] = ArithmeticLogicUnit.i32_const
+    table[opcode.i64_const] = ArithmeticLogicUnit.i64_const
+    table[opcode.f32_const] = ArithmeticLogicUnit.f32_const
+    table[opcode.f64_const] = ArithmeticLogicUnit.f64_const
+    table[opcode.i32_eqz] = ArithmeticLogicUnit.i32_eqz
+    table[opcode.i32_eq] = ArithmeticLogicUnit.i32_eq
+    table[opcode.i32_ne] = ArithmeticLogicUnit.i32_ne
+    table[opcode.i32_lt_s] = ArithmeticLogicUnit.i32_lt_s
+    table[opcode.i32_lt_u] = ArithmeticLogicUnit.i32_lt_u
+    table[opcode.i32_gt_s] = ArithmeticLogicUnit.i32_gt_s
+    table[opcode.i32_gt_u] = ArithmeticLogicUnit.i32_gt_u
+    table[opcode.i32_le_s] = ArithmeticLogicUnit.i32_le_s
+    table[opcode.i32_le_u] = ArithmeticLogicUnit.i32_le_u
+    table[opcode.i32_ge_s] = ArithmeticLogicUnit.i32_ge_s
+    table[opcode.i32_ge_u] = ArithmeticLogicUnit.i32_ge_u
+    table[opcode.i64_eqz] = ArithmeticLogicUnit.i64_eqz
+    table[opcode.i64_eq] = ArithmeticLogicUnit.i64_eq
+    table[opcode.i64_ne] = ArithmeticLogicUnit.i64_ne
+    table[opcode.i64_lt_s] = ArithmeticLogicUnit.i64_lt_s
+    table[opcode.i64_lt_u] = ArithmeticLogicUnit.i64_lt_u
+    table[opcode.i64_gt_s] = ArithmeticLogicUnit.i64_gt_s
+    table[opcode.i64_gt_u] = ArithmeticLogicUnit.i64_gt_u
+    table[opcode.i64_le_s] = ArithmeticLogicUnit.i64_le_s
+    table[opcode.i64_le_u] = ArithmeticLogicUnit.i64_le_u
+    table[opcode.i64_ge_s] = ArithmeticLogicUnit.i64_ge_s
+    table[opcode.i64_ge_u] = ArithmeticLogicUnit.i64_ge_u
+    table[opcode.f32_eq] = ArithmeticLogicUnit.f32_eq
+    table[opcode.f32_ne] = ArithmeticLogicUnit.f32_ne
+    table[opcode.f32_lt] = ArithmeticLogicUnit.f32_lt
+    table[opcode.f32_gt] = ArithmeticLogicUnit.f32_gt
+    table[opcode.f32_le] = ArithmeticLogicUnit.f32_le
+    table[opcode.f32_ge] = ArithmeticLogicUnit.f32_ge
+    table[opcode.f64_eq] = ArithmeticLogicUnit.f64_eq
+    table[opcode.f64_ne] = ArithmeticLogicUnit.f64_ne
+    table[opcode.f64_lt] = ArithmeticLogicUnit.f64_lt
+    table[opcode.f64_gt] = ArithmeticLogicUnit.f64_gt
+    table[opcode.f64_le] = ArithmeticLogicUnit.f64_le
+    table[opcode.f64_ge] = ArithmeticLogicUnit.f64_ge
+    table[opcode.i32_clz] = ArithmeticLogicUnit.i32_clz
+    table[opcode.i32_ctz] = ArithmeticLogicUnit.i32_ctz
+    table[opcode.i32_popcnt] = ArithmeticLogicUnit.i32_popcnt
+    table[opcode.i32_add] = ArithmeticLogicUnit.i32_add
+    table[opcode.i32_sub] = ArithmeticLogicUnit.i32_sub
+    table[opcode.i32_mul] = ArithmeticLogicUnit.i32_mul
+    table[opcode.i32_div_s] = ArithmeticLogicUnit.i32_div_s
+    table[opcode.i32_div_u] = ArithmeticLogicUnit.i32_div_u
+    table[opcode.i32_rem_s] = ArithmeticLogicUnit.i32_rem_s
+    table[opcode.i32_rem_u] = ArithmeticLogicUnit.i32_rem_u
+    table[opcode.i32_and] = ArithmeticLogicUnit.i32_and
+    table[opcode.i32_or] = ArithmeticLogicUnit.i32_or
+    table[opcode.i32_xor] = ArithmeticLogicUnit.i32_xor
+    table[opcode.i32_shl] = ArithmeticLogicUnit.i32_shl
+    table[opcode.i32_shr_s] = ArithmeticLogicUnit.i32_shr_s
+    table[opcode.i32_shr_u] = ArithmeticLogicUnit.i32_shr_u
+    table[opcode.i32_rotl] = ArithmeticLogicUnit.i32_rotl
+    table[opcode.i32_rotr] = ArithmeticLogicUnit.i32_rotr
+    table[opcode.i64_clz] = ArithmeticLogicUnit.i64_clz
+    table[opcode.i64_ctz] = ArithmeticLogicUnit.i64_ctz
+    table[opcode.i64_popcnt] = ArithmeticLogicUnit.i64_popcnt
+    table[opcode.i64_add] = ArithmeticLogicUnit.i64_add
+    table[opcode.i64_sub] = ArithmeticLogicUnit.i64_sub
+    table[opcode.i64_mul] = ArithmeticLogicUnit.i64_mul
+    table[opcode.i64_div_s] = ArithmeticLogicUnit.i64_div_s
+    table[opcode.i64_div_u] = ArithmeticLogicUnit.i64_div_u
+    table[opcode.i64_rem_s] = ArithmeticLogicUnit.i64_rem_s
+    table[opcode.i64_rem_u] = ArithmeticLogicUnit.i64_rem_u
+    table[opcode.i64_and] = ArithmeticLogicUnit.i64_and
+    table[opcode.i64_or] = ArithmeticLogicUnit.i64_or
+    table[opcode.i64_xor] = ArithmeticLogicUnit.i64_xor
+    table[opcode.i64_shl] = ArithmeticLogicUnit.i64_shl
+    table[opcode.i64_shr_s] = ArithmeticLogicUnit.i64_shr_s
+    table[opcode.i64_shr_u] = ArithmeticLogicUnit.i64_shr_u
+    table[opcode.i64_rotl] = ArithmeticLogicUnit.i64_rotl
+    table[opcode.i64_rotr] = ArithmeticLogicUnit.i64_rotr
+    table[opcode.f32_abs] = ArithmeticLogicUnit.f32_abs
+    table[opcode.f32_neg] = ArithmeticLogicUnit.f32_neg
+    table[opcode.f32_ceil] = ArithmeticLogicUnit.f32_ceil
+    table[opcode.f32_floor] = ArithmeticLogicUnit.f32_floor
+    table[opcode.f32_trunc] = ArithmeticLogicUnit.f32_trunc
+    table[opcode.f32_nearest] = ArithmeticLogicUnit.f32_nearest
+    table[opcode.f32_sqrt] = ArithmeticLogicUnit.f32_sqrt
+    table[opcode.f32_add] = ArithmeticLogicUnit.f32_add
+    table[opcode.f32_sub] = ArithmeticLogicUnit.f32_sub
+    table[opcode.f32_mul] = ArithmeticLogicUnit.f32_mul
+    table[opcode.f32_div] = ArithmeticLogicUnit.f32_div
+    table[opcode.f32_min] = ArithmeticLogicUnit.f32_min
+    table[opcode.f32_max] = ArithmeticLogicUnit.f32_max
+    table[opcode.f32_copysign] = ArithmeticLogicUnit.f32_copysign
+    table[opcode.f64_abs] = ArithmeticLogicUnit.f64_abs
+    table[opcode.f64_neg] = ArithmeticLogicUnit.f64_neg
+    table[opcode.f64_ceil] = ArithmeticLogicUnit.f64_ceil
+    table[opcode.f64_floor] = ArithmeticLogicUnit.f64_floor
+    table[opcode.f64_trunc] = ArithmeticLogicUnit.f64_trunc
+    table[opcode.f64_nearest] = ArithmeticLogicUnit.f64_nearest
+    table[opcode.f64_sqrt] = ArithmeticLogicUnit.f64_sqrt
+    table[opcode.f64_add] = ArithmeticLogicUnit.f64_add
+    table[opcode.f64_sub] = ArithmeticLogicUnit.f64_sub
+    table[opcode.f64_mul] = ArithmeticLogicUnit.f64_mul
+    table[opcode.f64_div] = ArithmeticLogicUnit.f64_div
+    table[opcode.f64_min] = ArithmeticLogicUnit.f64_min
+    table[opcode.f64_max] = ArithmeticLogicUnit.f64_max
+    table[opcode.f64_copysign] = ArithmeticLogicUnit.f64_copysign
+    table[opcode.i32_wrap_i64] = ArithmeticLogicUnit.i32_wrap_i64
+    table[opcode.i32_trunc_f32_s] = ArithmeticLogicUnit.i32_trunc_f32_s
+    table[opcode.i32_trunc_f32_u] = ArithmeticLogicUnit.i32_trunc_f32_u
+    table[opcode.i32_trunc_f64_s] = ArithmeticLogicUnit.i32_trunc_f64_s
+    table[opcode.i32_trunc_f64_u] = ArithmeticLogicUnit.i32_trunc_f64_u
+    table[opcode.i64_extend_i32_s] = ArithmeticLogicUnit.i64_extend_i32_s
+    table[opcode.i64_extend_i32_u] = ArithmeticLogicUnit.i64_extend_i32_u
+    table[opcode.i64_trunc_f32_s] = ArithmeticLogicUnit.i64_trunc_f32_s
+    table[opcode.i64_trunc_f32_u] = ArithmeticLogicUnit.i64_trunc_f32_u
+    table[opcode.i64_trunc_f64_s] = ArithmeticLogicUnit.i64_trunc_f64_s
+    table[opcode.i64_trunc_f64_u] = ArithmeticLogicUnit.i64_trunc_f64_u
+    table[opcode.f32_convert_i32_s] = ArithmeticLogicUnit.f32_convert_i32_s
+    table[opcode.f32_convert_i32_u] = ArithmeticLogicUnit.f32_convert_i32_u
+    table[opcode.f32_convert_i64_s] = ArithmeticLogicUnit.f32_convert_i64_s
+    table[opcode.f32_convert_i64_u] = ArithmeticLogicUnit.f32_convert_i64_u
+    table[opcode.f32_demote_f64] = ArithmeticLogicUnit.f32_demote_f64
+    table[opcode.f64_convert_i32_s] = ArithmeticLogicUnit.f64_convert_i32_s
+    table[opcode.f64_convert_i32_u] = ArithmeticLogicUnit.f64_convert_i32_u
+    table[opcode.f64_convert_i64_s] = ArithmeticLogicUnit.f64_convert_i64_s
+    table[opcode.f64_convert_i64_u] = ArithmeticLogicUnit.f64_convert_i64_u
+    table[opcode.f64_promote_f32] = ArithmeticLogicUnit.f64_promote_f32
+    table[opcode.i32_reinterpret_f32] = ArithmeticLogicUnit.i32_reinterpret_f32
+    table[opcode.i64_reinterpret_f64] = ArithmeticLogicUnit.i64_reinterpret_f64
+    table[opcode.f32_reinterpret_i32] = ArithmeticLogicUnit.f32_reinterpret_i32
+    table[opcode.f64_reinterpret_i64] = ArithmeticLogicUnit.f64_reinterpret_i64
 
     return table
 
