@@ -45,7 +45,7 @@ Of course there are some more complicated examples!
 # Test
 
 ```sh
-$ python3 ./test/test_spec.py
+$ python ./test/test_spec.py
 ```
 
 Tested in the following environments:

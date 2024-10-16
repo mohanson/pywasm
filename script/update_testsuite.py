@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 
 wabt = 'https://github.com/WebAssembly/wabt'
 testsuite = 'https://github.com/WebAssembly/testsuite'

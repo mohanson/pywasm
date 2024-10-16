@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pywasm"
+version = "1.0.8"
+authors = [
+  { name="Mohanson", email="mohanson@outlook.com" },
+]
+description = "WebAssembly Interpreter by pure Python"
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = ["numpy"]
+
+[project.urls]
+homepage = "https://github.com/mohanson/pywasm"
