@@ -227,7 +227,7 @@ class Instruction:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Instruction()
-        o.opcode: int = ord(r.read(1))
+        o.opcode = ord(r.read(1))
         o.args = []
         if o.opcode in [
             instruction.block,
@@ -258,15 +258,15 @@ class Instruction:
             o.args = [i, n]
             return o
         if o.opcode in [
-            instruction.get_local,
-            instruction.set_local,
-            instruction.tee_local,
+            instruction.local_get,
+            instruction.local_set,
+            instruction.local_tee,
         ]:
             o.args = [LocalIndex(leb128.u.decode_reader(r)[0])]
             return o
         if o.opcode in [
-            instruction.get_global,
-            instruction.set_global,
+            instruction.global_get,
+            instruction.global_set,
         ]:
             o.args = [GlobalIndex(leb128.u.decode_reader(r)[0])]
             return o
@@ -298,8 +298,8 @@ class Instruction:
             o.args = [leb128.u.decode_reader(r)[0], leb128.u.decode_reader(r)[0]]
             return o
         if o.opcode in [
-            instruction.current_memory,
-            instruction.grow_memory
+            instruction.memory_size,
+            instruction.memory_grow
         ]:
             n = ord(r.read(1))
             o.args = [n]
