@@ -660,7 +660,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def call(config: Configuration, i: binary.Instruction):
-        function_addr: binary.FunctionIndex = i.args[0]
+        function_addr = i.args[0]
         ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
@@ -2094,13 +2094,13 @@ class Machine:
 
         # For each export in module.exports, do:
         for e in module.export_list:
-            if isinstance(e.desc, binary.FunctionIndex):
+            if e.type == 0x00:
                 addr = self.module.function_addr_list[e.desc]
-            if isinstance(e.desc, binary.TableIndex):
+            if e.type == 0x01:
                 addr = self.module.table_addr_list[e.desc]
-            if isinstance(e.desc, binary.MemoryIndex):
+            if e.type == 0x02:
                 addr = self.module.memory_addr_list[e.desc]
-            if isinstance(e.desc, binary.GlobalIndex):
+            if e.type == 0x03:
                 addr = self.module.global_addr_list[e.desc]
             export_inst = ExportInstance(e.name, addr)
             self.module.export_list.append(export_inst)

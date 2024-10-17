@@ -274,41 +274,38 @@ class Instruction:
             opcode.loop,
             opcode.if_then,
         ]:
-            block_type = TypeBlock.from_reader(r)
-            o.args = [block_type]
+            o.args.append(TypeBlock.from_reader(r))
             return o
         if o.opcode in [
             opcode.br,
             opcode.br_if,
         ]:
-            o.args = [LabelIndex(leb128.u.decode_reader(r)[0])]
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode == opcode.br_table:
             n = leb128.u.decode_reader(r)[0]
-            a = [LabelIndex(leb128.u.decode_reader(r)[0]) for _ in range(n)]
-            b = LabelIndex(leb128.u.decode_reader(r)[0])
-            o.args = [a, b]
+            o.args.append([leb128.u.decode_reader(r)[0] for _ in range(n)])
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode == opcode.call:
-            o.args = [FunctionIndex(leb128.u.decode_reader(r)[0])]
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode == opcode.call_indirect:
-            i = TypeIndex(leb128.u.decode_reader(r)[0])
-            n = ord(r.read(1))
-            o.args = [i, n]
+            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
             opcode.local_get,
             opcode.local_set,
             opcode.local_tee,
         ]:
-            o.args = [LocalIndex(leb128.u.decode_reader(r)[0])]
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
             opcode.global_get,
             opcode.global_set,
         ]:
-            o.args = [GlobalIndex(leb128.u.decode_reader(r)[0])]
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
             opcode.i32_load,
@@ -335,99 +332,36 @@ class Instruction:
             opcode.i64_store16,
             opcode.i64_store32,
         ]:
-            o.args = [leb128.u.decode_reader(r)[0], leb128.u.decode_reader(r)[0]]
+            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
             opcode.memory_size,
             opcode.memory_grow
         ]:
-            n = ord(r.read(1))
-            o.args = [n]
+            o.args.append(ord(r.read(1)))
             return o
         if o.opcode == opcode.i32_const:
-            o.args = [leb128.i.decode_reader(r)[0]]
+            o.args.append(leb128.i.decode_reader(r)[0])
             return o
         if o.opcode == opcode.i64_const:
-            o.args = [leb128.i.decode_reader(r)[0]]
+            o.args.append(leb128.i.decode_reader(r)[0])
             return o
         if o.opcode == opcode.f32_const:
             # https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
             # python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
-            o.args = [num.LittleEndian.i32(r.read(4))]
+            o.args.append(num.LittleEndian.i32(r.read(4)))
             return o
         if o.opcode == opcode.f64_const:
-            o.args = [num.LittleEndian.i64(r.read(8))]
+            o.args.append(num.LittleEndian.i64(r.read(8)))
             return o
         if o.opcode not in opcode.name:
-            raise Exception("unsupported opcode", o.opcode)
+            raise Exception('pywasm: unsupported opcode', o.opcode)
         return o
 
 # ======================================================================================================================
 # Binary Format Modules
 # ======================================================================================================================
-
-
-class TypeIndex(int):
-    def __repr__(self):
-        return f'type_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return TypeIndex(leb128.u.decode_reader(r)[0])
-
-
-class FunctionIndex(int):
-    def __repr__(self):
-        return f'function_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return FunctionIndex(leb128.u.decode_reader(r)[0])
-
-
-class TableIndex(int):
-    def __repr__(self):
-        return f'table_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return TableIndex(leb128.u.decode_reader(r)[0])
-
-
-class MemoryIndex(int):
-    def __repr__(self):
-        return f'memory_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return MemoryIndex(leb128.u.decode_reader(r)[0])
-
-
-class GlobalIndex(int):
-    def __repr__(self):
-        return f'global_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return GlobalIndex(leb128.u.decode_reader(r)[0])
-
-
-class LocalIndex(int):
-    def __repr__(self):
-        return f'local_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return LocalIndex(leb128.u.decode_reader(r)[0])
-
-
-class LabelIndex(int):
-    def __repr__(self):
-        return f'label_index({super().__repr__()})'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return LabelIndex(leb128.u.decode_reader(r)[0])
 
 
 class Custom:
@@ -489,7 +423,7 @@ class TypeSection:
         return o
 
 
-ImportDesc = typing.Union[TypeIndex, TypeTable, TypeMem, TypeGlobal]
+ImportDesc = typing.Union[int, TypeTable, TypeMem, TypeGlobal]
 
 
 class Import:
@@ -507,6 +441,7 @@ class Import:
     def __init__(self):
         self.module: str = ''
         self.name: str = ''
+        self.type: int = 0
         self.desc: ImportDesc = 0x00
 
     def __repr__(self):
@@ -520,8 +455,9 @@ class Import:
         n = leb128.u.decode_reader(r)[0]
         o.name = r.read(n).decode()
         n = ord(r.read(1))
+        o.type = n
         o.desc = {
-            convention.extern_function: TypeIndex.from_reader,
+            0x00: lambda r: leb128.u.decode_reader(r)[0],
             convention.extern_table: TypeTable.from_reader,
             convention.extern_memory: TypeMem.from_reader,
             convention.extern_global: TypeGlobal.from_reader,
@@ -563,7 +499,7 @@ class FunctionSection:
     # funcsec ::= x∗:section3(vec(typeidx)) ⇒ x∗
 
     def __init__(self):
-        self.data: typing.List[TypeIndex] = []
+        self.data: typing.List[int] = []
 
     def __repr__(self):
         return f'function_section({self.data})'
@@ -572,7 +508,7 @@ class FunctionSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = FunctionSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [TypeIndex.from_reader(r) for _ in range(n)]
+        o.data = [leb128.u.decode_reader(r)[0] for _ in range(n)]
         return o
 
 
@@ -762,7 +698,7 @@ class Export:
     def __init__(self):
         self.name: str = ''
         self.type: int = 0x00
-        self.desc: typing.Union[FunctionIndex, TableIndex, MemoryIndex, GlobalIndex] = 0x00
+        self.desc: int = 0x00
 
     def __repr__(self):
         return f'export({self.name}, {self.desc})'
@@ -772,12 +708,7 @@ class Export:
         o = Export()
         o.name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
         o.type = ord(r.read(1))
-        o.desc = {
-            convention.extern_function: FunctionIndex.from_reader,
-            convention.extern_table: TableIndex.from_reader,
-            convention.extern_memory: MemoryIndex.from_reader,
-            convention.extern_global: GlobalIndex.from_reader,
-        }[o.type](r)
+        o.desc = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -812,7 +743,7 @@ class StartFunction:
     #
     # start ::= {func funcidx}
     def __init__(self):
-        self.function_idx: FunctionIndex = FunctionIndex()
+        self.function_idx: int = 0
 
     def __repr__(self):
         return f'start_function({self.function_idx})'
@@ -820,7 +751,7 @@ class StartFunction:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = StartFunction()
-        o.function_idx = FunctionIndex.from_reader(r)
+        o.function_idx = leb128.u.decode_reader(r)[0]
         return o
 
 
@@ -852,9 +783,9 @@ class Element:
     #
     # The offset is given by a constant expression.
     def __init__(self):
-        self.table_index: TableIndex = 0x00
+        self.table_index: int = 0x00
         self.offset: Expression = Expression()
-        self.init: typing.List[FunctionIndex] = []
+        self.init: typing.List[int] = []
 
     def __repr__(self):
         return f'element({self.table_index}, {self.offset}, {self.init})'
@@ -862,10 +793,10 @@ class Element:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Element()
-        o.table_index = TableIndex.from_reader(r)
+        o.table_index = leb128.u.decode_reader(r)[0]
         o.offset = Expression.from_reader(r)
         n = leb128.u.decode_reader(r)[0]
-        o.init = [FunctionIndex.from_reader(r) for _ in range(n)]
+        o.init = [leb128.u.decode_reader(r)[0] for _ in range(n)]
         return o
 
 
@@ -987,7 +918,7 @@ class Data:
     #
     # The offset is given by a constant expression.
     def __init__(self):
-        self.memory_index: MemoryIndex = MemoryIndex()
+        self.memory_index: int = 0
         self.offset: Expression = Expression()
         self.init: bytearray = bytearray()
 
@@ -997,7 +928,7 @@ class Data:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Data()
-        o.memory_index = MemoryIndex.from_reader(r)
+        o.memory_index = leb128.u.decode_reader(r)[0]
         o.offset = Expression.from_reader(r)
         n = leb128.u.decode_reader(r)[0]
         o.init = bytearray(r.read(n))
@@ -1044,7 +975,7 @@ class Function:
     # Functions are referenced through function indices, starting with the smallest index not referencing
     # a function import.
     def __init__(self):
-        self.type_index: TypeIndex = TypeIndex()
+        self.type_index: int = 0
         self.local_list: typing.List[TypeVal] = []
         self.expr: Expression = Expression()
 

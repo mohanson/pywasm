@@ -34,12 +34,12 @@ def validate(module: binary.Module):
 
     import_type_list = []
     for e in module.import_list:
-        if isinstance(e.desc, binary.TypeIndex):
+        if e.type == 0x00:
             if e.desc >= len(module.type_list):
                 raise Exception('pywasm: invalid import descriptor, type index is out of range.')
             import_type_list.append(module.type_list[e.desc])
             continue
-        if isinstance(e.desc, (binary.TypeTable, binary.TypeMem, binary.TypeGlobal)):
+        if e.type in [0x01, 0x02, 0x03]:
             import_type_list.append(module.type_list[e.desc])
             continue
         raise Exception('pywasm: unknown import descriptor type')
