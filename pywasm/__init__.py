@@ -31,13 +31,13 @@ class Runtime:
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.TableType):
+            if isinstance(e.desc, binary.TypeTable):
                 addr = execution.TableAddress(len(self.store.table_list))
                 table = imps[e.module][e.name]
                 self.store.table_list.append(table)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.MemoryType):
+            if isinstance(e.desc, binary.TypeMem):
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
@@ -46,10 +46,10 @@ class Runtime:
                 self.store.memory_list.append(memory)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.GlobalType):
+            if isinstance(e.desc, binary.TypeGlobal):
                 addr = self.store.allocate_global(
                     e.desc,
-                    execution.Value.new(e.desc.value_type, imps[e.module][e.name])
+                    execution.Value.new(e.desc.type, imps[e.module][e.name])
                 )
                 extern_value_list.append(addr)
                 continue

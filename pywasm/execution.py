@@ -17,23 +17,23 @@ from . import option
 class Value:
     # Values are represented by themselves.
     def __init__(self):
-        self.type: binary.ValueType
+        self.type: binary.TypeVal
         self.data: bytearray = bytearray(8)
 
     def __repr__(self):
         return f'{self.type} {self.val()}'
 
     @classmethod
-    def new(cls, type: binary.ValueType, data: typing.Union[int, float]):
+    def new(cls, type: binary.TypeVal, data: typing.Union[int, float]):
         return {
-            convention.i32: Value.from_i32,
-            convention.i64: Value.from_i64,
-            convention.f32: lambda x: Value.from_f32(num.f32(x)),
-            convention.f64: lambda x: Value.from_f64(num.f64(x)),
+            binary.TypeVal.i32(): Value.from_i32,
+            binary.TypeVal.i64(): Value.from_i64,
+            binary.TypeVal.f32(): lambda x: Value.from_f32(num.f32(x)),
+            binary.TypeVal.f64(): lambda x: Value.from_f64(num.f64(x)),
         }[type](data)
 
     @classmethod
-    def raw(cls, type: binary.ValueType, data: bytearray):
+    def raw(cls, type: binary.TypeVal, data: bytearray):
         o = Value()
         o.type = type
         o.data = data
@@ -41,10 +41,10 @@ class Value:
 
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
-            convention.i32: self.i32,
-            convention.i64: self.i64,
-            convention.f32: self.f32,
-            convention.f64: self.f64,
+            binary.TypeVal.i32(): self.i32,
+            binary.TypeVal.i64(): self.i64,
+            binary.TypeVal.f32(): self.f32,
+            binary.TypeVal.f64(): self.f64,
         }[self.type]()
 
     def i32(self) -> num.i32:
@@ -68,28 +68,28 @@ class Value:
     @classmethod
     def from_i32(cls, n: num.i32):
         o = Value()
-        o.type = binary.ValueType(convention.i32)
+        o.type = binary.TypeVal.i32()
         o.data[0:4] = num.LittleEndian.pack_i32(num.int2i32(n))
         return o
 
     @classmethod
     def from_i64(cls, n: num.i64):
         o = Value()
-        o.type = binary.ValueType(convention.i64)
+        o.type = binary.TypeVal.i64()
         o.data[0:8] = num.LittleEndian.pack_i64(num.int2i64(n))
         return o
 
     @classmethod
     def from_u32(cls, n: num.u32):
         o = Value()
-        o.type = binary.ValueType(convention.i32)
+        o.type = binary.TypeVal.i32()
         o.data[0:4] = num.LittleEndian.pack_u32(num.int2u32(n))
         return o
 
     @classmethod
     def from_u64(cls, n: num.u64):
         o = Value()
-        o.type = binary.ValueType(convention.i64)
+        o.type = binary.TypeVal.i64()
         o.data[0:8] = num.LittleEndian.pack_u64(num.int2u64(n))
         return o
 
@@ -97,28 +97,28 @@ class Value:
     def from_f32(cls, n: num.f32):
         assert isinstance(n, num.f32)
         o = Value()
-        o.type = binary.ValueType(convention.f32)
+        o.type = binary.TypeVal.f32()
         o.data[0:4] = num.LittleEndian.pack_f32(n)
         return o
 
     @classmethod
     def from_f32_u32(cls, n: num.u32):
         o = Value.from_u32(n)
-        o.type = binary.ValueType(convention.f32)
+        o.type = binary.TypeVal.f32()
         return o
 
     @classmethod
     def from_f64(cls, n: num.f64):
         assert isinstance(n, num.f64)
         o = Value()
-        o.type = binary.ValueType(convention.f64)
+        o.type = binary.TypeVal.f64()
         o.data[0:8] = num.LittleEndian.pack_f64(n)
         return o
 
     @classmethod
     def from_f64_u64(cls, n: num.u64):
         o = Value.from_u64(n)
-        o.type = binary.ValueType(convention.f64)
+        o.type = binary.TypeVal.f64()
         return o
 
 
@@ -164,7 +164,7 @@ class ModuleInstance:
     #     exports exportinst∗
     # }
     def __init__(self):
-        self.type_list: typing.List[binary.FunctionType] = []
+        self.type_list: typing.List[binary.TypeFunc] = []
         self.function_addr_list: typing.List[FunctionAddress] = []
         self.table_addr_list: typing.List[TableAddress] = []
         self.memory_addr_list: typing.List[MemoryAddress] = []
@@ -173,7 +173,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: binary.FunctionType, module: ModuleInstance, code: binary.Function):
+    def __init__(self, function_type: binary.TypeFunc, module: ModuleInstance, code: binary.Function):
         self.type = function_type
         self.module = module
         self.code = code
@@ -187,7 +187,7 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: binary.FunctionType, hostcode: typing.Callable):
+    def __init__(self, function_type: binary.TypeFunc, hostcode: typing.Callable):
         self.type = function_type
         self.hostcode = hostcode
 
@@ -217,7 +217,7 @@ class TableInstance:
     #
     # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
     # present.
-    def __init__(self, element_type: int, limits: binary.Limits):
+    def __init__(self, element_type: binary.TypeElem, limits: binary.Limits):
         self.element_type = element_type
         self.element_list: typing.List[typing.Optional[FunctionAddress]] = [None for _ in range(limits.n)]
         self.limits = limits
@@ -238,7 +238,7 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, type: binary.MemoryType):
+    def __init__(self, type: binary.TypeMem):
         self.type = type
         self.data = bytearray()
         self.size = 0
@@ -313,19 +313,19 @@ class Store:
         self.function_list.append(hostfunc)
         return function_address
 
-    def allocate_table(self, table_type: binary.TableType) -> TableAddress:
+    def allocate_table(self, table_type: binary.TypeTable) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
-        table_instance = TableInstance(convention.funcref, table_type.limits)
+        table_instance = TableInstance(binary.TypeElem.func(), table_type.limits)
         self.table_list.append(table_instance)
         return table_address
 
-    def allocate_memory(self, memory_type: binary.MemoryType) -> MemoryAddress:
+    def allocate_memory(self, memory_type: binary.TypeMem) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
         memory_instance = MemoryInstance(memory_type)
         self.memory_list.append(memory_instance)
         return memory_address
 
-    def allocate_global(self, global_type: binary.GlobalType, value: Value) -> GlobalAddress:
+    def allocate_global(self, global_type: binary.TypeGlobal, value: Value) -> GlobalAddress:
         global_address = GlobalAddress(len(self.global_list))
         global_instance = GlobalInstance(value, global_type.mut)
         self.global_list.append(global_instance)
@@ -416,11 +416,11 @@ def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
     return 0
 
 
-def match_function(a: binary.FunctionType, b: binary.FunctionType) -> bool:
-    return a.args.data == b.args.data and a.rets.data == b.rets.data
+def match_function(a: binary.TypeFunc, b: binary.TypeFunc) -> bool:
+    return a == b
 
 
-def match_memory(a: binary.MemoryType, b: binary.MemoryType) -> bool:
+def match_memory(a: binary.TypeMem, b: binary.TypeMem) -> bool:
     return match_limits(a.limits, b.limits)
 
 
@@ -723,7 +723,7 @@ class ArithmeticLogicUnit:
     def global_set(config: Configuration, i: binary.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        assert glob.mut == convention.var
+        assert glob.mut == binary.Mut.var()
         glob.value = config.stack.pop()
 
     @staticmethod
@@ -885,13 +885,13 @@ class ArithmeticLogicUnit:
     @staticmethod
     def f32_const(config: Configuration, i: binary.Instruction):
         r = Value.from_i32(i.args[0])
-        r.type = binary.ValueType(convention.f32)
+        r.type = binary.TypeVal.f32()
         config.stack.append(r)
 
     @staticmethod
     def f64_const(config: Configuration, i: binary.Instruction):
         r = Value.from_i64(i.args[0])
-        r.type = binary.ValueType(convention.f64)
+        r.type = binary.TypeVal.f64()
         config.stack.append(r)
 
     @staticmethod
@@ -1751,25 +1751,25 @@ class ArithmeticLogicUnit:
     @staticmethod
     def i32_reinterpret_f32(config: Configuration, i: binary.Instruction):
         a = config.stack.pop()
-        a.type = binary.ValueType(convention.i32)
+        a.type = binary.TypeVal.i32()
         config.stack.append(a)
 
     @staticmethod
     def i64_reinterpret_f64(config: Configuration, i: binary.Instruction):
         a = config.stack.pop()
-        a.type = binary.ValueType(convention.i64)
+        a.type = binary.TypeVal.i64()
         config.stack.append(a)
 
     @staticmethod
     def f32_reinterpret_i32(config: Configuration, i: binary.Instruction):
         a = config.stack.pop()
-        a.type = binary.ValueType(convention.f32)
+        a.type = binary.TypeVal.f32()
         config.stack.append(a)
 
     @staticmethod
     def f64_reinterpret_i64(config: Configuration, i: binary.Instruction):
         a = config.stack.pop()
-        a.type = binary.ValueType(convention.f64)
+        a.type = binary.TypeVal.f64()
         config.stack.append(a)
 
 
@@ -1999,7 +1999,7 @@ class Machine:
                 b = module.import_list[i].desc
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
-                assert module.import_list[i].desc.value_type == self.store.global_list[e].value.type
+                assert module.import_list[i].desc.type == self.store.global_list[e].value.type
                 assert module.import_list[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln

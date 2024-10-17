@@ -11,22 +11,22 @@ f32 = numpy.float32
 f64 = numpy.float64
 
 
-def int2u32(i: int) -> u32:
+def int2u32(i: int) -> int:
     return i & 0xffffffff
 
 
-def int2i32(i: int) -> i32:
+def int2i32(i: int) -> int:
     i = i & 0xffffffff
     if i & 0x80000000:
         return i - 0x100000000
     return i
 
 
-def int2u64(i: int) -> u64:
+def int2u64(i: int) -> int:
     return i & 0xffffffffffffffff
 
 
-def int2i64(i: int) -> i64:
+def int2i64(i: int) -> int:
     i = i & 0xffffffffffffffff
     if i & 0x8000000000000000:
         return i - 0x10000000000000000

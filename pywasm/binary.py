@@ -12,183 +12,208 @@ from . import opcode
 # ======================================================================================================================
 
 
-class ValueType(int):
+class TypeVal:
     # Value types are encoded by a single byte.
-    # valtype ::= {
-    #     0x7f: i32,
-    #     0x7e: i64,
-    #     0x7d: f32,
-    #     0x7c: f64,
-    # }
-    def __repr__(self):
+
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c]
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __hash__(self) -> int:
+        return hash(self.data)
+
+    def __repr__(self) -> str:
         return {
-            convention.i32: 'i32',
-            convention.i64: 'i64',
-            convention.f32: 'f32',
-            convention.f64: 'f64',
-        }[self]
+            0x7f: 'i32',
+            0x7e: 'i64',
+            0x7d: 'f32',
+            0x7c: 'f64',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return ValueType(ord(r.read(1)))
+    def i32(cls) -> typing.Self:
+        return cls(0x7f)
+
+    @classmethod
+    def i64(cls) -> typing.Self:
+        return cls(0x7e)
+
+    @classmethod
+    def f32(cls) -> typing.Self:
+        return cls(0x7d)
+
+    @classmethod
+    def f64(cls) -> typing.Self:
+        return cls(0x7c)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
-class ResultType:
+class TypeResult:
     # Result types classify the result of executing instructions or blocks, which is a sequence of values written with
     # brackets.
-    #
-    # resulttype ::= [valtype?]
-    def __init__(self):
-        self.data: typing.List[ValueType] = []
 
-    def __repr__(self):
-        return f'result_type({self.data.__repr__()})'
+    def __init__(self, data: typing.List[TypeVal]) -> typing.Self:
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __repr__(self) -> str:
+        return self.data.__repr__()
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = ResultType()
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         n = leb128.u.decode_reader(r)[0]
-        o.data = [ValueType.from_reader(r) for i in range(n)]
-        return o
+        return cls([TypeVal.from_reader(r) for _ in range(n)])
 
 
-class FunctionType:
+class TypeFunc:
     # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
-    #
-    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
-    def __init__(self):
-        self.args: ResultType = ResultType()
-        self.rets: ResultType = ResultType()
 
-    def __repr__(self):
-        return f'function_type({self.args}, {self.rets})'
+    def __init__(self, args: TypeResult, rets: TypeResult) -> typing.Self:
+        self.args = args
+        self.rets = rets
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.args == other.args and self.rets == other.rets
+
+    def __repr__(self) -> str:
+        return f'{self.args} -> {self.rets}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = FunctionType()
-        i = r.read(1)
-        assert ord(i) == convention.sign
-        o.args = ResultType.from_reader(r)
-        o.rets = ResultType.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        assert ord(r.read(1)) == 0x60
+        return cls(TypeResult.from_reader(r), TypeResult.from_reader(r))
 
 
 class Limits:
     # Limits are encoded with a preceding flag indicating whether a maximum is present.
-    #
-    # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
-    #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
-    def __init__(self):
-        self.n: int = 0
-        self.m: int = 0
 
-    def __repr__(self):
-        return f'limits({self.n}, {self.m})'
+    def __init__(self, n: int, m: int) -> typing.Self:
+        self.n = n
+        self.m = m
+
+    def __repr__(self) -> str:
+        return repr([self.n, self.m])
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Limits()
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         flag = ord(r.read(1))
-        o.n = leb128.u.decode_reader(r)[0]
-        o.m = leb128.u.decode_reader(r)[0] if flag else 0x00
-        return o
+        n = leb128.u.decode_reader(r)[0]
+        m = leb128.u.decode_reader(r)[0] if flag else 0x00
+        return cls(n, m)
 
 
-class MemoryType:
+class TypeMem:
     # Memory types classify linear memories and their size range.
-    #
-    # memtype ::= limits
-    #
     # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
     # page size.
-    def __init__(self):
-        self.limits: Limits = Limits()
 
-    def __repr__(self):
-        return f'memory_type({self.limits.__repr__()})'
+    def __init__(self, limits: Limits) -> typing.Self:
+        self.limits = limits
+
+    def __repr__(self) -> str:
+        return repr(self.limits)
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = MemoryType()
-        o.limits = Limits.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(Limits.from_reader(r))
 
 
-class ElementType(int):
+class TypeElem:
     # The element type funcref is the infinite union of all function types. A table of that type thus contains
     # references to functions of heterogeneous type.
     # In future versions of WebAssembly, additional element types may be introduced.
-    def __repr__(self):
+
+    def __init__(self, data: int) -> typing.Self:
+        assert data == 0x70
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __hash__(self) -> int:
+        return hash(self.data)
+
+    def __repr__(self) -> str:
         return {
-            convention.funcref: 'funcref',
-        }[self]
+            0x70: 'func',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return ElementType(ord(r.read(1)))
+    def func(cls) -> typing.Self:
+        return cls(0x70)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
-class TableType:
+class TypeTable:
     # Table types classify tables over elements of element types within a size range.
-    #
-    # tabletype ::= limits elemtype
-    # elemtype ::= funcref
-    #
     # Like memories, tables are constrained by limits for their minimum and optionally maximum size. The limits are
     # given in numbers of entries. The element type funcref is the infinite union of all function types. A table of that
     # type thus contains references to functions of heterogeneous type.
 
-    def __init__(self):
-        self.element_type: ElementType = ElementType()
-        self.limits: Limits = Limits()
+    def __init__(self, type: TypeElem, limits: Limits) -> typing.Self:
+        self.type = type
+        self.limits = limits
 
-    def __repr__(self):
-        return f'table_type({self.element_type}, {self.limits})'
+    def __repr__(self) -> str:
+        return repr([self.type_elem, self.limits])
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = TableType()
-        o.element_type = ElementType.from_reader(r)
-        o.limits = Limits.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(TypeElem.from_reader(r), Limits.from_reader(r))
 
 
-class Mut(int):
-    # Mut const | var
-    def __repr__(self):
+class Mut:
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x00, 0x01]
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __repr__(self) -> str:
         return {
-            convention.const: 'const',
-            convention.var: 'var',
-        }[self]
+            0x00: 'const',
+            0x01: 'var',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return Mut(ord(r.read(1)))
+    def const(cls) -> typing.Self:
+        return cls(0x00)
+
+    @classmethod
+    def var(cls) -> typing.Self:
+        return cls(0x01)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
-class GlobalType:
+class TypeGlobal:
     # Global types are encoded by their value type and a flag for their
     # mutability.
-    #
-    # globaltype ::= t:valtype m:mut ⇒ m t
-    # mut ::= 0x00 ⇒ const
-    #       | 0x01 ⇒ var
-    def __init__(self):
-        self.value_type: ValueType = ValueType()
-        self.mut: Mut = Mut()
 
-    def __repr__(self):
-        return f'global_type({self.mut} {self.value_type})'
+    def __init__(self, type: TypeVal, mut: Mut) -> typing.Self:
+        self.type = type
+        self.mut = mut
+
+    def __repr__(self) -> str:
+        return f'{self.mut} {self.type}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = GlobalType()
-        o.value_type = ValueType.from_reader(r)
-        o.mut = Mut.from_reader(r)
-        return o
-
-
-ExternalType = typing.Union[FunctionType, TableType, MemoryType, GlobalType]
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(TypeVal.from_reader(r), Mut.from_reader(r))
 
 # ======================================================================================================================
 # Binary Format Instructions
@@ -205,7 +230,7 @@ class BlockType(int):
     def __repr__(self):
         if self == convention.empty:
             return 'empty'
-        return ValueType(self).__repr__()
+        return TypeVal(self).__repr__()
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -222,7 +247,7 @@ class Instruction:
         self.args: typing.List[typing.Any] = []
 
     def __repr__(self):
-        return f'{opcode.name[self.opcode][0]} {self.args}'
+        return f'{opcode.name[self.opcode]} {self.args}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -436,7 +461,7 @@ class TypeSection:
     # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
 
     def __init__(self):
-        self.data: typing.List[FunctionType] = []
+        self.data: typing.List[TypeFunc] = []
 
     def __repr__(self):
         return f'type_section({self.data})'
@@ -445,18 +470,18 @@ class TypeSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        o.data = [TypeFunc.from_reader(r) for _ in range(n)]
         return o
 
 
-ImportDesc = typing.Union[TypeIndex, TableType, MemoryType, GlobalType]
+ImportDesc = typing.Union[TypeIndex, TypeTable, TypeMem, TypeGlobal]
 
 
 class Import:
     # The imports component of a module defines a set of imports that are required for instantiation.
     #
     # import ::= {module name, name name, desc importdesc}
-    # importdesc ::= func typeidx | table tabletype | mem memtype | global globaltype
+    # importdesc ::= func typeidx | table TypeTable | mem memtype | global TypeGlobal
     #
     # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
     # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
@@ -482,9 +507,9 @@ class Import:
         n = ord(r.read(1))
         o.desc = {
             convention.extern_function: TypeIndex.from_reader,
-            convention.extern_table: TableType.from_reader,
-            convention.extern_memory: MemoryType.from_reader,
-            convention.extern_global: GlobalType.from_reader,
+            convention.extern_table: TypeTable.from_reader,
+            convention.extern_memory: TypeMem.from_reader,
+            convention.extern_global: TypeGlobal.from_reader,
         }[n](r)
         return o
 
@@ -496,9 +521,9 @@ class ImportSection:
     # importsec ::= im∗:section2(vec(import)) ⇒ im∗
     # import ::= mod:name nm:name d:importdesc ⇒ {module mod, name nm, desc d}
     # importdesc ::= 0x00 x:typeidx ⇒ func x
-    #              | 0x01 tt:tabletype ⇒ table tt
+    #              | 0x01 tt:TypeTable ⇒ table tt
     #              | 0x02 mt:memtype ⇒ mem mt
-    #              | 0x03 gt:globaltype ⇒ global gt
+    #              | 0x03 gt:TypeGlobal ⇒ global gt
 
     def __init__(self):
         self.data: typing.List[Import] = []
@@ -539,9 +564,9 @@ class FunctionSection:
 class Table:
     # The tables component of a module defines a vector of tables described by their table type:
     #
-    # table ::= {type tabletype}
+    # table ::= {type TypeTable}
     def __init__(self):
-        self.type: TableType = TableType()
+        self.type: TypeTable
 
     def __repr__(self):
         return f'table({self.type})'
@@ -549,7 +574,7 @@ class Table:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Table()
-        o.type = TableType.from_reader(r)
+        o.type = TypeTable.from_reader(r)
         return o
 
 
@@ -558,7 +583,7 @@ class TableSection:
     # represent the tables component of a module.
     #
     # tablesec ::= tab∗:section4(vec(table)) ⇒ tab∗
-    # table ::= tt:tabletype ⇒ {type tt}
+    # table ::= tt:TypeTable ⇒ {type tt}
 
     def __init__(self):
         self.data: typing.List[Table] = []
@@ -580,7 +605,7 @@ class Memory:
     #
     # mem ::= {type memtype}
     def __init__(self):
-        self.type: MemoryType = MemoryType()
+        self.type: TypeMem
 
     def __repr__(self):
         return f'memory({self.type})'
@@ -588,7 +613,7 @@ class Memory:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Memory()
-        o.type = MemoryType.from_reader(r)
+        o.type = TypeMem.from_reader(r)
         return o
 
 
@@ -673,10 +698,10 @@ class Expression:
 class Global:
     # The globals component of a module defines a vector of global variables (or globals for short):
     #
-    # global ::= {type globaltype, init expr}
+    # global ::= {type TypeGlobal, init expr}
     def __init__(self):
-        self.type: GlobalType = GlobalType()
-        self.expr: Expression = Expression()
+        self.type: TypeGlobal
+        self.expr: Expression
 
     def __repr__(self):
         return f'global({self.type}, {self.expr})'
@@ -684,7 +709,7 @@ class Global:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Global()
-        o.type = GlobalType.from_reader(r)
+        o.type = TypeGlobal.from_reader(r)
         o.expr = Expression.from_reader(r)
         return o
 
@@ -694,7 +719,7 @@ class GlobalSection:
     # that represent the globals component of a module.
     #
     # globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
-    # global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+    # global ::= gt:TypeGlobal e:expr ⇒ {type gt, init e}
 
     def __init__(self):
         self.data: typing.List[Global] = []
@@ -857,7 +882,7 @@ class Locals:
     # locals ::= n:u32 t:valtype ⇒ tn
     def __init__(self):
         self.n: int = 0x00
-        self.type: ValueType = ValueType()
+        self.type: TypeVal
 
     def __repr__(self):
         return f'locals({self.n}, {self.type})'
@@ -868,7 +893,7 @@ class Locals:
         o.n = leb128.u.decode_reader(r)[0]
         if o.n > 0x10000000:
             raise Exception('pywasm: too many locals')
-        o.type = ValueType.from_reader(r)
+        o.type = TypeVal.from_reader(r)
         return o
 
 
@@ -1005,7 +1030,7 @@ class Function:
     # a function import.
     def __init__(self):
         self.type_index: TypeIndex = TypeIndex()
-        self.local_list: typing.List[ValueType] = []
+        self.local_list: typing.List[TypeVal] = []
         self.expr: Expression = Expression()
 
     def __repr__(self):
@@ -1034,7 +1059,7 @@ class Module:
             DataSection,
         ] = []
 
-        self.type_list: typing.List[FunctionType] = []
+        self.type_list: typing.List[TypeFunc] = []
         self.function_list: typing.List[Function] = []
         self.table_list: typing.List[Table] = []
         self.memory_list: typing.List[Memory] = []
