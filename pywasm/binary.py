@@ -255,18 +255,20 @@ class Instruction:
     # instruction's immediate arguments, where present. The only exception are structured control instructions, which
     # consist of several opcodes bracketing their nested instruction sequences.
 
-    def __init__(self):
-        self.opcode: int = 0x00
-        self.args: typing.List[typing.Any] = []
+    def __init__(self, opcode: int, args: typing.List[typing.Any]) -> typing.Self:
+        self.opcode = opcode
+        self.args = args
 
-    def __repr__(self):
-        return f'{opcode.name[self.opcode]} {self.args}'
+    def __repr__(self) -> str:
+        name = opcode.name[self.opcode]
+        if len(self.args) == 0:
+            return name
+        args = ' '.join([repr(e) for e in self.args])
+        return name + ' ' + args
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Instruction()
-        o.opcode = ord(r.read(1))
-        o.args = []
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        o = Instruction(ord(r.read(1)), [])
         if o.opcode in [
             opcode.block,
             opcode.loop,
