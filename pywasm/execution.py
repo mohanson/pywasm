@@ -528,7 +528,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def block(config: Configuration, i: binary.Instruction):
-        if i.args[0] == convention.empty:
+        if i.args[0] == binary.TypeBlock.empty():
             arity = 0
         else:
             arity = 1
@@ -537,7 +537,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def loop(config: Configuration, i: binary.Instruction):
-        if i.args[0] == convention.empty:
+        if i.args[0] == binary.TypeBlock.empty():
             arity = 0
         else:
             arity = 1
@@ -547,7 +547,7 @@ class ArithmeticLogicUnit:
     @staticmethod
     def if_then(config: Configuration, i: binary.Instruction):
         c = config.stack.pop().i32()
-        if i.args[0] == convention.empty:
+        if i.args[0] == binary.TypeBlock.empty():
             arity = 0
         else:
             arity = 1
