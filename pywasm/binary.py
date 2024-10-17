@@ -7,10 +7,6 @@ from . import log
 from . import num
 from . import opcode
 
-# ======================================================================================================================
-# Binary Format Types
-# ======================================================================================================================
-
 
 class TypeVal:
     # Value types are encoded by a single byte.
@@ -215,10 +211,6 @@ class TypeGlobal:
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         return cls(TypeVal.from_reader(r), Mut.from_reader(r))
 
-# ======================================================================================================================
-# Binary Format Instructions
-# ======================================================================================================================
-
 
 class TypeBlock:
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
@@ -354,10 +346,6 @@ class Instruction:
             o.args.append(num.LittleEndian.i64(r.read(8)))
             return o
         return o
-
-# ======================================================================================================================
-# Binary Format Modules
-# ======================================================================================================================
 
 
 class Custom:
