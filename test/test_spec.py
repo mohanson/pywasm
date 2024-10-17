@@ -66,16 +66,12 @@ def asset_val(a, b):
 
 
 def imps() -> typing.Dict:
-    limits = pywasm.Limits()
-    limits.n = 1
-    limits.m = 2
+    limits = pywasm.Limits(1, 2)
     memory_type = pywasm.binary.MemoryType()
     memory_type.limits = limits
     memory = pywasm.Memory(memory_type)
 
-    limits = pywasm.Limits()
-    limits.n = 10
-    limits.m = 20
+    limits = pywasm.Limits(10, 20)
     table = pywasm.Table(pywasm.FunctionAddress,  limits)
 
     return {
