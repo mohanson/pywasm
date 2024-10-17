@@ -161,8 +161,8 @@ class TypeTable:
     # given in numbers of entries. The element type funcref is the infinite union of all function types. A table of that
     # type thus contains references to functions of heterogeneous type.
 
-    def __init__(self, type_elem: TypeElem, limits: Limits) -> typing.Self:
-        self.type_elem = type_elem
+    def __init__(self, type: TypeElem, limits: Limits) -> typing.Self:
+        self.type = type
         self.limits = limits
 
     def __repr__(self) -> str:
@@ -204,12 +204,12 @@ class TypeGlobal:
     # Global types are encoded by their value type and a flag for their
     # mutability.
 
-    def __init__(self, type_val: TypeVal, mut: Mut) -> typing.Self:
-        self.type_val = type_val
+    def __init__(self, type: TypeVal, mut: Mut) -> typing.Self:
+        self.type = type
         self.mut = mut
 
     def __repr__(self) -> str:
-        return f'{self.mut} {self.value_type}'
+        return f'{self.mut} {self.type}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:

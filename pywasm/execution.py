@@ -1999,7 +1999,7 @@ class Machine:
                 b = module.import_list[i].desc
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
-                assert module.import_list[i].desc.type_val == self.store.global_list[e].value.type
+                assert module.import_list[i].desc.type == self.store.global_list[e].value.type
                 assert module.import_list[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
