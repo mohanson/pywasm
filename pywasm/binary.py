@@ -442,9 +442,9 @@ class Import:
         o.type = n
         o.desc = {
             0x00: lambda r: leb128.u.decode_reader(r)[0],
-            convention.extern_table: TypeTable.from_reader,
-            convention.extern_memory: TypeMem.from_reader,
-            convention.extern_global: TypeGlobal.from_reader,
+            0x01: TypeTable.from_reader,
+            0x02: TypeMem.from_reader,
+            0x03: TypeGlobal.from_reader,
         }[n](r)
         return o
 

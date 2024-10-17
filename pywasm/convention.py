@@ -1,8 +1,3 @@
-extern_function = 0x00
-extern_table = 0x01
-extern_memory = 0x02
-extern_global = 0x03
-
 custom_section = 0x00
 type_section = 0x01
 import_section = 0x02
