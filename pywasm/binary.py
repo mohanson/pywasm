@@ -496,7 +496,7 @@ class Import:
     # The imports component of a module defines a set of imports that are required for instantiation.
     #
     # import ::= {module name, name name, desc importdesc}
-    # importdesc ::= func typeidx | table TypeTable | mem memtype | global TypeGlobal
+    # importdesc ::= typeidx | tabletype | memtype | globaltype
     #
     # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
     # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
