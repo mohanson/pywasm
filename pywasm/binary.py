@@ -220,16 +220,22 @@ class TypeGlobal:
 # ======================================================================================================================
 
 
-class TypeBlock(int):
+class TypeBlock:
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
     # single value type, or as a type index encoded as a positive signed integer.
 
+    def __init__(self, data: int) -> typing.Self:
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
     def __repr__(self) -> str:
-        if self == 0x40:
+        if self.data == 0x40:
             return 'empty'
-        if self in [0x7f, 0x7e, 0x7d, 0x7c]:
-            return repr(TypeVal(self))
-        return repr(self)
+        if self.data in [0x7f, 0x7e, 0x7d, 0x7c]:
+            return repr(TypeVal(self.data))
+        return repr(self.data)
 
     @classmethod
     def empty(cls) -> typing.Self:
