@@ -11,9 +11,9 @@ class Context:
         table_list: typing.List[binary.TableType],
         memory_list: typing.List[binary.MemoryType],
         global_list: typing.List[binary.GlobalType],
-        local_list: typing.List[binary.ValueType],
-        label_list: typing.List[binary.ValueType],
-        return_list: typing.List[typing.List[binary.ValueType]],
+        local_list: typing.List[binary.TypeVal],
+        label_list: typing.List[binary.TypeVal],
+        return_list: typing.List[typing.List[binary.TypeVal]],
     ):
         self.type_list = type_list
         self.function_list = function_list

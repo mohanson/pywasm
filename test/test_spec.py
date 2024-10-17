@@ -19,7 +19,7 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.Value.from_f32_u32(pywasm.convention.f32_nan_canonical + 1)
         v = pywasm.Value.from_u32(int(m['value']))
-        v.type = pywasm.binary.ValueType(pywasm.convention.f32)
+        v.type = pywasm.binary.TypeVal.f32()
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
@@ -27,23 +27,23 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.Value.from_f64_u64(pywasm.convention.f64_nan_canonical + 1)
         v = pywasm.Value.from_u64(int(m['value']))
-        v.type = pywasm.binary.ValueType(pywasm.convention.f64)
+        v.type = pywasm.binary.TypeVal.f64()
         return v
     raise NotImplementedError
 
 
 def asset_val(a, b):
     print('assert', a.data, b.data)
-    if b.type == pywasm.convention.i32:
-        assert a.type == pywasm.convention.i32
+    if b.type == pywasm.binary.TypeVal.i32():
+        assert a.type == pywasm.binary.TypeVal.i32()
         assert a.data == b.data
         return
-    if b.type == pywasm.convention.i64:
-        assert a.type == pywasm.convention.i64
+    if b.type == pywasm.binary.TypeVal.i64():
+        assert a.type == pywasm.binary.TypeVal.i64()
         assert a.data == b.data
         return
-    if b.type == pywasm.convention.f32:
-        assert a.type == pywasm.convention.f32
+    if b.type == pywasm.binary.TypeVal.f32():
+        assert a.type == pywasm.binary.TypeVal.f32()
         if math.isnan(b.f32()):
             if b.i32() == pywasm.convention.f32_nan_canonical:
                 assert a.u32() in [pywasm.convention.f32_nan_canonical, pywasm.convention.f32_nan_canonical | 1 << 31]
@@ -52,8 +52,8 @@ def asset_val(a, b):
             return
         assert a.data == b.data
         return
-    if b.type == pywasm.convention.f64:
-        assert a.type == pywasm.convention.f64
+    if b.type == pywasm.binary.TypeVal.f64():
+        assert a.type == pywasm.binary.TypeVal.f64()
         if math.isnan(b.f64()):
             if b.i64() == pywasm.convention.f64_nan_canonical:
                 assert a.u64() in [pywasm.convention.f64_nan_canonical, pywasm.convention.f64_nan_canonical | 1 << 63]

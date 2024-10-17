@@ -12,25 +12,45 @@ from . import opcode
 # ======================================================================================================================
 
 
-class ValueType(int):
+class TypeVal:
     # Value types are encoded by a single byte.
-    # valtype ::= {
-    #     0x7f: i32,
-    #     0x7e: i64,
-    #     0x7d: f32,
-    #     0x7c: f64,
-    # }
-    def __repr__(self):
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c]
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __hash__(self) -> int:
+        return hash(self.data)
+
+    def __repr__(self) -> str:
         return {
-            convention.i32: 'i32',
-            convention.i64: 'i64',
-            convention.f32: 'f32',
-            convention.f64: 'f64',
-        }[self]
+            0x7f: 'i32',
+            0x7e: 'i64',
+            0x7d: 'f32',
+            0x7c: 'f64',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return ValueType(ord(r.read(1)))
+    def i32(cls) -> typing.Self:
+        return cls(0x7f)
+
+    @classmethod
+    def i64(cls) -> typing.Self:
+        return cls(0x7e)
+
+    @classmethod
+    def f32(cls) -> typing.Self:
+        return cls(0x7d)
+
+    @classmethod
+    def f64(cls) -> typing.Self:
+        return cls(0x7c)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
 class ResultType:
@@ -39,7 +59,7 @@ class ResultType:
     #
     # resulttype ::= [valtype?]
     def __init__(self):
-        self.data: typing.List[ValueType] = []
+        self.data: typing.List[TypeVal] = []
 
     def __repr__(self):
         return f'result_type({self.data.__repr__()})'
@@ -48,7 +68,7 @@ class ResultType:
     def from_reader(cls, r: typing.BinaryIO):
         o = ResultType()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [ValueType.from_reader(r) for i in range(n)]
+        o.data = [TypeVal.from_reader(r) for i in range(n)]
         return o
 
 
@@ -174,7 +194,7 @@ class GlobalType:
     # mut ::= 0x00 ⇒ const
     #       | 0x01 ⇒ var
     def __init__(self):
-        self.value_type: ValueType = ValueType()
+        self.value_type: TypeVal
         self.mut: Mut = Mut()
 
     def __repr__(self):
@@ -183,7 +203,7 @@ class GlobalType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = GlobalType()
-        o.value_type = ValueType.from_reader(r)
+        o.value_type = TypeVal.from_reader(r)
         o.mut = Mut.from_reader(r)
         return o
 
@@ -205,7 +225,7 @@ class BlockType(int):
     def __repr__(self):
         if self == convention.empty:
             return 'empty'
-        return ValueType(self).__repr__()
+        return TypeVal(self).__repr__()
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
@@ -857,7 +877,7 @@ class Locals:
     # locals ::= n:u32 t:valtype ⇒ tn
     def __init__(self):
         self.n: int = 0x00
-        self.type: ValueType = ValueType()
+        self.type: TypeVal
 
     def __repr__(self):
         return f'locals({self.n}, {self.type})'
@@ -868,7 +888,7 @@ class Locals:
         o.n = leb128.u.decode_reader(r)[0]
         if o.n > 0x10000000:
             raise Exception('pywasm: too many locals')
-        o.type = ValueType.from_reader(r)
+        o.type = TypeVal.from_reader(r)
         return o
 
 
@@ -1005,7 +1025,7 @@ class Function:
     # a function import.
     def __init__(self):
         self.type_index: TypeIndex = TypeIndex()
-        self.local_list: typing.List[ValueType] = []
+        self.local_list: typing.List[TypeVal] = []
         self.expr: Expression = Expression()
 
     def __repr__(self):
