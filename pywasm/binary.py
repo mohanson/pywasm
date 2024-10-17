@@ -71,7 +71,7 @@ class TypeResult:
         return cls([TypeVal.from_reader(r) for _ in range(n)])
 
 
-class TypeFunction:
+class TypeFunc:
     # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
     def __init__(self, args: TypeResult, rets: TypeResult) -> typing.Self:
         self.args = args
@@ -106,7 +106,7 @@ class Limits:
         return cls(n, m)
 
 
-class TypeMemory:
+class TypeMem:
     # Memory types classify linear memories and their size range.
     # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
     # page size.
@@ -121,18 +121,32 @@ class TypeMemory:
         return cls(Limits.from_reader(r))
 
 
-class ElementType(int):
+class TypeElem:
     # The element type funcref is the infinite union of all function types. A table of that type thus contains
     # references to functions of heterogeneous type.
     # In future versions of WebAssembly, additional element types may be introduced.
-    def __repr__(self):
+    def __init__(self, data: int) -> typing.Self:
+        assert data == 0x70
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __hash__(self) -> int:
+        return hash(self.data)
+
+    def __repr__(self) -> str:
         return {
-            convention.funcref: 'funcref',
-        }[self]
+            0x70: 'func',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return ElementType(ord(r.read(1)))
+    def func(cls) -> typing.Self:
+        return cls(0x70)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
 class TableType:
@@ -146,7 +160,7 @@ class TableType:
     # type thus contains references to functions of heterogeneous type.
 
     def __init__(self):
-        self.element_type: ElementType
+        self.element_type: TypeElem
         self.limits: Limits
 
     def __repr__(self):
@@ -155,7 +169,7 @@ class TableType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
-        o.element_type = ElementType.from_reader(r)
+        o.element_type = TypeElem.from_reader(r)
         o.limits = Limits.from_reader(r)
         return o
 
@@ -195,7 +209,7 @@ class GlobalType:
         return o
 
 
-ExternalType = typing.Union[TypeFunction, TableType, TypeMemory, GlobalType]
+ExternalType = typing.Union[TypeFunc, TableType, TypeMem, GlobalType]
 
 # ======================================================================================================================
 # Binary Format Instructions
@@ -443,7 +457,7 @@ class TypeSection:
     # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
 
     def __init__(self):
-        self.data: typing.List[TypeFunction] = []
+        self.data: typing.List[TypeFunc] = []
 
     def __repr__(self):
         return f'type_section({self.data})'
@@ -452,11 +466,11 @@ class TypeSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [TypeFunction.from_reader(r) for _ in range(n)]
+        o.data = [TypeFunc.from_reader(r) for _ in range(n)]
         return o
 
 
-ImportDesc = typing.Union[TypeIndex, TableType, TypeMemory, GlobalType]
+ImportDesc = typing.Union[TypeIndex, TableType, TypeMem, GlobalType]
 
 
 class Import:
@@ -490,7 +504,7 @@ class Import:
         o.desc = {
             convention.extern_function: TypeIndex.from_reader,
             convention.extern_table: TableType.from_reader,
-            convention.extern_memory: TypeMemory.from_reader,
+            convention.extern_memory: TypeMem.from_reader,
             convention.extern_global: GlobalType.from_reader,
         }[n](r)
         return o
@@ -587,7 +601,7 @@ class Memory:
     #
     # mem ::= {type memtype}
     def __init__(self):
-        self.type: TypeMemory
+        self.type: TypeMem
 
     def __repr__(self):
         return f'memory({self.type})'
@@ -595,7 +609,7 @@ class Memory:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Memory()
-        o.type = TypeMemory.from_reader(r)
+        o.type = TypeMem.from_reader(r)
         return o
 
 
@@ -1041,7 +1055,7 @@ class Module:
             DataSection,
         ] = []
 
-        self.type_list: typing.List[TypeFunction] = []
+        self.type_list: typing.List[TypeFunc] = []
         self.function_list: typing.List[Function] = []
         self.table_list: typing.List[Table] = []
         self.memory_list: typing.List[Memory] = []

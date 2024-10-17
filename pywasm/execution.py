@@ -164,7 +164,7 @@ class ModuleInstance:
     #     exports exportinst∗
     # }
     def __init__(self):
-        self.type_list: typing.List[binary.TypeFunction] = []
+        self.type_list: typing.List[binary.TypeFunc] = []
         self.function_addr_list: typing.List[FunctionAddress] = []
         self.table_addr_list: typing.List[TableAddress] = []
         self.memory_addr_list: typing.List[MemoryAddress] = []
@@ -173,7 +173,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: binary.TypeFunction, module: ModuleInstance, code: binary.Function):
+    def __init__(self, function_type: binary.TypeFunc, module: ModuleInstance, code: binary.Function):
         self.type = function_type
         self.module = module
         self.code = code
@@ -187,7 +187,7 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: binary.TypeFunction, hostcode: typing.Callable):
+    def __init__(self, function_type: binary.TypeFunc, hostcode: typing.Callable):
         self.type = function_type
         self.hostcode = hostcode
 
@@ -217,7 +217,7 @@ class TableInstance:
     #
     # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
     # present.
-    def __init__(self, element_type: int, limits: binary.Limits):
+    def __init__(self, element_type: binary.TypeElem, limits: binary.Limits):
         self.element_type = element_type
         self.element_list: typing.List[typing.Optional[FunctionAddress]] = [None for _ in range(limits.n)]
         self.limits = limits
@@ -238,7 +238,7 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, type: binary.TypeMemory):
+    def __init__(self, type: binary.TypeMem):
         self.type = type
         self.data = bytearray()
         self.size = 0
@@ -315,11 +315,11 @@ class Store:
 
     def allocate_table(self, table_type: binary.TableType) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
-        table_instance = TableInstance(convention.funcref, table_type.limits)
+        table_instance = TableInstance(binary.TypeElem.func(), table_type.limits)
         self.table_list.append(table_instance)
         return table_address
 
-    def allocate_memory(self, memory_type: binary.TypeMemory) -> MemoryAddress:
+    def allocate_memory(self, memory_type: binary.TypeMem) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
         memory_instance = MemoryInstance(memory_type)
         self.memory_list.append(memory_instance)
@@ -416,11 +416,11 @@ def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
     return 0
 
 
-def match_function(a: binary.TypeFunction, b: binary.TypeFunction) -> bool:
+def match_function(a: binary.TypeFunc, b: binary.TypeFunc) -> bool:
     return a == b
 
 
-def match_memory(a: binary.TypeMemory, b: binary.TypeMemory) -> bool:
+def match_memory(a: binary.TypeMem, b: binary.TypeMem) -> bool:
     return match_limits(a.limits, b.limits)
 
 

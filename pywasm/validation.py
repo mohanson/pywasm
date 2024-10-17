@@ -6,10 +6,10 @@ from . import binary
 class Context:
     def __init__(
         self,
-        type_list: typing.List[binary.TypeFunction],
-        function_list: typing.List[binary.TypeFunction],
+        type_list: typing.List[binary.TypeFunc],
+        function_list: typing.List[binary.TypeFunc],
         table_list: typing.List[binary.TableType],
-        memory_list: typing.List[binary.TypeMemory],
+        memory_list: typing.List[binary.TypeMem],
         global_list: typing.List[binary.GlobalType],
         local_list: typing.List[binary.TypeVal],
         label_list: typing.List[binary.TypeVal],
@@ -39,14 +39,14 @@ def validate(module: binary.Module):
                 raise Exception('pywasm: invalid import descriptor, type index is out of range.')
             import_type_list.append(module.type_list[e.desc])
             continue
-        if isinstance(e.desc, (binary.TableType, binary.TypeMemory, binary.GlobalType)):
+        if isinstance(e.desc, (binary.TableType, binary.TypeMem, binary.GlobalType)):
             import_type_list.append(module.type_list[e.desc])
             continue
         raise Exception('pywasm: unknown import descriptor type')
 
-    import_function_types = [e for e in import_type_list if isinstance(e, binary.TypeFunction)]
+    import_function_types = [e for e in import_type_list if isinstance(e, binary.TypeFunc)]
     import_table_types = [e for e in import_type_list if isinstance(e, binary.TableType)]
-    import_memory_types = [e for e in import_type_list if isinstance(e, binary.TypeMemory)]
+    import_memory_types = [e for e in import_type_list if isinstance(e, binary.TypeMem)]
     import_global_types = [e for e in import_type_list if isinstance(e, binary.GlobalType)]
 
     context = Context(

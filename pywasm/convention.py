@@ -1,5 +1,3 @@
-funcref = 0x70
-
 const = 0x00
 var = 0x01
 

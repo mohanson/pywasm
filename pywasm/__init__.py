@@ -37,7 +37,7 @@ class Runtime:
                 self.store.table_list.append(table)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.TypeMemory):
+            if isinstance(e.desc, binary.TypeMem):
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
