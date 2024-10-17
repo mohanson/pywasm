@@ -325,7 +325,7 @@ class Store:
         self.memory_list.append(memory_instance)
         return memory_address
 
-    def allocate_global(self, global_type: binary.GlobalType, value: Value) -> GlobalAddress:
+    def allocate_global(self, global_type: binary.TypeGlobal, value: Value) -> GlobalAddress:
         global_address = GlobalAddress(len(self.global_list))
         global_instance = GlobalInstance(value, global_type.mut)
         self.global_list.append(global_instance)
@@ -723,7 +723,7 @@ class ArithmeticLogicUnit:
     def global_set(config: Configuration, i: binary.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        assert glob.mut == convention.var
+        assert glob.mut == binary.Mut.var()
         glob.value = config.stack.pop()
 
     @staticmethod
@@ -1999,7 +1999,7 @@ class Machine:
                 b = module.import_list[i].desc
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
-                assert module.import_list[i].desc.value_type == self.store.global_list[e].value.type
+                assert module.import_list[i].desc.type_val == self.store.global_list[e].value.type
                 assert module.import_list[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln

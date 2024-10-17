@@ -170,45 +170,53 @@ class TypeTable:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return TypeTable(TypeElem.from_reader(r), Limits.from_reader(r))
+        return cls(TypeElem.from_reader(r), Limits.from_reader(r))
 
 
-class Mut(int):
-    # Mut const | var
-    def __repr__(self):
+class Mut:
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x00, 0x01]
+        self.data = data
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
+    def __repr__(self) -> str:
         return {
-            convention.const: 'const',
-            convention.var: 'var',
-        }[self]
+            0x00: 'const',
+            0x01: 'var',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return Mut(ord(r.read(1)))
+    def const(cls) -> typing.Self:
+        return cls(0x00)
+
+    @classmethod
+    def var(cls) -> typing.Self:
+        return cls(0x01)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
-class GlobalType:
+class TypeGlobal:
     # Global types are encoded by their value type and a flag for their
     # mutability.
-    #
-    # globaltype ::= t:valtype m:mut ⇒ m t
-    # mut ::= 0x00 ⇒ const
-    #       | 0x01 ⇒ var
-    def __init__(self):
-        self.value_type: TypeVal
-        self.mut: Mut = Mut()
 
-    def __repr__(self):
-        return f'global_type({self.mut} {self.value_type})'
+    def __init__(self, type_val: TypeVal, mut: Mut) -> typing.Self:
+        self.type_val = type_val
+        self.mut = mut
+
+    def __repr__(self) -> str:
+        return f'{self.mut} {self.value_type}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = GlobalType()
-        o.value_type = TypeVal.from_reader(r)
-        o.mut = Mut.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return TypeGlobal(TypeVal.from_reader(r), Mut.from_reader(r))
 
 
-ExternalType = typing.Union[TypeFunc, TypeTable, TypeMem, GlobalType]
+ExternalType = typing.Union[TypeFunc, TypeTable, TypeMem, TypeGlobal]
 
 # ======================================================================================================================
 # Binary Format Instructions
@@ -469,14 +477,14 @@ class TypeSection:
         return o
 
 
-ImportDesc = typing.Union[TypeIndex, TypeTable, TypeMem, GlobalType]
+ImportDesc = typing.Union[TypeIndex, TypeTable, TypeMem, TypeGlobal]
 
 
 class Import:
     # The imports component of a module defines a set of imports that are required for instantiation.
     #
     # import ::= {module name, name name, desc importdesc}
-    # importdesc ::= func typeidx | table TypeTable | mem memtype | global globaltype
+    # importdesc ::= func typeidx | table TypeTable | mem memtype | global TypeGlobal
     #
     # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
     # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
@@ -504,7 +512,7 @@ class Import:
             convention.extern_function: TypeIndex.from_reader,
             convention.extern_table: TypeTable.from_reader,
             convention.extern_memory: TypeMem.from_reader,
-            convention.extern_global: GlobalType.from_reader,
+            convention.extern_global: TypeGlobal.from_reader,
         }[n](r)
         return o
 
@@ -518,7 +526,7 @@ class ImportSection:
     # importdesc ::= 0x00 x:typeidx ⇒ func x
     #              | 0x01 tt:TypeTable ⇒ table tt
     #              | 0x02 mt:memtype ⇒ mem mt
-    #              | 0x03 gt:globaltype ⇒ global gt
+    #              | 0x03 gt:TypeGlobal ⇒ global gt
 
     def __init__(self):
         self.data: typing.List[Import] = []
@@ -693,10 +701,10 @@ class Expression:
 class Global:
     # The globals component of a module defines a vector of global variables (or globals for short):
     #
-    # global ::= {type globaltype, init expr}
+    # global ::= {type TypeGlobal, init expr}
     def __init__(self):
-        self.type: GlobalType = GlobalType()
-        self.expr: Expression = Expression()
+        self.type: TypeGlobal
+        self.expr: Expression
 
     def __repr__(self):
         return f'global({self.type}, {self.expr})'
@@ -704,7 +712,7 @@ class Global:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Global()
-        o.type = GlobalType.from_reader(r)
+        o.type = TypeGlobal.from_reader(r)
         o.expr = Expression.from_reader(r)
         return o
 
@@ -714,7 +722,7 @@ class GlobalSection:
     # that represent the globals component of a module.
     #
     # globalsec ::= glob*:section6(vec(global)) ⇒ glob∗
-    # global ::= gt:globaltype e:expr ⇒ {type gt, init e}
+    # global ::= gt:TypeGlobal e:expr ⇒ {type gt, init e}
 
     def __init__(self):
         self.data: typing.List[Global] = []
