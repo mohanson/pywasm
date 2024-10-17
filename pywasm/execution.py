@@ -164,7 +164,7 @@ class ModuleInstance:
     #     exports exportinst∗
     # }
     def __init__(self):
-        self.type_list: typing.List[binary.FunctionType] = []
+        self.type_list: typing.List[binary.TypeFunction] = []
         self.function_addr_list: typing.List[FunctionAddress] = []
         self.table_addr_list: typing.List[TableAddress] = []
         self.memory_addr_list: typing.List[MemoryAddress] = []
@@ -173,7 +173,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: binary.FunctionType, module: ModuleInstance, code: binary.Function):
+    def __init__(self, function_type: binary.TypeFunction, module: ModuleInstance, code: binary.Function):
         self.type = function_type
         self.module = module
         self.code = code
@@ -187,7 +187,7 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: binary.FunctionType, hostcode: typing.Callable):
+    def __init__(self, function_type: binary.TypeFunction, hostcode: typing.Callable):
         self.type = function_type
         self.hostcode = hostcode
 
@@ -416,8 +416,8 @@ def match_limits(a: binary.Limits, b: binary.Limits) -> bool:
     return 0
 
 
-def match_function(a: binary.FunctionType, b: binary.FunctionType) -> bool:
-    return a.args.data == b.args.data and a.rets.data == b.rets.data
+def match_function(a: binary.TypeFunction, b: binary.TypeFunction) -> bool:
+    return a == b
 
 
 def match_memory(a: binary.MemoryType, b: binary.MemoryType) -> bool:

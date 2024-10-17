@@ -6,8 +6,8 @@ from . import binary
 class Context:
     def __init__(
         self,
-        type_list: typing.List[binary.FunctionType],
-        function_list: typing.List[binary.FunctionType],
+        type_list: typing.List[binary.TypeFunction],
+        function_list: typing.List[binary.TypeFunction],
         table_list: typing.List[binary.TableType],
         memory_list: typing.List[binary.MemoryType],
         global_list: typing.List[binary.GlobalType],
@@ -44,7 +44,7 @@ def validate(module: binary.Module):
             continue
         raise Exception('pywasm: unknown import descriptor type')
 
-    import_function_types = [e for e in import_type_list if isinstance(e, binary.FunctionType)]
+    import_function_types = [e for e in import_type_list if isinstance(e, binary.TypeFunction)]
     import_table_types = [e for e in import_type_list if isinstance(e, binary.TableType)]
     import_memory_types = [e for e in import_type_list if isinstance(e, binary.MemoryType)]
     import_global_types = [e for e in import_type_list if isinstance(e, binary.GlobalType)]

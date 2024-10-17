@@ -59,6 +59,9 @@ class TypeResult:
     def __init__(self, data: typing.List[TypeVal]) -> typing.Self:
         self.data = data
 
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.data == other.data
+
     def __repr__(self) -> str:
         return self.data.__repr__()
 
@@ -68,25 +71,22 @@ class TypeResult:
         return TypeResult([TypeVal.from_reader(r) for _ in range(n)])
 
 
-class FunctionType:
+class TypeFunction:
     # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
-    #
-    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
-    def __init__(self):
-        self.args: TypeResult
-        self.rets: TypeResult
+    def __init__(self, args: TypeResult, rets: TypeResult) -> typing.Self:
+        self.args = args
+        self.rets = rets
 
-    def __repr__(self):
-        return f'function_type({self.args}, {self.rets})'
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.args == other.args and self.rets == other.rets
+
+    def __repr__(self) -> str:
+        return f'{self.args} -> {self.rets}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = FunctionType()
-        i = r.read(1)
-        assert ord(i) == convention.sign
-        o.args = TypeResult.from_reader(r)
-        o.rets = TypeResult.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        assert ord(r.read(1)) == 0x60
+        return TypeFunction(TypeResult.from_reader(r), TypeResult.from_reader(r))
 
 
 class Limits:
@@ -204,7 +204,7 @@ class GlobalType:
         return o
 
 
-ExternalType = typing.Union[FunctionType, TableType, MemoryType, GlobalType]
+ExternalType = typing.Union[TypeFunction, TableType, MemoryType, GlobalType]
 
 # ======================================================================================================================
 # Binary Format Instructions
@@ -452,7 +452,7 @@ class TypeSection:
     # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
 
     def __init__(self):
-        self.data: typing.List[FunctionType] = []
+        self.data: typing.List[TypeFunction] = []
 
     def __repr__(self):
         return f'type_section({self.data})'
@@ -461,7 +461,7 @@ class TypeSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        o.data = [TypeFunction.from_reader(r) for _ in range(n)]
         return o
 
 
@@ -1050,7 +1050,7 @@ class Module:
             DataSection,
         ] = []
 
-        self.type_list: typing.List[FunctionType] = []
+        self.type_list: typing.List[TypeFunction] = []
         self.function_list: typing.List[Function] = []
         self.table_list: typing.List[Table] = []
         self.memory_list: typing.List[Memory] = []
