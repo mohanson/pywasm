@@ -269,6 +269,8 @@ class Instruction:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         o = Instruction(ord(r.read(1)), [])
+        if o.opcode not in opcode.name:
+            raise Exception('pywasm: unsupported opcode', o.opcode)
         if o.opcode in [
             opcode.block,
             opcode.loop,
@@ -298,10 +300,6 @@ class Instruction:
             opcode.local_get,
             opcode.local_set,
             opcode.local_tee,
-        ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
             opcode.global_get,
             opcode.global_set,
         ]:
@@ -355,8 +353,6 @@ class Instruction:
         if o.opcode == opcode.f64_const:
             o.args.append(num.LittleEndian.i64(r.read(8)))
             return o
-        if o.opcode not in opcode.name:
-            raise Exception('pywasm: unsupported opcode', o.opcode)
         return o
 
 # ======================================================================================================================
