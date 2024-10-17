@@ -243,7 +243,11 @@ class TypeBlock:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(ord(r.read(1)))
+        b = ord(r.read(1))
+        if b in [0x40, 0x7f, 0x7e, 0x7d, 0x7c]:
+            return cls(b)
+        r.seek(1, -1)
+        return cls(leb128.i.decode_reader(r)[0])
 
 
 class Instruction:
