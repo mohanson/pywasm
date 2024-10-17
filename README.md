@@ -1,7 +1,5 @@
 # pywasm: A WebAssembly interpreter written in pure Python.
 
-[![Build Status](https://travis-ci.org/mohanson/pywasm.svg?branch=master)](https://travis-ci.org/mohanson/pywasm)
-
 A WebAssembly interpreter written in pure Python.
 
 The wasm version currently in use is: [WebAssembly Core Specification, W3C Recommendation, 5 December 2019](https://www.w3.org/TR/wasm-core-1/). Just like Firefox or Chrome does.

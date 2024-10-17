@@ -166,7 +166,7 @@ class TypeTable:
         self.limits = limits
 
     def __repr__(self) -> str:
-        return repr([self.type_elem, self.limits])
+        return repr([self.type, self.limits])
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
