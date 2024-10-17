@@ -220,21 +220,18 @@ class TypeGlobal:
 # ======================================================================================================================
 
 
-class BlockType(int):
+class TypeBlock(int):
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
     # single value type, or as a type index encoded as a positive signed integer.
-    #
-    # blocktype ::= 0x40
-    #             | t: valtype
-    #             | x: s33
-    def __repr__(self):
+
+    def __repr__(self) -> str:
         if self == convention.empty:
             return 'empty'
         return TypeVal(self).__repr__()
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return BlockType(ord(r.read(1)))
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
 class Instruction:
@@ -259,7 +256,7 @@ class Instruction:
             opcode.loop,
             opcode.if_then,
         ]:
-            block_type = BlockType.from_reader(r)
+            block_type = TypeBlock.from_reader(r)
             o.args = [block_type]
             return o
         if o.opcode in [
