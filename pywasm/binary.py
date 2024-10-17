@@ -225,9 +225,15 @@ class TypeBlock(int):
     # single value type, or as a type index encoded as a positive signed integer.
 
     def __repr__(self) -> str:
-        if self == convention.empty:
+        if self == 0x40:
             return 'empty'
-        return TypeVal(self).__repr__()
+        if self in [0x7f, 0x7e, 0x7d, 0x7c]:
+            return repr(TypeVal(self))
+        return repr(self)
+
+    @classmethod
+    def empty(cls) -> typing.Self:
+        return cls(0x40)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:

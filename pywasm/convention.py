@@ -1,5 +1,3 @@
-empty = 0x40
-
 extern_function = 0x00
 extern_table = 0x01
 extern_memory = 0x02
