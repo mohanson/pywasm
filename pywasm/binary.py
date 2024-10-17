@@ -213,10 +213,7 @@ class TypeGlobal:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return TypeGlobal(TypeVal.from_reader(r), Mut.from_reader(r))
-
-
-ExternalType = typing.Union[TypeFunc, TypeTable, TypeMem, TypeGlobal]
+        return cls(TypeVal.from_reader(r), Mut.from_reader(r))
 
 # ======================================================================================================================
 # Binary Format Instructions
