@@ -313,7 +313,7 @@ class Store:
         self.function_list.append(hostfunc)
         return function_address
 
-    def allocate_table(self, table_type: binary.TableType) -> TableAddress:
+    def allocate_table(self, table_type: binary.TypeTable) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
         table_instance = TableInstance(binary.TypeElem.func(), table_type.limits)
         self.table_list.append(table_instance)

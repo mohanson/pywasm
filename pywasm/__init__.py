@@ -31,7 +31,7 @@ class Runtime:
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.TableType):
+            if isinstance(e.desc, binary.TypeTable):
                 addr = execution.TableAddress(len(self.store.table_list))
                 table = imps[e.module][e.name]
                 self.store.table_list.append(table)
