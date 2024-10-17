@@ -68,7 +68,7 @@ class TypeResult:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         n = leb128.u.decode_reader(r)[0]
-        return TypeResult([TypeVal.from_reader(r) for _ in range(n)])
+        return cls([TypeVal.from_reader(r) for _ in range(n)])
 
 
 class TypeFunction:
@@ -86,7 +86,7 @@ class TypeFunction:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         assert ord(r.read(1)) == 0x60
-        return TypeFunction(TypeResult.from_reader(r), TypeResult.from_reader(r))
+        return cls(TypeResult.from_reader(r), TypeResult.from_reader(r))
 
 
 class Limits:
@@ -103,27 +103,22 @@ class Limits:
         flag = ord(r.read(1))
         n = leb128.u.decode_reader(r)[0]
         m = leb128.u.decode_reader(r)[0] if flag else 0x00
-        return Limits(n, m)
+        return cls(n, m)
 
 
-class MemoryType:
+class TypeMemory:
     # Memory types classify linear memories and their size range.
-    #
-    # memtype ::= limits
-    #
     # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
     # page size.
-    def __init__(self):
-        self.limits: Limits
+    def __init__(self, limits: Limits) -> typing.Self:
+        self.limits = limits
 
-    def __repr__(self):
-        return f'memory_type({self.limits.__repr__()})'
+    def __repr__(self) -> str:
+        return repr(self.limits)
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = MemoryType()
-        o.limits = Limits.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(Limits.from_reader(r))
 
 
 class ElementType(int):
@@ -200,7 +195,7 @@ class GlobalType:
         return o
 
 
-ExternalType = typing.Union[TypeFunction, TableType, MemoryType, GlobalType]
+ExternalType = typing.Union[TypeFunction, TableType, TypeMemory, GlobalType]
 
 # ======================================================================================================================
 # Binary Format Instructions
@@ -461,7 +456,7 @@ class TypeSection:
         return o
 
 
-ImportDesc = typing.Union[TypeIndex, TableType, MemoryType, GlobalType]
+ImportDesc = typing.Union[TypeIndex, TableType, TypeMemory, GlobalType]
 
 
 class Import:
@@ -495,7 +490,7 @@ class Import:
         o.desc = {
             convention.extern_function: TypeIndex.from_reader,
             convention.extern_table: TableType.from_reader,
-            convention.extern_memory: MemoryType.from_reader,
+            convention.extern_memory: TypeMemory.from_reader,
             convention.extern_global: GlobalType.from_reader,
         }[n](r)
         return o
@@ -592,7 +587,7 @@ class Memory:
     #
     # mem ::= {type memtype}
     def __init__(self):
-        self.type: MemoryType = MemoryType()
+        self.type: TypeMemory
 
     def __repr__(self):
         return f'memory({self.type})'
@@ -600,7 +595,7 @@ class Memory:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = Memory()
-        o.type = MemoryType.from_reader(r)
+        o.type = TypeMemory.from_reader(r)
         return o
 
 
