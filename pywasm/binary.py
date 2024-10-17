@@ -53,23 +53,19 @@ class TypeVal:
         return cls(ord(r.read(1)))
 
 
-class ResultType:
+class TypeResult:
     # Result types classify the result of executing instructions or blocks, which is a sequence of values written with
     # brackets.
-    #
-    # resulttype ::= [valtype?]
-    def __init__(self):
-        self.data: typing.List[TypeVal] = []
+    def __init__(self, data: typing.List[TypeVal]) -> typing.Self:
+        self.data = data
 
-    def __repr__(self):
-        return f'result_type({self.data.__repr__()})'
+    def __repr__(self) -> str:
+        return self.data.__repr__()
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = ResultType()
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         n = leb128.u.decode_reader(r)[0]
-        o.data = [TypeVal.from_reader(r) for i in range(n)]
-        return o
+        return TypeResult([TypeVal.from_reader(r) for _ in range(n)])
 
 
 class FunctionType:
@@ -77,8 +73,8 @@ class FunctionType:
     #
     # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
     def __init__(self):
-        self.args: ResultType = ResultType()
-        self.rets: ResultType = ResultType()
+        self.args: TypeResult
+        self.rets: TypeResult
 
     def __repr__(self):
         return f'function_type({self.args}, {self.rets})'
@@ -88,8 +84,8 @@ class FunctionType:
         o = FunctionType()
         i = r.read(1)
         assert ord(i) == convention.sign
-        o.args = ResultType.from_reader(r)
-        o.rets = ResultType.from_reader(r)
+        o.args = TypeResult.from_reader(r)
+        o.rets = TypeResult.from_reader(r)
         return o
 
 
@@ -242,7 +238,7 @@ class Instruction:
         self.args: typing.List[typing.Any] = []
 
     def __repr__(self):
-        return f'{opcode.name[self.opcode][0]} {self.args}'
+        return f'{opcode.name[self.opcode]} {self.args}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
