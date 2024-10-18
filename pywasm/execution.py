@@ -17,23 +17,23 @@ from . import option
 class Value:
     # Values are represented by themselves.
     def __init__(self):
-        self.type: core.ValueType
+        self.type: core.ValType
         self.data: bytearray = bytearray(8)
 
     def __repr__(self):
         return f'{self.type} {self.val()}'
 
     @classmethod
-    def new(cls, type: core.ValueType, data: typing.Union[int, float]):
+    def new(cls, type: core.ValType, data: typing.Union[int, float]):
         return {
-            convention.i32: Value.from_i32,
-            convention.i64: Value.from_i64,
-            convention.f32: lambda x: Value.from_f32(num.f32(x)),
-            convention.f64: lambda x: Value.from_f64(num.f64(x)),
+            core.ValType.i32(): Value.from_i32,
+            core.ValType.i64(): Value.from_i64,
+            core.ValType.f32(): lambda x: Value.from_f32(num.f32(x)),
+            core.ValType.f64(): lambda x: Value.from_f64(num.f64(x)),
         }[type](data)
 
     @classmethod
-    def raw(cls, type: core.ValueType, data: bytearray):
+    def raw(cls, type: core.ValType, data: bytearray):
         o = Value()
         o.type = type
         o.data = data
@@ -41,10 +41,10 @@ class Value:
 
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
-            convention.i32: self.i32,
-            convention.i64: self.i64,
-            convention.f32: self.f32,
-            convention.f64: self.f64,
+            core.ValType.i32(): self.i32,
+            core.ValType.i64(): self.i64,
+            core.ValType.f32(): self.f32,
+            core.ValType.f64(): self.f64,
         }[self.type]()
 
     def i32(self) -> num.i32:
@@ -68,28 +68,28 @@ class Value:
     @classmethod
     def from_i32(cls, n: num.i32):
         o = Value()
-        o.type = core.ValueType(convention.i32)
+        o.type = core.ValType.i32()
         o.data[0:4] = num.LittleEndian.pack_i32(num.int2i32(n))
         return o
 
     @classmethod
     def from_i64(cls, n: num.i64):
         o = Value()
-        o.type = core.ValueType(convention.i64)
+        o.type = core.ValType.i64()
         o.data[0:8] = num.LittleEndian.pack_i64(num.int2i64(n))
         return o
 
     @classmethod
     def from_u32(cls, n: num.u32):
         o = Value()
-        o.type = core.ValueType(convention.i32)
+        o.type = core.ValType.i32()
         o.data[0:4] = num.LittleEndian.pack_u32(num.int2u32(n))
         return o
 
     @classmethod
     def from_u64(cls, n: num.u64):
         o = Value()
-        o.type = core.ValueType(convention.i64)
+        o.type = core.ValType.i64()
         o.data[0:8] = num.LittleEndian.pack_u64(num.int2u64(n))
         return o
 
@@ -97,28 +97,28 @@ class Value:
     def from_f32(cls, n: num.f32):
         assert isinstance(n, num.f32)
         o = Value()
-        o.type = core.ValueType(convention.f32)
+        o.type = core.ValType.f32()
         o.data[0:4] = num.LittleEndian.pack_f32(n)
         return o
 
     @classmethod
     def from_f32_u32(cls, n: num.u32):
         o = Value.from_u32(n)
-        o.type = core.ValueType(convention.f32)
+        o.type = core.ValType.f32()
         return o
 
     @classmethod
     def from_f64(cls, n: num.f64):
         assert isinstance(n, num.f64)
         o = Value()
-        o.type = core.ValueType(convention.f64)
+        o.type = core.ValType.f64()
         o.data[0:8] = num.LittleEndian.pack_f64(n)
         return o
 
     @classmethod
     def from_f64_u64(cls, n: num.u64):
         o = Value.from_u64(n)
-        o.type = core.ValueType(convention.f64)
+        o.type = core.ValType.f64()
         return o
 
 
@@ -164,7 +164,7 @@ class ModuleInstance:
     #     exports exportinst∗
     # }
     def __init__(self):
-        self.type_list: typing.List[core.FunctionType] = []
+        self.type_list: typing.List[core.FuncType] = []
         self.function_addr_list: typing.List[FunctionAddress] = []
         self.table_addr_list: typing.List[TableAddress] = []
         self.memory_addr_list: typing.List[MemoryAddress] = []
@@ -173,7 +173,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: core.FunctionType, module: ModuleInstance, code: core.Function):
+    def __init__(self, function_type: core.FuncType, module: ModuleInstance, code: core.Function):
         self.type = function_type
         self.module = module
         self.code = code
@@ -187,7 +187,7 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: core.FunctionType, hostcode: typing.Callable):
+    def __init__(self, function_type: core.FuncType, hostcode: typing.Callable):
         self.type = function_type
         self.hostcode = hostcode
 
@@ -238,7 +238,7 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, type: core.MemoryType):
+    def __init__(self, type: core.MemType):
         self.type = type
         self.data = bytearray()
         self.size = 0
@@ -315,11 +315,11 @@ class Store:
 
     def allocate_table(self, table_type: core.TableType) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
-        table_instance = TableInstance(convention.funcref, table_type.limits)
+        table_instance = TableInstance(core.ElemType.funcref(), table_type.limits)
         self.table_list.append(table_instance)
         return table_address
 
-    def allocate_memory(self, memory_type: core.MemoryType) -> MemoryAddress:
+    def allocate_memory(self, memory_type: core.MemType) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
         memory_instance = MemoryInstance(memory_type)
         self.memory_list.append(memory_instance)
@@ -368,7 +368,7 @@ class Frame:
 
     def __init__(self, module: ModuleInstance,
                  local_list: typing.List[Value],
-                 expr: core.Expression,
+                 expr: core.Expr,
                  arity: int):
         self.module = module
         self.local_list = local_list
@@ -416,11 +416,11 @@ def match_limits(a: core.Limits, b: core.Limits) -> bool:
     return 0
 
 
-def match_function(a: core.FunctionType, b: core.FunctionType) -> bool:
+def match_function(a: core.FuncType, b: core.FuncType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
 
 
-def match_memory(a: core.MemoryType, b: core.MemoryType) -> bool:
+def match_memory(a: core.MemType, b: core.MemType) -> bool:
     return match_limits(a.limits, b.limits)
 
 
@@ -528,29 +528,23 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def block(config: Configuration, i: core.Instruction):
-        if i.args[0] == convention.empty:
-            arity = 0
-        else:
-            arity = 1
+        arity = i.args[0].type
+        assert arity < 2
         continuation = config.frame.expr.position[config.pc][1]
         config.stack.append(Label(arity, continuation))
 
     @staticmethod
     def loop(config: Configuration, i: core.Instruction):
-        if i.args[0] == convention.empty:
-            arity = 0
-        else:
-            arity = 1
+        arity = i.args[0].type
+        assert arity < 2
         continuation = config.frame.expr.position[config.pc][0]
         config.stack.append(Label(arity, continuation))
 
     @staticmethod
     def if_then(config: Configuration, i: core.Instruction):
         c = config.stack.pop().i32()
-        if i.args[0] == convention.empty:
-            arity = 0
-        else:
-            arity = 1
+        arity = i.args[0].type
+        assert arity < 2
         continuation = config.frame.expr.position[config.pc][1]
         config.stack.append(Label(arity, continuation))
         if c == 0:
@@ -660,7 +654,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def call(config: Configuration, i: core.Instruction):
-        function_addr: core.FunctionIndex = i.args[0]
+        function_addr: int = i.args[0]
         ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
@@ -723,7 +717,7 @@ class ArithmeticLogicUnit:
     def global_set(config: Configuration, i: core.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        assert glob.mut == convention.var
+        assert glob.mut == core.Mut.var()
         glob.value = config.stack.pop()
 
     @staticmethod
@@ -885,13 +879,13 @@ class ArithmeticLogicUnit:
     @staticmethod
     def f32_const(config: Configuration, i: core.Instruction):
         r = Value.from_i32(i.args[0])
-        r.type = core.ValueType(convention.f32)
+        r.type = core.ValType.f32()
         config.stack.append(r)
 
     @staticmethod
     def f64_const(config: Configuration, i: core.Instruction):
         r = Value.from_i64(i.args[0])
-        r.type = core.ValueType(convention.f64)
+        r.type = core.ValType.f64()
         config.stack.append(r)
 
     @staticmethod
@@ -1751,25 +1745,25 @@ class ArithmeticLogicUnit:
     @staticmethod
     def i32_reinterpret_f32(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.i32)
+        a.type = core.ValType.i32()
         config.stack.append(a)
 
     @staticmethod
     def i64_reinterpret_f64(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.i64)
+        a.type = core.ValType.i64()
         config.stack.append(a)
 
     @staticmethod
     def f32_reinterpret_i32(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.f32)
+        a.type = core.ValType.f32()
         config.stack.append(a)
 
     @staticmethod
     def f64_reinterpret_i64(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.f64)
+        a.type = core.ValType.f64()
         config.stack.append(a)
 
 
@@ -1999,7 +1993,7 @@ class Machine:
                 b = module.import_list[i].desc
                 assert match_memory(a, b)
             if isinstance(e, GlobalAddress):
-                assert module.import_list[i].desc.value_type == self.store.global_list[e].value.type
+                assert module.import_list[i].desc.type == self.store.global_list[e].value.type
                 assert module.import_list[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
@@ -2008,7 +2002,7 @@ class Machine:
         aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
         for e in module.global_list:
             log.debugln(f'init global value')
-            frame = Frame(aux, [], e.expr, 1)
+            frame = Frame(aux, [], e.init, 1)
             config = Configuration(self.store)
             config.opts = self.opts
             config.set_frame(frame)
@@ -2028,7 +2022,7 @@ class Machine:
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
-            table_addr = self.module.table_addr_list[element_segment.table_index]
+            table_addr = self.module.table_addr_list[element_segment.table]
             table_instance = self.store.table_list[table_addr]
             for i, e in enumerate(element_segment.init):
                 table_instance.element_list[offset + i] = e
@@ -2041,7 +2035,7 @@ class Machine:
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.val()
-            memory_addr = self.module.memory_addr_list[data_segment.memory_index]
+            memory_addr = self.module.memory_addr_list[data_segment.data]
             memory_instance = self.store.memory_list[memory_addr]
             memory_instance.data[offset: offset + len(data_segment.init)] = data_segment.init
 
@@ -2050,7 +2044,7 @@ class Machine:
         # If the start function module.start is not empty, invoke the function instance
         if module.start is not None:
             log.debugln(f'running start function {module.start}')
-            self.invocate(self.module.function_addr_list[module.start.function_idx], [])
+            self.invocate(self.module.function_addr_list[module.start.func], [])
 
     def allocate(
         self,
@@ -2079,7 +2073,7 @@ class Machine:
 
         # For each table in module.tables, do:
         for e in module.table_list:
-            table_addr = self.store.allocate_table(e.type)
+            table_addr = self.store.allocate_table(e)
             self.module.table_addr_list.append(table_addr)
 
         # For each memory module.mems, do:
@@ -2094,13 +2088,13 @@ class Machine:
 
         # For each export in module.exports, do:
         for e in module.export_list:
-            if isinstance(e.desc, core.FunctionIndex):
+            if e.type == 0x00:
                 addr = self.module.function_addr_list[e.desc]
-            if isinstance(e.desc, core.TableIndex):
+            if e.type == 0x01:
                 addr = self.module.table_addr_list[e.desc]
-            if isinstance(e.desc, core.MemoryIndex):
+            if e.type == 0x02:
                 addr = self.module.memory_addr_list[e.desc]
-            if isinstance(e.desc, core.GlobalIndex):
+            if e.type == 0x03:
                 addr = self.module.global_addr_list[e.desc]
             export_inst = ExportInstance(e.name, addr)
             self.module.export_list.append(export_inst)

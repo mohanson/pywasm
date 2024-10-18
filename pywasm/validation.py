@@ -6,14 +6,14 @@ from . import core
 class Context:
     def __init__(
         self,
-        type_list: typing.List[core.FunctionType],
-        function_list: typing.List[core.FunctionType],
+        type_list: typing.List[core.FuncType],
+        function_list: typing.List[core.FuncType],
         table_list: typing.List[core.TableType],
-        memory_list: typing.List[core.MemoryType],
+        memory_list: typing.List[core.MemType],
         global_list: typing.List[core.GlobalType],
-        local_list: typing.List[core.ValueType],
-        label_list: typing.List[core.ValueType],
-        return_list: typing.List[typing.List[core.ValueType]],
+        local_list: typing.List[core.ValType],
+        label_list: typing.List[core.ValType],
+        return_list: typing.List[typing.List[core.ValType]],
     ):
         self.type_list = type_list
         self.function_list = function_list
@@ -34,19 +34,19 @@ def validate(module: core.Module):
 
     import_type_list = []
     for e in module.import_list:
-        if isinstance(e.desc, core.TypeIndex):
+        if e.type == 0x00:
             if e.desc >= len(module.type_list):
                 raise Exception('pywasm: invalid import descriptor, type index is out of range.')
             import_type_list.append(module.type_list[e.desc])
             continue
-        if isinstance(e.desc, (core.TableType, core.MemoryType, core.GlobalType)):
+        if e.type in [0x01, 0x02, 0x03]:
             import_type_list.append(module.type_list[e.desc])
             continue
         raise Exception('pywasm: unknown import descriptor type')
 
-    import_function_types = [e for e in import_type_list if isinstance(e, core.FunctionType)]
+    import_function_types = [e for e in import_type_list if isinstance(e, core.FuncType)]
     import_table_types = [e for e in import_type_list if isinstance(e, core.TableType)]
-    import_memory_types = [e for e in import_type_list if isinstance(e, core.MemoryType)]
+    import_memory_types = [e for e in import_type_list if isinstance(e, core.MemType)]
     import_global_types = [e for e in import_type_list if isinstance(e, core.GlobalType)]
 
     context = Context(

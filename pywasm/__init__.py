@@ -26,18 +26,18 @@ class Runtime:
         for e in module.import_list:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
-            if isinstance(e.desc, core.TypeIndex):
+            if e.type == 0x00:
                 a = execution.HostFunc(module.type_list[e.desc], imps[e.module][e.name])
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, core.TableType):
+            if e.type == 0x01:
                 addr = execution.TableAddress(len(self.store.table_list))
                 table = imps[e.module][e.name]
                 self.store.table_list.append(table)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, core.MemoryType):
+            if e.type == 0x02:
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
@@ -46,10 +46,10 @@ class Runtime:
                 self.store.memory_list.append(memory)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, core.GlobalType):
+            if e.type == 0x03:
                 addr = self.store.allocate_global(
                     e.desc,
-                    execution.Value.new(e.desc.value_type, imps[e.module][e.name])
+                    execution.Value.new(e.desc.type, imps[e.module][e.name])
                 )
                 extern_value_list.append(addr)
                 continue
