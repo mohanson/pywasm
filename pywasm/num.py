@@ -11,26 +11,22 @@ f32 = numpy.float32
 f64 = numpy.float64
 
 
-def int2u32(i: int) -> u32:
+def int2u32(i: int) -> int:
     return i & 0xffffffff
 
 
-def int2i32(i: int) -> i32:
+def int2i32(i: int) -> int:
     i = i & 0xffffffff
-    if i & 0x80000000:
-        return i - 0x100000000
-    return i
+    return i - ((i & 0x80000000) << 1)
 
 
-def int2u64(i: int) -> u64:
+def int2u64(i: int) -> int:
     return i & 0xffffffffffffffff
 
 
-def int2i64(i: int) -> i64:
+def int2i64(i: int) -> int:
     i = i & 0xffffffffffffffff
-    if i & 0x8000000000000000:
-        return i - 0x10000000000000000
-    return i
+    return i - ((i & 0x8000000000000000) << 1)
 
 
 class LittleEndian:
@@ -76,35 +72,35 @@ class LittleEndian:
         return numpy.frombuffer(r, f64)[0]
 
     @staticmethod
-    def pack_i8(n: i8):
+    def pack_i8(n: int):
         return struct.pack('<b', n)
 
     @staticmethod
-    def pack_i16(n: i16):
+    def pack_i16(n: int):
         return struct.pack('<h', n)
 
     @staticmethod
-    def pack_i32(n: i32):
+    def pack_i32(n: int):
         return struct.pack('<i', n)
 
     @staticmethod
-    def pack_i64(n: i64):
+    def pack_i64(n: int):
         return struct.pack('<q', n)
 
     @staticmethod
-    def pack_u8(n: u8):
+    def pack_u8(n: int):
         return struct.pack('<B', n)
 
     @staticmethod
-    def pack_u16(n: u16):
+    def pack_u16(n: int):
         return struct.pack('<H', n)
 
     @staticmethod
-    def pack_u32(n: u32):
+    def pack_u32(n: int):
         return struct.pack('<I', n)
 
     @staticmethod
-    def pack_u64(n: u64):
+    def pack_u64(n: int):
         return struct.pack('<Q', n)
 
     @staticmethod
