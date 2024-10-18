@@ -1,6 +1,3 @@
-const = 0x00
-var = 0x01
-
 empty = 0x40
 
 extern_function = 0x00

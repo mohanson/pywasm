@@ -723,7 +723,7 @@ class ArithmeticLogicUnit:
     def global_set(config: Configuration, i: core.Instruction):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        assert glob.mut == convention.var
+        assert glob.mut == core.Mut.var()
         glob.value = config.stack.pop()
 
     @staticmethod

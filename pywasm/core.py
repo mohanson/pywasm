@@ -157,17 +157,33 @@ class TableType:
         return cls(ElemType.from_reader(r), Limits.from_reader(r))
 
 
-class Mut(int):
-    # Mut const | var
-    def __repr__(self):
+class Mut:
+    # Mut hold a value and can either be mutable or immutable.
+
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x00, 0x01]
+        self.data = data
+
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.data == value.data
+
+    def __repr__(self) -> str:
         return {
-            convention.const: 'const',
-            convention.var: 'var',
-        }[self]
+            0x00: 'const',
+            0x01: 'var',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return Mut(ord(r.read(1)))
+    def const(cls) -> typing.Self:
+        return cls(0x00)
+
+    @classmethod
+    def var(cls) -> typing.Self:
+        return cls(0x01)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
 class GlobalType:
@@ -179,7 +195,7 @@ class GlobalType:
     #       | 0x01 ⇒ var
     def __init__(self):
         self.value_type: ValType
-        self.mut: Mut = Mut()
+        self.mut: Mut
 
     def __repr__(self):
         return f'global_type({self.mut} {self.value_type})'
