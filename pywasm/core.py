@@ -65,25 +65,19 @@ class ResultType:
         return cls([ValType.from_reader(r) for _ in range(n)])
 
 
-class FunctionType:
+class FuncType:
     # Function types are encoded by the byte 0x60 followed by the respective vectors of parameter and result types.
-    #
-    # functype ::= 0x60 t1∗:vec(valtype) t2∗:vec(valtype) ⇒ [t1∗] → [t2∗]
-    def __init__(self):
-        self.args: ResultType
-        self.rets: ResultType
+    def __init__(self, args: ResultType, rets: ResultType) -> typing.Self:
+        self.args = args
+        self.rets = rets
 
-    def __repr__(self):
-        return f'function_type({self.args}, {self.rets})'
+    def __repr__(self) -> str:
+        return f'{self.args} -> {self.rets}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = FunctionType()
-        i = r.read(1)
-        assert ord(i) == convention.sign
-        o.args = ResultType.from_reader(r)
-        o.rets = ResultType.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        assert ord(r.read(1)) == 0x60
+        return cls(ResultType.from_reader(r), ResultType.from_reader(r))
 
 
 class Limits:
@@ -201,7 +195,7 @@ class GlobalType:
         return o
 
 
-ExternalType = typing.Union[FunctionType, TableType, MemoryType, GlobalType]
+ExternalType = typing.Union[FuncType, TableType, MemoryType, GlobalType]
 
 
 class BlockType(int):
@@ -441,7 +435,7 @@ class TypeSection:
     # typesec ::= ft∗:section1(vec(functype)) ⇒ ft∗
 
     def __init__(self):
-        self.data: typing.List[FunctionType] = []
+        self.data: typing.List[FuncType]
 
     def __repr__(self):
         return f'type_section({self.data})'
@@ -450,7 +444,7 @@ class TypeSection:
     def from_reader(cls, r: typing.BinaryIO):
         o = TypeSection()
         n = leb128.u.decode_reader(r)[0]
-        o.data = [FunctionType.from_reader(r) for _ in range(n)]
+        o.data = [FuncType.from_reader(r) for _ in range(n)]
         return o
 
 
@@ -1039,7 +1033,7 @@ class Module:
             DataSection,
         ] = []
 
-        self.type_list: typing.List[FunctionType] = []
+        self.type_list: typing.List[FuncType] = []
         self.function_list: typing.List[Function] = []
         self.table_list: typing.List[Table] = []
         self.memory_list: typing.List[Memory] = []

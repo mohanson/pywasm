@@ -6,8 +6,8 @@ from . import core
 class Context:
     def __init__(
         self,
-        type_list: typing.List[core.FunctionType],
-        function_list: typing.List[core.FunctionType],
+        type_list: typing.List[core.FuncType],
+        function_list: typing.List[core.FuncType],
         table_list: typing.List[core.TableType],
         memory_list: typing.List[core.MemoryType],
         global_list: typing.List[core.GlobalType],
@@ -44,7 +44,7 @@ def validate(module: core.Module):
             continue
         raise Exception('pywasm: unknown import descriptor type')
 
-    import_function_types = [e for e in import_type_list if isinstance(e, core.FunctionType)]
+    import_function_types = [e for e in import_type_list if isinstance(e, core.FuncType)]
     import_table_types = [e for e in import_type_list if isinstance(e, core.TableType)]
     import_memory_types = [e for e in import_type_list if isinstance(e, core.MemoryType)]
     import_global_types = [e for e in import_type_list if isinstance(e, core.GlobalType)]

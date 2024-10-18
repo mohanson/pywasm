@@ -164,7 +164,7 @@ class ModuleInstance:
     #     exports exportinst∗
     # }
     def __init__(self):
-        self.type_list: typing.List[core.FunctionType] = []
+        self.type_list: typing.List[core.FuncType] = []
         self.function_addr_list: typing.List[FunctionAddress] = []
         self.table_addr_list: typing.List[TableAddress] = []
         self.memory_addr_list: typing.List[MemoryAddress] = []
@@ -173,7 +173,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: core.FunctionType, module: ModuleInstance, code: core.Function):
+    def __init__(self, function_type: core.FuncType, module: ModuleInstance, code: core.Function):
         self.type = function_type
         self.module = module
         self.code = code
@@ -187,7 +187,7 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: core.FunctionType, hostcode: typing.Callable):
+    def __init__(self, function_type: core.FuncType, hostcode: typing.Callable):
         self.type = function_type
         self.hostcode = hostcode
 
@@ -416,7 +416,7 @@ def match_limits(a: core.Limits, b: core.Limits) -> bool:
     return 0
 
 
-def match_function(a: core.FunctionType, b: core.FunctionType) -> bool:
+def match_function(a: core.FuncType, b: core.FuncType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
 
 
