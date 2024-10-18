@@ -7,10 +7,6 @@ from . import log
 from . import num
 from . import opcode
 
-# ======================================================================================================================
-# Binary Format Types
-# ======================================================================================================================
-
 
 class ValueType(int):
     # Value types are encoded by a single byte.
@@ -190,10 +186,6 @@ class GlobalType:
 
 ExternalType = typing.Union[FunctionType, TableType, MemoryType, GlobalType]
 
-# ======================================================================================================================
-# Binary Format Instructions
-# ======================================================================================================================
-
 
 class BlockType(int):
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
@@ -321,10 +313,6 @@ class Instruction:
         if o.opcode not in opcode.name:
             raise Exception("unsupported opcode", o.opcode)
         return o
-
-# ======================================================================================================================
-# Binary Format Modules
-# ======================================================================================================================
 
 
 class TypeIndex(int):

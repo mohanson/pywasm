@@ -4,7 +4,7 @@
 import pywasm
 
 
-def instruction_cycle_func(i: pywasm.binary.Instruction) -> int:
+def instruction_cycle_func(i: pywasm.core.Instruction) -> int:
     if i.opcode == pywasm.opcode.i32_add:
         return 1
     if i.opcode == pywasm.opcode.i32_mul:

@@ -19,7 +19,7 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.Value.from_f32_u32(pywasm.convention.f32_nan_canonical + 1)
         v = pywasm.Value.from_u32(int(m['value']))
-        v.type = pywasm.binary.ValueType(pywasm.convention.f32)
+        v.type = pywasm.core.ValueType(pywasm.convention.f32)
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
@@ -27,7 +27,7 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.Value.from_f64_u64(pywasm.convention.f64_nan_canonical + 1)
         v = pywasm.Value.from_u64(int(m['value']))
-        v.type = pywasm.binary.ValueType(pywasm.convention.f64)
+        v.type = pywasm.core.ValueType(pywasm.convention.f64)
         return v
     raise NotImplementedError
 
@@ -69,7 +69,7 @@ def imps() -> typing.Dict:
     limits = pywasm.Limits()
     limits.n = 1
     limits.m = 2
-    memory_type = pywasm.binary.MemoryType()
+    memory_type = pywasm.core.MemoryType()
     memory_type.limits = limits
     memory = pywasm.Memory(memory_type)
 

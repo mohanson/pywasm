@@ -1,6 +1,6 @@
 import typing
 
-from . import binary
+from . import core
 from . import convention
 from . import execution
 from . import leb128
@@ -14,7 +14,7 @@ from . import validation
 class Runtime:
     # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
 
-    def __init__(self, module: binary.Module, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None):
+    def __init__(self, module: core.Module, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None):
         self.machine = execution.Machine()
         self.machine.opts = opts or option.Option()
 
@@ -26,18 +26,18 @@ class Runtime:
         for e in module.import_list:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
-            if isinstance(e.desc, binary.TypeIndex):
+            if isinstance(e.desc, core.TypeIndex):
                 a = execution.HostFunc(module.type_list[e.desc], imps[e.module][e.name])
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.TableType):
+            if isinstance(e.desc, core.TableType):
                 addr = execution.TableAddress(len(self.store.table_list))
                 table = imps[e.module][e.name]
                 self.store.table_list.append(table)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.MemoryType):
+            if isinstance(e.desc, core.MemoryType):
                 addr = execution.MemoryAddress(len(self.store.memory_list))
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
@@ -46,7 +46,7 @@ class Runtime:
                 self.store.memory_list.append(memory)
                 extern_value_list.append(addr)
                 continue
-            if isinstance(e.desc, binary.GlobalType):
+            if isinstance(e.desc, core.GlobalType):
                 addr = self.store.allocate_global(
                     e.desc,
                     execution.Value.new(e.desc.value_type, imps[e.module][e.name])
@@ -95,7 +95,7 @@ def on_debug():
 def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
-        module = binary.Module.from_reader(f)
+        module = core.Module.from_reader(f)
         return Runtime(module, imps, opts)
 
 
@@ -104,7 +104,7 @@ Memory = execution.MemoryInstance
 Value = execution.Value
 Table = execution.TableInstance
 Global = execution.GlobalInstance
-Limits = binary.Limits
+Limits = core.Limits
 FunctionAddress = execution.FunctionAddress
 TableAddress = execution.TableAddress
 MemoryAddress = execution.MemoryAddress
