@@ -187,28 +187,18 @@ class Mut:
 
 
 class GlobalType:
-    # Global types are encoded by their value type and a flag for their
-    # mutability.
-    #
-    # globaltype ::= t:valtype m:mut ⇒ m t
-    # mut ::= 0x00 ⇒ const
-    #       | 0x01 ⇒ var
-    def __init__(self):
-        self.value_type: ValType
-        self.mut: Mut
+    # Global types are encoded by their value type and a flag for their mutability.
 
-    def __repr__(self):
-        return f'global_type({self.mut} {self.value_type})'
+    def __init__(self, type: ValType, mut: Mut) -> typing.Self:
+        self.type = type
+        self.mut = mut
+
+    def __repr__(self) -> str:
+        return f'{self.mut} {self.type}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = GlobalType()
-        o.value_type = ValType.from_reader(r)
-        o.mut = Mut.from_reader(r)
-        return o
-
-
-ExternalType = typing.Union[FuncType, TableType, MemType, GlobalType]
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ValType.from_reader(r), Mut.from_reader(r))
 
 
 class BlockType(int):
@@ -687,7 +677,7 @@ class Global:
     #
     # global ::= {type globaltype, init expr}
     def __init__(self):
-        self.type: GlobalType = GlobalType()
+        self.type: GlobalType
         self.expr: Expression = Expression()
 
     def __repr__(self):

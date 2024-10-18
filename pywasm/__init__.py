@@ -49,7 +49,7 @@ class Runtime:
             if isinstance(e.desc, core.GlobalType):
                 addr = self.store.allocate_global(
                     e.desc,
-                    execution.Value.new(e.desc.value_type, imps[e.module][e.name])
+                    execution.Value.new(e.desc.type, imps[e.module][e.name])
                 )
                 extern_value_list.append(addr)
                 continue
