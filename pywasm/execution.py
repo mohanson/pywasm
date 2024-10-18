@@ -17,23 +17,23 @@ from . import option
 class Value:
     # Values are represented by themselves.
     def __init__(self):
-        self.type: core.ValueType
+        self.type: core.ValType
         self.data: bytearray = bytearray(8)
 
     def __repr__(self):
         return f'{self.type} {self.val()}'
 
     @classmethod
-    def new(cls, type: core.ValueType, data: typing.Union[int, float]):
+    def new(cls, type: core.ValType, data: typing.Union[int, float]):
         return {
-            convention.i32: Value.from_i32,
-            convention.i64: Value.from_i64,
-            convention.f32: lambda x: Value.from_f32(num.f32(x)),
-            convention.f64: lambda x: Value.from_f64(num.f64(x)),
+            core.ValType.i32(): Value.from_i32,
+            core.ValType.i64(): Value.from_i64,
+            core.ValType.f32(): lambda x: Value.from_f32(num.f32(x)),
+            core.ValType.f64(): lambda x: Value.from_f64(num.f64(x)),
         }[type](data)
 
     @classmethod
-    def raw(cls, type: core.ValueType, data: bytearray):
+    def raw(cls, type: core.ValType, data: bytearray):
         o = Value()
         o.type = type
         o.data = data
@@ -41,10 +41,10 @@ class Value:
 
     def val(self) -> typing.Union[num.i32, num.i64, num.f32, num.f64]:
         return {
-            convention.i32: self.i32,
-            convention.i64: self.i64,
-            convention.f32: self.f32,
-            convention.f64: self.f64,
+            core.ValType.i32(): self.i32,
+            core.ValType.i64(): self.i64,
+            core.ValType.f32(): self.f32,
+            core.ValType.f64(): self.f64,
         }[self.type]()
 
     def i32(self) -> num.i32:
@@ -68,28 +68,28 @@ class Value:
     @classmethod
     def from_i32(cls, n: num.i32):
         o = Value()
-        o.type = core.ValueType(convention.i32)
+        o.type = core.ValType.i32()
         o.data[0:4] = num.LittleEndian.pack_i32(num.int2i32(n))
         return o
 
     @classmethod
     def from_i64(cls, n: num.i64):
         o = Value()
-        o.type = core.ValueType(convention.i64)
+        o.type = core.ValType.i64()
         o.data[0:8] = num.LittleEndian.pack_i64(num.int2i64(n))
         return o
 
     @classmethod
     def from_u32(cls, n: num.u32):
         o = Value()
-        o.type = core.ValueType(convention.i32)
+        o.type = core.ValType.i32()
         o.data[0:4] = num.LittleEndian.pack_u32(num.int2u32(n))
         return o
 
     @classmethod
     def from_u64(cls, n: num.u64):
         o = Value()
-        o.type = core.ValueType(convention.i64)
+        o.type = core.ValType.i64()
         o.data[0:8] = num.LittleEndian.pack_u64(num.int2u64(n))
         return o
 
@@ -97,28 +97,28 @@ class Value:
     def from_f32(cls, n: num.f32):
         assert isinstance(n, num.f32)
         o = Value()
-        o.type = core.ValueType(convention.f32)
+        o.type = core.ValType.f32()
         o.data[0:4] = num.LittleEndian.pack_f32(n)
         return o
 
     @classmethod
     def from_f32_u32(cls, n: num.u32):
         o = Value.from_u32(n)
-        o.type = core.ValueType(convention.f32)
+        o.type = core.ValType.f32()
         return o
 
     @classmethod
     def from_f64(cls, n: num.f64):
         assert isinstance(n, num.f64)
         o = Value()
-        o.type = core.ValueType(convention.f64)
+        o.type = core.ValType.f64()
         o.data[0:8] = num.LittleEndian.pack_f64(n)
         return o
 
     @classmethod
     def from_f64_u64(cls, n: num.u64):
         o = Value.from_u64(n)
-        o.type = core.ValueType(convention.f64)
+        o.type = core.ValType.f64()
         return o
 
 
@@ -885,13 +885,13 @@ class ArithmeticLogicUnit:
     @staticmethod
     def f32_const(config: Configuration, i: core.Instruction):
         r = Value.from_i32(i.args[0])
-        r.type = core.ValueType(convention.f32)
+        r.type = core.ValType.f32()
         config.stack.append(r)
 
     @staticmethod
     def f64_const(config: Configuration, i: core.Instruction):
         r = Value.from_i64(i.args[0])
-        r.type = core.ValueType(convention.f64)
+        r.type = core.ValType.f64()
         config.stack.append(r)
 
     @staticmethod
@@ -1751,25 +1751,25 @@ class ArithmeticLogicUnit:
     @staticmethod
     def i32_reinterpret_f32(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.i32)
+        a.type = core.ValType.i32()
         config.stack.append(a)
 
     @staticmethod
     def i64_reinterpret_f64(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.i64)
+        a.type = core.ValType.i64()
         config.stack.append(a)
 
     @staticmethod
     def f32_reinterpret_i32(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.f32)
+        a.type = core.ValType.f32()
         config.stack.append(a)
 
     @staticmethod
     def f64_reinterpret_i64(config: Configuration, i: core.Instruction):
         a = config.stack.pop()
-        a.type = core.ValueType(convention.f64)
+        a.type = core.ValType.f64()
         config.stack.append(a)
 
 

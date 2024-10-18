@@ -11,9 +11,9 @@ class Context:
         table_list: typing.List[core.TableType],
         memory_list: typing.List[core.MemoryType],
         global_list: typing.List[core.GlobalType],
-        local_list: typing.List[core.ValueType],
-        label_list: typing.List[core.ValueType],
-        return_list: typing.List[typing.List[core.ValueType]],
+        local_list: typing.List[core.ValType],
+        label_list: typing.List[core.ValType],
+        return_list: typing.List[typing.List[core.ValType]],
     ):
         self.type_list = type_list
         self.function_list = function_list
