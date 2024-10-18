@@ -141,26 +141,20 @@ class ElemType:
 class TableType:
     # Table types classify tables over elements of element types within a size range.
     #
-    # tabletype ::= limits elemtype
-    # elemtype ::= funcref
-    #
     # Like memories, tables are constrained by limits for their minimum and optionally maximum size. The limits are
     # given in numbers of entries. The element type funcref is the infinite union of all function types. A table of that
     # type thus contains references to functions of heterogeneous type.
 
-    def __init__(self):
-        self.element_type: ElemType
-        self.limits: Limits
+    def __init__(self, type: ElemType, limits: Limits) -> typing.Self:
+        self.type = type
+        self.limits = limits
 
-    def __repr__(self):
-        return f'table_type({self.element_type}, {self.limits})'
+    def __repr__(self) -> str:
+        return f'{self.type} {self.limits}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = TableType()
-        o.element_type = ElemType.from_reader(r)
-        o.limits = Limits.from_reader(r)
-        return o
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ElemType.from_reader(r), Limits.from_reader(r))
 
 
 class Mut(int):
@@ -543,7 +537,7 @@ class Table:
     #
     # table ::= {type tabletype}
     def __init__(self):
-        self.type: TableType = TableType()
+        self.type: TableType
 
     def __repr__(self):
         return f'table({self.type})'
