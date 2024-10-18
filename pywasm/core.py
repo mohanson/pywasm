@@ -82,23 +82,17 @@ class FuncType:
 
 class Limits:
     # Limits are encoded with a preceding flag indicating whether a maximum is present.
-    #
-    # limits ::= 0x00  n:u32        ⇒ {min n,max ϵ}
-    #          | 0x01  n:u32  m:u32 ⇒ {min n,max m}
-    def __init__(self):
-        self.n: int = 0
-        self.m: int = 0
+    def __init__(self, n: int, m: int) -> typing.Self:
+        self.n = n
+        self.m = m
 
-    def __repr__(self):
-        return f'limits({self.n}, {self.m})'
+    def __repr__(self) -> str:
+        return f'{self.n} {self.m}'
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        o = Limits()
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         flag = ord(r.read(1))
-        o.n = leb128.u.decode_reader(r)[0]
-        o.m = leb128.u.decode_reader(r)[0] if flag else 0x00
-        return o
+        return cls(leb128.u.decode_reader(r)[0],  leb128.u.decode_reader(r)[0] if flag else 0x00)
 
 
 class MemoryType:
@@ -109,7 +103,7 @@ class MemoryType:
     # The limits constrain the minimum and optionally the maximum size of a memory. The limits are given in units of
     # page size.
     def __init__(self):
-        self.limits: Limits = Limits()
+        self.limits: Limits
 
     def __repr__(self):
         return f'memory_type({self.limits.__repr__()})'
@@ -147,7 +141,7 @@ class TableType:
 
     def __init__(self):
         self.element_type: ElementType = ElementType()
-        self.limits: Limits = Limits()
+        self.limits: Limits
 
     def __repr__(self):
         return f'table_type({self.element_type}, {self.limits})'
