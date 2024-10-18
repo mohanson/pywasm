@@ -238,7 +238,7 @@ class MemoryInstance:
     #
     # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
     # maximum size, if present.
-    def __init__(self, type: core.MemoryType):
+    def __init__(self, type: core.MemType):
         self.type = type
         self.data = bytearray()
         self.size = 0
@@ -319,7 +319,7 @@ class Store:
         self.table_list.append(table_instance)
         return table_address
 
-    def allocate_memory(self, memory_type: core.MemoryType) -> MemoryAddress:
+    def allocate_memory(self, memory_type: core.MemType) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
         memory_instance = MemoryInstance(memory_type)
         self.memory_list.append(memory_instance)
@@ -420,7 +420,7 @@ def match_function(a: core.FuncType, b: core.FuncType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
 
 
-def match_memory(a: core.MemoryType, b: core.MemoryType) -> bool:
+def match_memory(a: core.MemType, b: core.MemType) -> bool:
     return match_limits(a.limits, b.limits)
 
 

@@ -9,7 +9,7 @@ class Context:
         type_list: typing.List[core.FuncType],
         function_list: typing.List[core.FuncType],
         table_list: typing.List[core.TableType],
-        memory_list: typing.List[core.MemoryType],
+        memory_list: typing.List[core.MemType],
         global_list: typing.List[core.GlobalType],
         local_list: typing.List[core.ValType],
         label_list: typing.List[core.ValType],
@@ -39,14 +39,14 @@ def validate(module: core.Module):
                 raise Exception('pywasm: invalid import descriptor, type index is out of range.')
             import_type_list.append(module.type_list[e.desc])
             continue
-        if isinstance(e.desc, (core.TableType, core.MemoryType, core.GlobalType)):
+        if isinstance(e.desc, (core.TableType, core.MemType, core.GlobalType)):
             import_type_list.append(module.type_list[e.desc])
             continue
         raise Exception('pywasm: unknown import descriptor type')
 
     import_function_types = [e for e in import_type_list if isinstance(e, core.FuncType)]
     import_table_types = [e for e in import_type_list if isinstance(e, core.TableType)]
-    import_memory_types = [e for e in import_type_list if isinstance(e, core.MemoryType)]
+    import_memory_types = [e for e in import_type_list if isinstance(e, core.MemType)]
     import_global_types = [e for e in import_type_list if isinstance(e, core.GlobalType)]
 
     context = Context(
