@@ -112,18 +112,30 @@ class MemType:
         return cls(Limits.from_reader(r))
 
 
-class ElementType(int):
+class ElemType:
     # The element type funcref is the infinite union of all function types. A table of that type thus contains
     # references to functions of heterogeneous type.
     # In future versions of WebAssembly, additional element types may be introduced.
-    def __repr__(self):
+
+    def __init__(self, data: int) -> typing.Self:
+        assert data == 0x70
+        self.data = data
+
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.data == value.data
+
+    def __repr__(self) -> str:
         return {
-            convention.funcref: 'funcref',
-        }[self]
+            0x70: 'funcref',
+        }[self.data]
 
     @classmethod
-    def from_reader(cls, r: typing.BinaryIO):
-        return ElementType(ord(r.read(1)))
+    def funcref(cls) -> typing.Self:
+        return cls(0x70)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
 
 
 class TableType:
@@ -137,7 +149,7 @@ class TableType:
     # type thus contains references to functions of heterogeneous type.
 
     def __init__(self):
-        self.element_type: ElementType = ElementType()
+        self.element_type: ElemType
         self.limits: Limits
 
     def __repr__(self):
@@ -146,7 +158,7 @@ class TableType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO):
         o = TableType()
-        o.element_type = ElementType.from_reader(r)
+        o.element_type = ElemType.from_reader(r)
         o.limits = Limits.from_reader(r)
         return o
 

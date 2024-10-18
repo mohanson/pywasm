@@ -315,7 +315,7 @@ class Store:
 
     def allocate_table(self, table_type: core.TableType) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
-        table_instance = TableInstance(convention.funcref, table_type.limits)
+        table_instance = TableInstance(core.ElemType.funcref(), table_type.limits)
         self.table_list.append(table_instance)
         return table_address
 
