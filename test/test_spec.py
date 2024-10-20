@@ -13,17 +13,17 @@ def parse_val(m):
         return pywasm.Val.from_i64(int(m['value']))
     if m['type'] == 'f32':
         if m['value'] == 'nan:canonical':
-            return pywasm.Val.from_f32_u32(pywasm.convention.f32_nan_canonical)
+            return pywasm.Val.from_f32_u32(0x7fc00000)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Val.from_f32_u32(pywasm.convention.f32_nan_canonical + 1)
+            return pywasm.Val.from_f32_u32(0x7fc00001)
         v = pywasm.Val.from_u32(int(m['value']))
         v.type = pywasm.core.ValType.f32()
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
-            return pywasm.Val.from_f64_u64(pywasm.convention.f64_nan_canonical)
+            return pywasm.Val.from_f64_u64(0x7ff8000000000000)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Val.from_f64_u64(pywasm.convention.f64_nan_canonical + 1)
+            return pywasm.Val.from_f64_u64(0x7ff8000000000001)
         v = pywasm.Val.from_u64(int(m['value']))
         v.type = pywasm.core.ValType.f64()
         return v

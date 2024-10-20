@@ -3,12 +3,16 @@ import struct
 import typing
 
 from . import core
-from . import convention
 from . import log
 from . import opcode
 from . import option
 
 from .core import Val
+
+memory_page_size = 64 * 1024
+memory_page = 2**16
+call_stack_depth = 128
+
 
 # ======================================================================================================================
 # Execution Runtime Structure
@@ -141,9 +145,9 @@ class MemoryInstance:
         if self.type.limits.m and self.size + n > self.type.limits.m:
             raise Exception('pywasm: out of memory limit')
         # If len is larger than 2**16, then fail
-        if self.size + n > convention.memory_page:
+        if self.size + n > memory_page:
             raise Exception('pywasm: out of memory limit')
-        self.data.extend([0x00 for _ in range(n * convention.memory_page_size)])
+        self.data.extend([0x00 for _ in range(n * memory_page_size)])
         self.size += n
 
 
@@ -531,7 +535,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def call_function_addr(config: Configuration, function_addr: FunctionAddress):
-        if config.depth > convention.call_stack_depth:
+        if config.depth > call_stack_depth:
             raise Exception('pywasm: call stack exhausted')
 
         function: FunctionInstance = config.store.function_list[function_addr]
@@ -759,23 +763,19 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def i32_const(config: Configuration, i: core.Instruction):
-        config.stack.append(Val.from_i32(i.args[0]))
+        config.stack.append(i.args[0])
 
     @staticmethod
     def i64_const(config: Configuration, i: core.Instruction):
-        config.stack.append(Val.from_i64(i.args[0]))
+        config.stack.append(i.args[0])
 
     @staticmethod
     def f32_const(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(i.args[0])
-        r.type = core.ValType.f32()
-        config.stack.append(r)
+        config.stack.append(i.args[0])
 
     @staticmethod
     def f64_const(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(i.args[0])
-        r.type = core.ValType.f64()
-        config.stack.append(r)
+        config.stack.append(i.args[0])
 
     @staticmethod
     def i32_eqz(config: Configuration, i: core.Instruction):

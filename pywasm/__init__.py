@@ -1,7 +1,6 @@
 import typing
 
 from . import core
-from . import convention
 from . import execution
 from . import leb128
 from . import log
