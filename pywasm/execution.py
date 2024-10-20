@@ -7,25 +7,14 @@ from . import log
 from . import opcode
 from . import option
 
-from .core import Val
+from .core import ValInst
 
-memory_page_size = 64 * 1024
-memory_page = 2**16
 call_stack_depth = 128
 
 
 # ======================================================================================================================
 # Execution Runtime Structure
 # ======================================================================================================================
-
-
-class Result:
-    # A result is the outcome of a computation. It is either a sequence of values or a trap.
-    def __init__(self, data: typing.List[Val]):
-        self.data = data
-
-    def __repr__(self):
-        return self.data.__repr__()
 
 
 class FunctionAddress(int):
@@ -70,7 +59,7 @@ class ModuleInstance:
 
 
 class WasmFunc:
-    def __init__(self, function_type: core.FuncType, module: ModuleInstance, code: core.Function):
+    def __init__(self, function_type: core.FuncType, module: ModuleInstance, code: core.FuncDesc):
         self.type = function_type
         self.module = module
         self.code = code
@@ -102,55 +91,6 @@ class HostFunc:
 FunctionInstance = typing.Union[WasmFunc, HostFunc]
 
 
-class TableInstance:
-    # A table instance is the runtime representation of a table. It holds a vector of function elements and an optional
-    # maximum size, if one was specified in the table type at the table’s definition site.
-    #
-    # Each function element is either empty, representing an uninitialized table entry, or a function address. Function
-    # elements can be mutated through the execution of an element segment or by external means provided by the embedder.
-    #
-    # tableinst ::= {elem vec(funcelem), max u32?}
-    # funcelem ::= funcaddr?
-    #
-    # It is an invariant of the semantics that the length of the element vector never exceeds the maximum size, if
-    # present.
-    def __init__(self, element_type: int, limits: core.Limits):
-        self.element_type = element_type
-        self.element_list: typing.List[typing.Optional[FunctionAddress]] = [None for _ in range(limits.n)]
-        self.limits = limits
-
-
-class MemoryInstance:
-    # A memory instance is the runtime representation of a linear memory. It holds a vector of bytes and an optional
-    # maximum size, if one was specified at the definition site of the memory.
-    #
-    # meminst ::= {data vec(byte), max u32?}
-    #
-    # The length of the vector always is a multiple of the WebAssembly page size, which is defined to be the constant
-    # 65536 – abbreviated 64Ki. Like in a memory type, the maximum size in a memory instance is given in units of this
-    # page size.
-    #
-    # The bytes can be mutated through memory instructions, the execution of a data segment, or by external means
-    # provided by the embedder.
-    #
-    # It is an invariant of the semantics that the length of the byte vector, divided by page size, never exceeds the
-    # maximum size, if present.
-    def __init__(self, type: core.MemType):
-        self.type = type
-        self.data = bytearray()
-        self.size = 0
-        self.grow(type.limits.n)
-
-    def grow(self, n: int):
-        if self.type.limits.m and self.size + n > self.type.limits.m:
-            raise Exception('pywasm: out of memory limit')
-        # If len is larger than 2**16, then fail
-        if self.size + n > memory_page:
-            raise Exception('pywasm: out of memory limit')
-        self.data.extend([0x00 for _ in range(n * memory_page_size)])
-        self.size += n
-
-
 class GlobalInstance:
     # A global instance is the runtime representation of a global variable. It holds an individual value and a flag
     # indicating whether it is mutable.
@@ -159,7 +99,7 @@ class GlobalInstance:
     #
     # The value of mutable globals can be mutated through variable instructions or by external means provided by the
     # embedder.
-    def __init__(self, value: Val, mut: core.Mut):
+    def __init__(self, value: ValInst, mut: int):
         self.value = value
         self.mut = mut
 
@@ -191,16 +131,16 @@ class Store:
     # a memory instance in the store, not an offset inside a memory instance.
     def __init__(self):
         self.function_list: typing.List[FunctionInstance] = []
-        self.table_list: typing.List[TableInstance] = []
-        self.memory_list: typing.List[MemoryInstance] = []
+        self.table_list: typing.List[core.TableInst] = []
+        self.memory_list: typing.List[core.MemInst] = []
         self.global_list: typing.List[GlobalInstance] = []
 
         # For compatibility with older 0.4.x versions
         self.mems = self.memory_list
 
-    def allocate_wasm_function(self, module: ModuleInstance, function: core.Function) -> FunctionAddress:
+    def allocate_wasm_function(self, module: ModuleInstance, function: core.FuncDesc) -> FunctionAddress:
         function_address = FunctionAddress(len(self.function_list))
-        function_type = module.type_list[function.type_index]
+        function_type = module.type_list[function.type]
         wasmfunc = WasmFunc(function_type, module, function)
         self.function_list.append(wasmfunc)
         return function_address
@@ -212,17 +152,17 @@ class Store:
 
     def allocate_table(self, table_type: core.TableType) -> TableAddress:
         table_address = TableAddress(len(self.table_list))
-        table_instance = TableInstance(core.ElemType.funcref(), table_type.limits)
+        table_instance = core.TableInst(table_type)
         self.table_list.append(table_instance)
         return table_address
 
     def allocate_memory(self, memory_type: core.MemType) -> MemoryAddress:
         memory_address = MemoryAddress(len(self.memory_list))
-        memory_instance = MemoryInstance(memory_type)
+        memory_instance = core.MemInst(memory_type)
         self.memory_list.append(memory_instance)
         return memory_address
 
-    def allocate_global(self, global_type: core.GlobalType, value: Val) -> GlobalAddress:
+    def allocate_global(self, global_type: core.GlobalType, value: ValInst) -> GlobalAddress:
         global_address = GlobalAddress(len(self.global_list))
         global_instance = GlobalInstance(value, global_type.mut)
         self.global_list.append(global_instance)
@@ -264,7 +204,7 @@ class Frame:
     # own module instance.
 
     def __init__(self, module: ModuleInstance,
-                 local_list: typing.List[Val],
+                 local_list: core.LocalsInst,
                  expr: core.Expr,
                  arity: int):
         self.module = module
@@ -286,12 +226,12 @@ class Stack:
     # These entries can occur on the stack in any order during the execution of a program. Stack entries are described
     # by abstract syntax as follows.
     def __init__(self):
-        self.data: typing.List[typing.Union[Val, Label, Frame]] = []
+        self.data: typing.List[typing.Union[ValInst, Label, Frame]] = []
 
     def len(self):
         return len(self.data)
 
-    def append(self, v: typing.Union[Val, Label, Frame]):
+    def append(self, v: typing.Union[ValInst, Label, Frame]):
         self.data.append(v)
 
     def pop(self):
@@ -303,22 +243,8 @@ class Stack:
 # ======================================================================================================================
 
 
-def match_limits(a: core.Limits, b: core.Limits) -> bool:
-    if a.n >= b.n:
-        if b.m == 0:
-            return 1
-        if a.m != 0 and b.m != 0:
-            if a.m < b.m:
-                return 1
-    return 0
-
-
 def match_function(a: core.FuncType, b: core.FuncType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
-
-
-def match_memory(a: core.MemType, b: core.MemType) -> bool:
-    return match_limits(a.limits, b.limits)
 
 
 # ======================================================================================================================
@@ -356,7 +282,7 @@ class Configuration:
         self.stack.append(frame)
         self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
 
-    def call(self, function_addr: FunctionAddress, function_args: typing.List[Val]) -> Result:
+    def call(self, function_addr: FunctionAddress, function_args: typing.List[ValInst]) -> core.ResultInst:
         function = self.store.function_list[function_addr]
         log.debugln(f'call {function}({function_args})')
         for e, t in zip(function_args, function.type.args.data):
@@ -364,10 +290,13 @@ class Configuration:
         assert len(function.type.rets.data) < 2
 
         if isinstance(function, WasmFunc):
-            local_list = [Val(e, bytearray(8)) for e in function.code.local_list]
+            local_list = core.LocalsInst(function_args)
+            for e in function.code.locals:
+                for _ in range(e.n):
+                    local_list.data.append(ValInst(e.type, bytearray(8)))
             frame = Frame(
                 module=function.module,
-                local_list=function_args + local_list,
+                local_list=local_list,
                 expr=function.code.expr,
                 arity=len(function.type.rets.data),
             )
@@ -377,10 +306,10 @@ class Configuration:
             r = function.hostcode(self.store, *[e.into_auto() for e in function_args])
             l = len(function.type.rets.data)
             if l == 0:
-                return Result([])
+                return core.ResultInst([])
             if l == 1:
-                return Result([Val.from_auto(function.type.rets.data[0], r)])
-            return [Val.from_auto(e, r[i]) for i, e in enumerate(function.type.rets.data)]
+                return core.ResultInst([ValInst.from_auto(function.type.rets.data[0], r)])
+            return [ValInst.from_auto(e, r[i]) for i, e in enumerate(function.type.rets.data)]
         raise Exception(f'pywasm: unknown function type: {function}')
 
     def exec(self):
@@ -398,7 +327,7 @@ class Configuration:
         r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
         l = self.stack.pop()
         assert l == self.frame
-        return Result(r)
+        return core.ResultInst(r)
 
 
 # ======================================================================================================================
@@ -409,50 +338,50 @@ class Configuration:
 class ArithmeticLogicUnit:
 
     @staticmethod
-    def exec(config: Configuration, i: core.Instruction):
+    def exec(config: Configuration, i: core.Inst):
         if log.lvl > 0:
             log.println('|', i)
         func = _INSTRUCTION_TABLE[i.opcode]
         func(config, i)
 
     @staticmethod
-    def unreachable(config: Configuration, i: core.Instruction):
+    def unreachable(config: Configuration, i: core.Inst):
         raise Exception('pywasm: unreachable')
 
     @staticmethod
-    def nop(config: Configuration, i: core.Instruction):
+    def nop(config: Configuration, i: core.Inst):
         pass
 
     @staticmethod
-    def block(config: Configuration, i: core.Instruction):
+    def block(config: Configuration, i: core.Inst):
         arity = i.args[0].type
         assert arity < 2
-        continuation = config.frame.expr.position[config.pc][1]
+        continuation = config.frame.expr.jump[config.pc][1]
         config.stack.append(Label(arity, continuation))
 
     @staticmethod
-    def loop(config: Configuration, i: core.Instruction):
+    def loop(config: Configuration, i: core.Inst):
         arity = i.args[0].type
         assert arity < 2
-        continuation = config.frame.expr.position[config.pc][0]
+        continuation = config.frame.expr.jump[config.pc][0]
         config.stack.append(Label(arity, continuation))
 
     @staticmethod
-    def if_then(config: Configuration, i: core.Instruction):
+    def if_then(config: Configuration, i: core.Inst):
         c = config.stack.pop().into_i32()
         arity = i.args[0].type
         assert arity < 2
-        continuation = config.frame.expr.position[config.pc][1]
+        continuation = config.frame.expr.jump[config.pc][1]
         config.stack.append(Label(arity, continuation))
         if c == 0:
-            if len(config.frame.expr.position[config.pc]) == 3:
-                config.pc = config.frame.expr.position[config.pc][2]
+            if len(config.frame.expr.jump[config.pc]) == 3:
+                config.pc = config.frame.expr.jump[config.pc][2]
             else:
-                config.pc = config.frame.expr.position[config.pc][1]
+                config.pc = config.frame.expr.jump[config.pc][1]
                 config.stack.pop()
 
     @staticmethod
-    def else_fi(config: Configuration, i: core.Instruction):
+    def else_fi(config: Configuration, i: core.Inst):
         L = config.get_label(0)
         v = [config.stack.pop() for _ in range(L.arity)][::-1]
         while True:
@@ -460,10 +389,10 @@ class ArithmeticLogicUnit:
                 break
         for e in v:
             config.stack.append(e)
-        config.pc = config.frame.expr.position[config.pc][1]
+        config.pc = config.frame.expr.jump[config.pc][1]
 
     @staticmethod
-    def end(config: Configuration, i: core.Instruction):
+    def end(config: Configuration, i: core.Inst):
         L = config.get_label(0)
         v = [config.stack.pop() for _ in range(L.arity)][::-1]
         while True:
@@ -500,19 +429,19 @@ class ArithmeticLogicUnit:
         config.pc = L.continuation
 
     @staticmethod
-    def br(config: Configuration, i: core.Instruction):
+    def br(config: Configuration, i: core.Inst):
         l = i.args[0]
         return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
-    def br_if(config: Configuration, i: core.Instruction):
+    def br_if(config: Configuration, i: core.Inst):
         if config.stack.pop().into_i32() == 0:
             return
         l = i.args[0]
         return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
-    def br_table(config: Configuration, i: core.Instruction):
+    def br_table(config: Configuration, i: core.Inst):
         a = i.args[0]
         l = i.args[1]
         c = config.stack.pop().into_i32()
@@ -521,7 +450,7 @@ class ArithmeticLogicUnit:
         return ArithmeticLogicUnit.br_label(config, l)
 
     @staticmethod
-    def return_call(config: Configuration, i: core.Instruction):
+    def return_call(config: Configuration, i: core.Inst):
         v = [config.stack.pop() for _ in range(config.frame.arity)][::-1]
         while True:
             e = config.stack.pop()
@@ -550,30 +479,30 @@ class ArithmeticLogicUnit:
             config.stack.append(e)
 
     @staticmethod
-    def call(config: Configuration, i: core.Instruction):
+    def call(config: Configuration, i: core.Inst):
         function_addr: int = i.args[0]
         ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
-    def call_indirect(config: Configuration, i: core.Instruction):
+    def call_indirect(config: Configuration, i: core.Inst):
         if i.args[1] != 0x00:
             raise Exception("pywasm: zero byte malformed in call_indirect")
         ta = config.frame.module.table_addr_list[0]
         tab = config.store.table_list[ta]
         idx = config.stack.pop().into_i32()
-        if not 0 <= idx < len(tab.element_list):
+        if not 0 <= idx < len(tab.elem):
             raise Exception('pywasm: undefined element')
-        function_addr = tab.element_list[idx]
+        function_addr = tab.elem[idx]
         if function_addr is None:
             raise Exception('pywasm: uninitialized element')
         ArithmeticLogicUnit.call_function_addr(config, function_addr)
 
     @staticmethod
-    def drop(config: Configuration, i: core.Instruction):
+    def drop(config: Configuration, i: core.Inst):
         config.stack.pop()
 
     @staticmethod
-    def select(config: Configuration, i: core.Instruction):
+    def select(config: Configuration, i: core.Inst):
         c = config.stack.pop().into_i32()
         b = config.stack.pop()
         a = config.stack.pop()
@@ -583,38 +512,38 @@ class ArithmeticLogicUnit:
             config.stack.append(b)
 
     @staticmethod
-    def local_get(config: Configuration, i: core.Instruction):
-        r = config.frame.local_list[i.args[0]]
-        o = Val(r.type, r.data.copy())
+    def local_get(config: Configuration, i: core.Inst):
+        r = config.frame.local_list.data[i.args[0]]
+        o = ValInst(r.type, r.data.copy())
         config.stack.append(o)
 
     @staticmethod
-    def local_set(config: Configuration, i: core.Instruction):
+    def local_set(config: Configuration, i: core.Inst):
         r = config.stack.pop()
-        config.frame.local_list[i.args[0]] = r
+        config.frame.local_list.data[i.args[0]] = r
 
     @staticmethod
-    def local_tee(config: Configuration, i: core.Instruction):
+    def local_tee(config: Configuration, i: core.Inst):
         r = config.stack.data[-1]
-        o = Val(r.type, r.data.copy())
-        config.frame.local_list[i.args[0]] = o
+        o = ValInst(r.type, r.data.copy())
+        config.frame.local_list.data[i.args[0]] = o
 
     @staticmethod
-    def global_get(config: Configuration, i: core.Instruction):
+    def global_get(config: Configuration, i: core.Inst):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
         r = glob.value
         config.stack.append(r)
 
     @staticmethod
-    def global_set(config: Configuration, i: core.Instruction):
+    def global_set(config: Configuration, i: core.Inst):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        assert glob.mut == core.Mut.var()
+        assert glob.mut == 0x01
         glob.value = config.stack.pop()
 
     @staticmethod
-    def mem_load(config: Configuration, i: core.Instruction, size: int) -> bytearray:
+    def mem_load(config: Configuration, i: core.Inst, size: int) -> bytearray:
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         offset = i.args[1]
@@ -624,77 +553,77 @@ class ArithmeticLogicUnit:
         return memory.data[addr:addr + size]
 
     @staticmethod
-    def i32_load(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(struct.unpack('<i', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
+    def i32_load(config: Configuration, i: core.Inst):
+        r = ValInst.from_i32(struct.unpack('<i', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<q', ArithmeticLogicUnit.mem_load(config, i, 8))[0])
+    def i64_load(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<q', ArithmeticLogicUnit.mem_load(config, i, 8))[0])
         config.stack.append(r)
 
     @staticmethod
-    def f32_load(config: Configuration, i: core.Instruction):
-        r = Val.from_f32(struct.unpack('<f', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
+    def f32_load(config: Configuration, i: core.Inst):
+        r = ValInst.from_f32(struct.unpack('<f', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
         config.stack.append(r)
 
     @staticmethod
-    def f64_load(config: Configuration, i: core.Instruction):
-        r = Val.from_f64(struct.unpack('<d', ArithmeticLogicUnit.mem_load(config, i, 8))[0])
+    def f64_load(config: Configuration, i: core.Inst):
+        r = ValInst.from_f64(struct.unpack('<d', ArithmeticLogicUnit.mem_load(config, i, 8))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i32_load8_s(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(struct.unpack('<b', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
+    def i32_load8_s(config: Configuration, i: core.Inst):
+        r = ValInst.from_i32(struct.unpack('<b', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i32_load8_u(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(struct.unpack('<B', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
+    def i32_load8_u(config: Configuration, i: core.Inst):
+        r = ValInst.from_i32(struct.unpack('<B', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i32_load16_s(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(struct.unpack('<h', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
+    def i32_load16_s(config: Configuration, i: core.Inst):
+        r = ValInst.from_i32(struct.unpack('<h', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i32_load16_u(config: Configuration, i: core.Instruction):
-        r = Val.from_i32(struct.unpack('<H', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
+    def i32_load16_u(config: Configuration, i: core.Inst):
+        r = ValInst.from_i32(struct.unpack('<H', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load8_s(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<b', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
+    def i64_load8_s(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<b', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load8_u(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<B', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
+    def i64_load8_u(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<B', ArithmeticLogicUnit.mem_load(config, i, 1))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load16_s(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<h', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
+    def i64_load16_s(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<h', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load16_u(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<H', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
+    def i64_load16_u(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<H', ArithmeticLogicUnit.mem_load(config, i, 2))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load32_s(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<i', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
+    def i64_load32_s(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<i', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
         config.stack.append(r)
 
     @staticmethod
-    def i64_load32_u(config: Configuration, i: core.Instruction):
-        r = Val.from_i64(struct.unpack('<I', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
+    def i64_load32_u(config: Configuration, i: core.Inst):
+        r = ValInst.from_i64(struct.unpack('<I', ArithmeticLogicUnit.mem_load(config, i, 4))[0])
         config.stack.append(r)
 
     @staticmethod
-    def mem_store(config: Configuration, i: core.Instruction, size: int):
+    def mem_store(config: Configuration, i: core.Inst, size: int):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         r = config.stack.pop()
@@ -705,50 +634,50 @@ class ArithmeticLogicUnit:
         memory.data[addr:addr + size] = r.data[0:size]
 
     @staticmethod
-    def i32_store(config: Configuration, i: core.Instruction):
+    def i32_store(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
-    def i64_store(config: Configuration, i: core.Instruction):
+    def i64_store(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 8)
 
     @staticmethod
-    def f32_store(config: Configuration, i: core.Instruction):
+    def f32_store(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
-    def f64_store(config: Configuration, i: core.Instruction):
+    def f64_store(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 8)
 
     @staticmethod
-    def i32_store8(config: Configuration, i: core.Instruction):
+    def i32_store8(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 1)
 
     @staticmethod
-    def i32_store16(config: Configuration, i: core.Instruction):
+    def i32_store16(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 2)
 
     @staticmethod
-    def i64_store8(config: Configuration, i: core.Instruction):
+    def i64_store8(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
-    def i64_store16(config: Configuration, i: core.Instruction):
+    def i64_store16(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 2)
 
     @staticmethod
-    def i64_store32(config: Configuration, i: core.Instruction):
+    def i64_store32(config: Configuration, i: core.Inst):
         ArithmeticLogicUnit.mem_store(config, i, 4)
 
     @staticmethod
-    def memory_size(config: Configuration, i: core.Instruction):
+    def memory_size(config: Configuration, i: core.Inst):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
-        r = Val.from_i32(memory.size)
+        r = ValInst.from_i32(memory.size)
         config.stack.append(r)
 
     @staticmethod
-    def memory_grow(config: Configuration, i: core.Instruction):
+    def memory_grow(config: Configuration, i: core.Inst):
         memory_addr = config.frame.module.memory_addr_list[0]
         memory = config.store.memory_list[memory_addr]
         size = memory.size
@@ -757,277 +686,281 @@ class ArithmeticLogicUnit:
             raise Exception('pywasm: out of memory limit')
         try:
             memory.grow(r)
-            config.stack.append(Val.from_i32(size))
+            config.stack.append(ValInst.from_i32(size))
         except Exception:
-            config.stack.append(Val.from_i32(-1))
+            config.stack.append(ValInst.from_i32(-1))
 
     @staticmethod
-    def i32_const(config: Configuration, i: core.Instruction):
-        config.stack.append(i.args[0])
+    def i32_const(config: Configuration, i: core.Inst):
+        config.stack.append(ValInst.from_i32(i.args[0]))
 
     @staticmethod
-    def i64_const(config: Configuration, i: core.Instruction):
-        config.stack.append(i.args[0])
+    def i64_const(config: Configuration, i: core.Inst):
+        config.stack.append(ValInst.from_i64(i.args[0]))
 
     @staticmethod
-    def f32_const(config: Configuration, i: core.Instruction):
-        config.stack.append(i.args[0])
+    def f32_const(config: Configuration, i: core.Inst):
+        o = ValInst.from_i32(i.args[0])
+        o.type = core.ValType.f32()
+        config.stack.append(o)
 
     @staticmethod
-    def f64_const(config: Configuration, i: core.Instruction):
-        config.stack.append(i.args[0])
+    def f64_const(config: Configuration, i: core.Inst):
+        o = ValInst.from_i64(i.args[0])
+        o.type = core.ValType.f64()
+        config.stack.append(o)
 
     @staticmethod
-    def i32_eqz(config: Configuration, i: core.Instruction):
-        config.stack.append(Val.from_i32(config.stack.pop().into_i32() == 0))
+    def i32_eqz(config: Configuration, i: core.Inst):
+        config.stack.append(ValInst.from_i32(config.stack.pop().into_i32() == 0))
 
     @staticmethod
-    def i32_eq(config: Configuration, i: core.Instruction):
+    def i32_eq(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(a == b))
+        config.stack.append(ValInst.from_i32(a == b))
 
     @staticmethod
-    def i32_ne(config: Configuration, i: core.Instruction):
+    def i32_ne(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(a != b))
+        config.stack.append(ValInst.from_i32(a != b))
 
     @staticmethod
-    def i32_lt_s(config: Configuration, i: core.Instruction):
+    def i32_lt_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def i32_lt_u(config: Configuration, i: core.Instruction):
+    def i32_lt_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def i32_gt_s(config: Configuration, i: core.Instruction):
+    def i32_gt_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def i32_gt_u(config: Configuration, i: core.Instruction):
+    def i32_gt_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def i32_le_s(config: Configuration, i: core.Instruction):
+    def i32_le_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def i32_le_u(config: Configuration, i: core.Instruction):
+    def i32_le_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def i32_ge_s(config: Configuration, i: core.Instruction):
+    def i32_ge_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        config.stack.append(Val.from_i32(int(a >= b)))
+        config.stack.append(ValInst.from_i32(int(a >= b)))
 
     @staticmethod
-    def i32_ge_u(config: Configuration, i: core.Instruction):
+    def i32_ge_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
-        config.stack.append(Val.from_i32(int(a >= b)))
+        config.stack.append(ValInst.from_i32(int(a >= b)))
 
     @staticmethod
-    def i64_eqz(config: Configuration, i: core.Instruction):
-        config.stack.append(Val.from_i32(config.stack.pop().into_i64() == 0))
+    def i64_eqz(config: Configuration, i: core.Inst):
+        config.stack.append(ValInst.from_i32(config.stack.pop().into_i64() == 0))
 
     @staticmethod
-    def i64_eq(config: Configuration, i: core.Instruction):
+    def i64_eq(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a == b))
+        config.stack.append(ValInst.from_i32(a == b))
 
     @staticmethod
-    def i64_ne(config: Configuration, i: core.Instruction):
+    def i64_ne(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a != b))
+        config.stack.append(ValInst.from_i32(a != b))
 
     @staticmethod
-    def i64_lt_s(config: Configuration, i: core.Instruction):
+    def i64_lt_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def i64_lt_u(config: Configuration, i: core.Instruction):
+    def i64_lt_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def i64_gt_s(config: Configuration, i: core.Instruction):
+    def i64_gt_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def i64_gt_u(config: Configuration, i: core.Instruction):
+    def i64_gt_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def i64_le_s(config: Configuration, i: core.Instruction):
+    def i64_le_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def i64_le_u(config: Configuration, i: core.Instruction):
+    def i64_le_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def i64_ge_s(config: Configuration, i: core.Instruction):
+    def i64_ge_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a >= b))
+        config.stack.append(ValInst.from_i32(a >= b))
 
     @staticmethod
-    def i64_ge_u(config: Configuration, i: core.Instruction):
+    def i64_ge_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
-        config.stack.append(Val.from_i32(a >= b))
+        config.stack.append(ValInst.from_i32(a >= b))
 
     @staticmethod
-    def f32_eq(config: Configuration, i: core.Instruction):
+    def f32_eq(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a == b))
+        config.stack.append(ValInst.from_i32(a == b))
 
     @staticmethod
-    def f32_ne(config: Configuration, i: core.Instruction):
+    def f32_ne(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a != b))
+        config.stack.append(ValInst.from_i32(a != b))
 
     @staticmethod
-    def f32_lt(config: Configuration, i: core.Instruction):
+    def f32_lt(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def f32_gt(config: Configuration, i: core.Instruction):
+    def f32_gt(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def f32_le(config: Configuration, i: core.Instruction):
+    def f32_le(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def f32_ge(config: Configuration, i: core.Instruction):
+    def f32_ge(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        config.stack.append(Val.from_i32(a >= b))
+        config.stack.append(ValInst.from_i32(a >= b))
 
     @staticmethod
-    def f64_eq(config: Configuration, i: core.Instruction):
+    def f64_eq(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a == b))
+        config.stack.append(ValInst.from_i32(a == b))
 
     @staticmethod
-    def f64_ne(config: Configuration, i: core.Instruction):
+    def f64_ne(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a != b))
+        config.stack.append(ValInst.from_i32(a != b))
 
     @staticmethod
-    def f64_lt(config: Configuration, i: core.Instruction):
+    def f64_lt(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a < b))
+        config.stack.append(ValInst.from_i32(a < b))
 
     @staticmethod
-    def f64_gt(config: Configuration, i: core.Instruction):
+    def f64_gt(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a > b))
+        config.stack.append(ValInst.from_i32(a > b))
 
     @staticmethod
-    def f64_le(config: Configuration, i: core.Instruction):
+    def f64_le(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a <= b))
+        config.stack.append(ValInst.from_i32(a <= b))
 
     @staticmethod
-    def f64_ge(config: Configuration, i: core.Instruction):
+    def f64_ge(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        config.stack.append(Val.from_i32(a >= b))
+        config.stack.append(ValInst.from_i32(a >= b))
 
     @staticmethod
-    def i32_clz(config: Configuration, i: core.Instruction):
+    def i32_clz(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
         c = 0
         while c < 32 and (a & 0x80000000) == 0:
             c += 1
             a = a << 1
-        config.stack.append(Val.from_i32(c))
+        config.stack.append(ValInst.from_i32(c))
 
     @staticmethod
-    def i32_ctz(config: Configuration, i: core.Instruction):
+    def i32_ctz(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
         c = 0
         while c < 32 and (a & 0x01) == 0:
             c += 1
             a = a >> 1
-        config.stack.append(Val.from_i32(c))
+        config.stack.append(ValInst.from_i32(c))
 
     @staticmethod
-    def i32_popcnt(config: Configuration, i: core.Instruction):
+    def i32_popcnt(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
         c = 0
         for _ in range(32):
             if a & 0x01:
                 c += 1
             a = a >> 1
-        config.stack.append(Val.from_i32(c))
+        config.stack.append(ValInst.from_i32(c))
 
     @staticmethod
-    def i32_add(config: Configuration, i: core.Instruction):
+    def i32_add(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a + b)
+        c = ValInst.from_i32(a + b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_sub(config: Configuration, i: core.Instruction):
+    def i32_sub(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a - b)
+        c = ValInst.from_i32(a - b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_mul(config: Configuration, i: core.Instruction):
+    def i32_mul(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a * b)
+        c = ValInst.from_i32(a * b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_div_s(config: Configuration, i: core.Instruction):
+    def i32_div_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
         if b == 0:
@@ -1035,245 +968,245 @@ class ArithmeticLogicUnit:
         if b == -1 and a == -2**31:
             raise Exception('pywasm: integer overflow')
         # Integer division that rounds towards 0 (like C)
-        r = Val.from_i32(a // b if a * b > 0 else (a + (-a % b)) // b)
+        r = ValInst.from_i32(a // b if a * b > 0 else (a + (-a % b)) // b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_div_u(config: Configuration, i: core.Instruction):
+    def i32_div_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
-        r = Val.from_i32(a // b)
+        r = ValInst.from_i32(a // b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_rem_s(config: Configuration, i: core.Instruction):
+    def i32_rem_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
         # Integer remainder that rounds towards 0 (like C)
-        r = Val.from_i32(a % b if a * b > 0 else -(-a % b))
+        r = ValInst.from_i32(a % b if a * b > 0 else -(-a % b))
         config.stack.append(r)
 
     @staticmethod
-    def i32_rem_u(config: Configuration, i: core.Instruction):
+    def i32_rem_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
-        r = Val.from_i32(a % b)
+        r = ValInst.from_i32(a % b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_and(config: Configuration, i: core.Instruction):
+    def i32_and(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a & b)
+        c = ValInst.from_i32(a & b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_or(config: Configuration, i: core.Instruction):
+    def i32_or(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a | b)
+        c = ValInst.from_i32(a | b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_xor(config: Configuration, i: core.Instruction):
+    def i32_xor(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a ^ b)
+        c = ValInst.from_i32(a ^ b)
         config.stack.append(c)
 
     @staticmethod
-    def i32_shl(config: Configuration, i: core.Instruction):
+    def i32_shl(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a << (b % 0x20))
+        c = ValInst.from_i32(a << (b % 0x20))
         config.stack.append(c)
 
     @staticmethod
-    def i32_shr_s(config: Configuration, i: core.Instruction):
+    def i32_shr_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_i32()
-        c = Val.from_i32(a >> (b % 0x20))
+        c = ValInst.from_i32(a >> (b % 0x20))
         config.stack.append(c)
 
     @staticmethod
-    def i32_shr_u(config: Configuration, i: core.Instruction):
+    def i32_shr_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u32()
         a = config.stack.pop().into_u32()
-        c = Val.from_i32(a >> (b % 0x20))
+        c = ValInst.from_i32(a >> (b % 0x20))
         config.stack.append(c)
 
     @staticmethod
-    def i32_rotl(config: Configuration, i: core.Instruction):
+    def i32_rotl(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_u32()
-        c = Val.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+        c = ValInst.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
         config.stack.append(c)
 
     @staticmethod
-    def i32_rotr(config: Configuration, i: core.Instruction):
+    def i32_rotr(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i32()
         a = config.stack.pop().into_u32()
-        c = Val.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+        c = ValInst.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
         config.stack.append(c)
 
     @staticmethod
-    def i64_clz(config: Configuration, i: core.Instruction):
+    def i64_clz(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
         c = 0
         while c < 64 and (a & 0x8000000000000000) == 0:
             c += 1
             a = a << 1
-        config.stack.append(Val.from_i64(c))
+        config.stack.append(ValInst.from_i64(c))
 
     @staticmethod
-    def i64_ctz(config: Configuration, i: core.Instruction):
+    def i64_ctz(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
         c = 0
         while c < 64 and (a & 0x01) == 0:
             c += 1
             a = a >> 1
-        config.stack.append(Val.from_i64(c))
+        config.stack.append(ValInst.from_i64(c))
 
     @staticmethod
-    def i64_popcnt(config: Configuration, i: core.Instruction):
+    def i64_popcnt(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
         c = 0
         for _ in range(64):
             if a & 0x01:
                 c += 1
             a = a >> 1
-        config.stack.append(Val.from_i64(c))
+        config.stack.append(ValInst.from_i64(c))
 
     @staticmethod
-    def i64_add(config: Configuration, i: core.Instruction):
+    def i64_add(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a + b)
+        c = ValInst.from_i64(a + b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_sub(config: Configuration, i: core.Instruction):
+    def i64_sub(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a - b)
+        c = ValInst.from_i64(a - b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_mul(config: Configuration, i: core.Instruction):
+    def i64_mul(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a * b)
+        c = ValInst.from_i64(a * b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_div_s(config: Configuration, i: core.Instruction):
+    def i64_div_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
         if b == -1 and a == -2**63:
             raise Exception('pywasm: integer overflow')
-        r = Val.from_i64(a // b if a * b > 0 else (a + (-a % b)) // b)
+        r = ValInst.from_i64(a // b if a * b > 0 else (a + (-a % b)) // b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_div_u(config: Configuration, i: core.Instruction):
+    def i64_div_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
-        r = Val.from_i64(a // b)
+        r = ValInst.from_i64(a // b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_rem_s(config: Configuration, i: core.Instruction):
+    def i64_rem_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
         # Integer remainder that rounds towards 0 (like C)
-        r = Val.from_i64(a % b if a * b > 0 else -(-a % b))
+        r = ValInst.from_i64(a % b if a * b > 0 else -(-a % b))
         config.stack.append(r)
 
     @staticmethod
-    def i64_rem_u(config: Configuration, i: core.Instruction):
+    def i64_rem_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
         if b == 0:
             raise Exception('pywasm: integer divide by zero')
-        r = Val.from_i64(a % b)
+        r = ValInst.from_i64(a % b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_and(config: Configuration, i: core.Instruction):
+    def i64_and(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a & b)
+        c = ValInst.from_i64(a & b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_or(config: Configuration, i: core.Instruction):
+    def i64_or(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a | b)
+        c = ValInst.from_i64(a | b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_xor(config: Configuration, i: core.Instruction):
+    def i64_xor(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a & b)
+        c = ValInst.from_i64(a & b)
         config.stack.append(c)
 
     @staticmethod
-    def i64_shl(config: Configuration, i: core.Instruction):
+    def i64_shl(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a << (b % 0x40))
+        c = ValInst.from_i64(a << (b % 0x40))
         config.stack.append(c)
 
     @staticmethod
-    def i64_shr_s(config: Configuration, i: core.Instruction):
+    def i64_shr_s(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_i64()
-        c = Val.from_i64(a >> (b % 0x40))
+        c = ValInst.from_i64(a >> (b % 0x40))
         config.stack.append(c)
 
     @staticmethod
-    def i64_shr_u(config: Configuration, i: core.Instruction):
+    def i64_shr_u(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_u64()
         a = config.stack.pop().into_u64()
-        c = Val.from_i64(a >> (b % 0x40))
+        c = ValInst.from_i64(a >> (b % 0x40))
         config.stack.append(c)
 
     @staticmethod
-    def i64_rotl(config: Configuration, i: core.Instruction):
+    def i64_rotl(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_u64()
-        c = Val.from_i64((((a << (b % 0x40)) & 0xffffffffffffffff) | (a >> (0x40 - (b % 0x40)))))
+        c = ValInst.from_i64((((a << (b % 0x40)) & 0xffffffffffffffff) | (a >> (0x40 - (b % 0x40)))))
         config.stack.append(c)
 
     @staticmethod
-    def i64_rotr(config: Configuration, i: core.Instruction):
+    def i64_rotr(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_i64()
         a = config.stack.pop().into_u64()
-        c = Val.from_i64(((a >> (b % 0x40)) | ((a << (0x40 - (b % 0x40))) & 0xffffffffffffffff)))
+        c = ValInst.from_i64(((a >> (b % 0x40)) | ((a << (0x40 - (b % 0x40))) & 0xffffffffffffffff)))
         config.stack.append(c)
 
     @staticmethod
-    def f32_abs(config: Configuration, i: core.Instruction):
+    def f32_abs(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.data[3] = a.data[3] & 0x7f
         config.stack.append(a)
 
     @staticmethod
-    def f32_neg(config: Configuration, i: core.Instruction):
+    def f32_neg(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         if a.data[3] & 0x80 != 0x00:
             a.data[3] = a.data[3] & 0x7f
@@ -1282,81 +1215,81 @@ class ArithmeticLogicUnit:
         config.stack.append(a)
 
     @staticmethod
-    def f32_ceil(config: Configuration, i: core.Instruction):
+    def f32_ceil(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         try:
-            r = Val.from_f32(float(math.ceil(a)))
+            r = ValInst.from_f32(float(math.ceil(a)))
         except OverflowError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         except ValueError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         config.stack.append(r)
 
     @staticmethod
-    def f32_floor(config: Configuration, i: core.Instruction):
+    def f32_floor(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         try:
-            r = Val.from_f32(float(math.floor(a)))
+            r = ValInst.from_f32(float(math.floor(a)))
         except OverflowError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         except ValueError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         config.stack.append(r)
 
     @staticmethod
-    def f32_trunc(config: Configuration, i: core.Instruction):
+    def f32_trunc(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         try:
-            r = Val.from_f32(float(math.trunc(a)))
+            r = ValInst.from_f32(float(math.trunc(a)))
         except OverflowError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         except ValueError:
-            r = Val.from_f32(a)
+            r = ValInst.from_f32(a)
         config.stack.append(r)
 
     @staticmethod
-    def f32_nearest(config: Configuration, i: core.Instruction):
+    def f32_nearest(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         try:
-            r = Val.from_f32(float(round(a)))
+            r = ValInst.from_f32(float(round(a)))
         except OverflowError:
-            r = Val.from_f32(math.inf)
+            r = ValInst.from_f32(math.inf)
         except ValueError:
-            r = Val.from_f32(math.nan)
+            r = ValInst.from_f32(math.nan)
         config.stack.append(r)
 
     @staticmethod
-    def f32_sqrt(config: Configuration, i: core.Instruction):
+    def f32_sqrt(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         try:
-            r = Val.from_f32(math.sqrt(a))
+            r = ValInst.from_f32(math.sqrt(a))
         except ValueError:
-            r = Val.from_f32(math.nan)
+            r = ValInst.from_f32(math.nan)
         config.stack.append(r)
 
     @staticmethod
-    def f32_add(config: Configuration, i: core.Instruction):
+    def f32_add(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        r = Val.from_f32(a + b)
+        r = ValInst.from_f32(a + b)
         config.stack.append(r)
 
     @staticmethod
-    def f32_sub(config: Configuration, i: core.Instruction):
+    def f32_sub(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        r = Val.from_f32(a - b)
+        r = ValInst.from_f32(a - b)
         config.stack.append(r)
 
     @staticmethod
-    def f32_mul(config: Configuration, i: core.Instruction):
+    def f32_mul(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        r = Val.from_f32(a * b)
+        r = ValInst.from_f32(a * b)
         config.stack.append(r)
 
     @staticmethod
-    def f32_div(config: Configuration, i: core.Instruction):
+    def f32_div(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
         try:
@@ -1372,42 +1305,42 @@ class ArithmeticLogicUnit:
                 c = sign * math.nan
             else:
                 c = sign * math.inf
-        r = Val.from_f32(c)
+        r = ValInst.from_f32(c)
         config.stack.append(r)
 
     @staticmethod
-    def f32_min(config: Configuration, i: core.Instruction):
+    def f32_min(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
         if math.isnan(a) or math.isnan(b):
-            config.stack.append(Val.from_f32(math.nan))
+            config.stack.append(ValInst.from_f32(math.nan))
         else:
-            config.stack.append(Val.from_f32(a if a < b else b))
+            config.stack.append(ValInst.from_f32(a if a < b else b))
 
     @staticmethod
-    def f32_max(config: Configuration, i: core.Instruction):
+    def f32_max(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
         if math.isnan(a) or math.isnan(b):
-            config.stack.append(Val.from_f32(math.nan))
+            config.stack.append(ValInst.from_f32(math.nan))
         else:
-            config.stack.append(Val.from_f32(a if a > b else b))
+            config.stack.append(ValInst.from_f32(a if a > b else b))
 
     @staticmethod
-    def f32_copysign(config: Configuration, i: core.Instruction):
+    def f32_copysign(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f32()
         a = config.stack.pop().into_f32()
-        r = Val.from_f32(math.copysign(a, b))
+        r = ValInst.from_f32(math.copysign(a, b))
         config.stack.append(r)
 
     @staticmethod
-    def f64_abs(config: Configuration, i: core.Instruction):
+    def f64_abs(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.data[7] = a.data[7] & 0x7f
         config.stack.append(a)
 
     @staticmethod
-    def f64_neg(config: Configuration, i: core.Instruction):
+    def f64_neg(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         if a.data[7] & 0x80 != 0x00:
             a.data[7] = a.data[7] & 0x7f
@@ -1416,81 +1349,81 @@ class ArithmeticLogicUnit:
         config.stack.append(a)
 
     @staticmethod
-    def f64_ceil(config: Configuration, i: core.Instruction):
+    def f64_ceil(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         try:
-            r = Val.from_f64(float(math.ceil(a)))
+            r = ValInst.from_f64(float(math.ceil(a)))
         except OverflowError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         except ValueError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         config.stack.append(r)
 
     @staticmethod
-    def f64_floor(config: Configuration, i: core.Instruction):
+    def f64_floor(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         try:
-            r = Val.from_f64(float(math.floor(a)))
+            r = ValInst.from_f64(float(math.floor(a)))
         except OverflowError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         except ValueError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         config.stack.append(r)
 
     @staticmethod
-    def f64_trunc(config: Configuration, i: core.Instruction):
+    def f64_trunc(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         try:
-            r = Val.from_f64(float(math.trunc(a)))
+            r = ValInst.from_f64(float(math.trunc(a)))
         except OverflowError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         except ValueError:
-            r = Val.from_f64(a)
+            r = ValInst.from_f64(a)
         config.stack.append(r)
 
     @staticmethod
-    def f64_nearest(config: Configuration, i: core.Instruction):
+    def f64_nearest(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         try:
-            r = Val.from_f64(float(round(a)))
+            r = ValInst.from_f64(float(round(a)))
         except OverflowError:
-            r = Val.from_f64(math.inf)
+            r = ValInst.from_f64(math.inf)
         except ValueError:
-            r = Val.from_f64(math.nan)
+            r = ValInst.from_f64(math.nan)
         config.stack.append(r)
 
     @staticmethod
-    def f64_sqrt(config: Configuration, i: core.Instruction):
+    def f64_sqrt(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         try:
-            r = Val.from_f64(math.sqrt(a))
+            r = ValInst.from_f64(math.sqrt(a))
         except ValueError:
-            r = Val.from_f64(math.nan)
+            r = ValInst.from_f64(math.nan)
         config.stack.append(r)
 
     @staticmethod
-    def f64_add(config: Configuration, i: core.Instruction):
+    def f64_add(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        r = Val.from_f64(a + b)
+        r = ValInst.from_f64(a + b)
         config.stack.append(r)
 
     @staticmethod
-    def f64_sub(config: Configuration, i: core.Instruction):
+    def f64_sub(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        r = Val.from_f64(a - b)
+        r = ValInst.from_f64(a - b)
         config.stack.append(r)
 
     @staticmethod
-    def f64_mul(config: Configuration, i: core.Instruction):
+    def f64_mul(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        r = Val.from_f64(a * b)
+        r = ValInst.from_f64(a * b)
         config.stack.append(r)
 
     @staticmethod
-    def f64_div(config: Configuration, i: core.Instruction):
+    def f64_div(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
         try:
@@ -1506,41 +1439,41 @@ class ArithmeticLogicUnit:
                 c = sign * math.nan
             else:
                 c = sign * math.inf
-        r = Val.from_f64(c)
+        r = ValInst.from_f64(c)
         config.stack.append(r)
 
     @staticmethod
-    def f64_min(config: Configuration, i: core.Instruction):
+    def f64_min(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
         if math.isnan(a) or math.isnan(b):
-            config.stack.append(Val.from_f64(math.nan))
+            config.stack.append(ValInst.from_f64(math.nan))
         else:
-            config.stack.append(Val.from_f64(a if a < b else b))
+            config.stack.append(ValInst.from_f64(a if a < b else b))
 
     @staticmethod
-    def f64_max(config: Configuration, i: core.Instruction):
+    def f64_max(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
         if math.isnan(a) or math.isnan(b):
-            config.stack.append(Val.from_f64(math.nan))
+            config.stack.append(ValInst.from_f64(math.nan))
         else:
-            config.stack.append(Val.from_f64(a if a > b else b))
+            config.stack.append(ValInst.from_f64(a if a > b else b))
 
     @staticmethod
-    def f64_copysign(config: Configuration, i: core.Instruction):
+    def f64_copysign(config: Configuration, i: core.Inst):
         b = config.stack.pop().into_f64()
         a = config.stack.pop().into_f64()
-        r = Val.from_f64(math.copysign(a, b))
+        r = ValInst.from_f64(math.copysign(a, b))
         config.stack.append(r)
 
     @staticmethod
-    def i32_wrap_i64(config: Configuration, i: core.Instruction):
+    def i32_wrap_i64(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
-        config.stack.append(Val.from_i32(a))
+        config.stack.append(ValInst.from_i32(a))
 
     @staticmethod
-    def i32_trunc_f32_s(config: Configuration, i: core.Instruction):
+    def i32_trunc_f32_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
@@ -1548,11 +1481,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i32(b)
+        r = ValInst.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_f32_u(config: Configuration, i: core.Instruction):
+    def i32_trunc_f32_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1560,11 +1493,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i32(b)
+        r = ValInst.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_f64_s(config: Configuration, i: core.Instruction):
+    def i32_trunc_f64_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         if a > (1 << 31) - 1 or a < -(1 << 31):
             raise Exception('pywasm: integer overflow')
@@ -1572,11 +1505,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i32(b)
+        r = ValInst.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
-    def i32_trunc_f64_u(config: Configuration, i: core.Instruction):
+    def i32_trunc_f64_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         if a > (1 << 32) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1584,23 +1517,23 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i32(b)
+        r = ValInst.from_i32(b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_extend_i32_s(config: Configuration, i: core.Instruction):
+    def i64_extend_i32_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
-        r = Val.from_i64(a)
+        r = ValInst.from_i64(a)
         config.stack.append(r)
 
     @staticmethod
-    def i64_extend_i32_u(config: Configuration, i: core.Instruction):
+    def i64_extend_i32_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_u32()
-        r = Val.from_i64(a)
+        r = ValInst.from_i64(a)
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_f32_s(config: Configuration, i: core.Instruction):
+    def i64_trunc_f32_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
@@ -1608,11 +1541,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i64(b)
+        r = ValInst.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_f32_u(config: Configuration, i: core.Instruction):
+    def i64_trunc_f32_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1620,11 +1553,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i64(b)
+        r = ValInst.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_f64_s(config: Configuration, i: core.Instruction):
+    def i64_trunc_f64_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         if a > (1 << 63) - 1 or a < -(1 << 63):
             raise Exception('pywasm: integer overflow')
@@ -1632,11 +1565,11 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i64(b)
+        r = ValInst.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
-    def i64_trunc_f64_u(config: Configuration, i: core.Instruction):
+    def i64_trunc_f64_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
         if a > (1 << 64) - 1 or a <= -1:
             raise Exception('pywasm: integer overflow')
@@ -1644,89 +1577,89 @@ class ArithmeticLogicUnit:
             b = int(a)
         except:
             raise Exception('pywasm: invalid conversion to integer')
-        r = Val.from_i64(b)
+        r = ValInst.from_i64(b)
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_i32_s(config: Configuration, i: core.Instruction):
+    def f32_convert_i32_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
-        r = Val.from_f32(float(a))
+        r = ValInst.from_f32(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_i32_u(config: Configuration, i: core.Instruction):
+    def f32_convert_i32_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_u32()
-        r = Val.from_f32(float(a))
+        r = ValInst.from_f32(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_i64_s(config: Configuration, i: core.Instruction):
+    def f32_convert_i64_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
-        r = Val.from_f32(float(a))
+        r = ValInst.from_f32(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_convert_i64_u(config: Configuration, i: core.Instruction):
+    def f32_convert_i64_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_u64()
-        r = Val.from_f32(float(a))
+        r = ValInst.from_f32(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f32_demote_f64(config: Configuration, i: core.Instruction):
+    def f32_demote_f64(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f64()
-        r = Val.from_f32(float(a))
+        r = ValInst.from_f32(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_i32_s(config: Configuration, i: core.Instruction):
+    def f64_convert_i32_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i32()
-        r = Val.from_f64(float(a))
+        r = ValInst.from_f64(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_i32_u(config: Configuration, i: core.Instruction):
+    def f64_convert_i32_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_u32()
-        r = Val.from_f64(float(a))
+        r = ValInst.from_f64(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_i64_s(config: Configuration, i: core.Instruction):
+    def f64_convert_i64_s(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_i64()
-        r = Val.from_f64(float(a))
+        r = ValInst.from_f64(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_convert_i64_u(config: Configuration, i: core.Instruction):
+    def f64_convert_i64_u(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_u64()
-        r = Val.from_f64(float(a))
+        r = ValInst.from_f64(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def f64_promote_f32(config: Configuration, i: core.Instruction):
+    def f64_promote_f32(config: Configuration, i: core.Inst):
         a = config.stack.pop().into_f32()
-        r = Val.from_f64(float(a))
+        r = ValInst.from_f64(float(a))
         config.stack.append(r)
 
     @staticmethod
-    def i32_reinterpret_f32(config: Configuration, i: core.Instruction):
+    def i32_reinterpret_f32(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.type = core.ValType.i32()
         config.stack.append(a)
 
     @staticmethod
-    def i64_reinterpret_f64(config: Configuration, i: core.Instruction):
+    def i64_reinterpret_f64(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.type = core.ValType.i64()
         config.stack.append(a)
 
     @staticmethod
-    def f32_reinterpret_i32(config: Configuration, i: core.Instruction):
+    def f32_reinterpret_i32(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.type = core.ValType.f32()
         config.stack.append(a)
 
     @staticmethod
-    def f64_reinterpret_i64(config: Configuration, i: core.Instruction):
+    def f64_reinterpret_i64(config: Configuration, i: core.Inst):
         a = config.stack.pop()
         a.type = core.ValType.f64()
         config.stack.append(a)
@@ -1923,7 +1856,7 @@ class Machine:
         self.opts: option.Option = option.Option()
 
     def instantiate(self, module: core.Module, extern_value_list: typing.List[ExternValue]):
-        self.module.type_list = module.type_list
+        self.module.type_list = module.type
 
         # [TODO] If module is not valid, then panic
 
@@ -1939,7 +1872,7 @@ class Machine:
                 assert e < len(self.store.global_list)
 
         # If the number m of imports is not equal to the number n of provided external values, then fail
-        assert len(module.import_list) == len(extern_value_list)
+        assert len(module.imps) == len(extern_value_list)
 
         # For each external value and external type, do:
         # If externval is not valid with an external type in store S, then fail
@@ -1947,25 +1880,25 @@ class Machine:
         for i, e in enumerate(extern_value_list):
             if isinstance(e, FunctionAddress):
                 a = self.store.function_list[e].type
-                b = module.type_list[module.import_list[i].desc]
+                b = module.type[module.imps[i].desc]
                 assert match_function(a, b)
             if isinstance(e, TableAddress):
-                a = self.store.table_list[e].limits
-                b = module.import_list[i].desc.limits
-                assert match_limits(a, b)
+                a = self.store.table_list[e]
+                b = module.imps[i].desc
+                assert a.type.limits.suit(b.limits)
             if isinstance(e, MemoryAddress):
                 a = self.store.memory_list[e].type
-                b = module.import_list[i].desc
-                assert match_memory(a, b)
+                b = module.imps[i].desc
+                assert a.limits.suit(b.limits)
             if isinstance(e, GlobalAddress):
-                assert module.import_list[i].desc.type == self.store.global_list[e].value.type
-                assert module.import_list[i].desc.mut == self.store.global_list[e].mut
+                assert module.imps[i].desc.type == self.store.global_list[e].value.type
+                assert module.imps[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
-        global_values: typing.List[Val] = []
+        global_values: typing.List[ValInst] = []
         aux = ModuleInstance()
         aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
-        for e in module.global_list:
+        for e in module.glob:
             log.debugln(f'init global value')
             frame = Frame(aux, [], e.init, 1)
             config = Configuration(self.store)
@@ -1978,7 +1911,7 @@ class Machine:
         # initializer values, and let S be the extended store produced by module allocation.
         self.allocate(module, extern_value_list, global_values)
 
-        for element_segment in module.element_list:
+        for element_segment in module.elem:
             log.debugln('init elem')
             # Let F be the frame, push the frame F to the stack
             frame = Frame(self.module, [], element_segment.offset, 1)
@@ -1987,12 +1920,12 @@ class Machine:
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.into_auto()
-            table_addr = self.module.table_addr_list[element_segment.table]
+            table_addr = self.module.table_addr_list[element_segment.data]
             table_instance = self.store.table_list[table_addr]
             for i, e in enumerate(element_segment.init):
-                table_instance.element_list[offset + i] = e
+                table_instance.elem[offset + i] = e
 
-        for data_segment in module.data_list:
+        for data_segment in module.data:
             log.debugln('init data')
             frame = Frame(self.module, [], data_segment.offset, 1)
             config = Configuration(self.store)
@@ -2007,15 +1940,15 @@ class Machine:
         # [TODO] Assert: due to validation, the frame F is now on the top of the stack.
 
         # If the start function module.start is not empty, invoke the function instance
-        if module.start is not None:
-            log.debugln(f'running start function {module.start}')
-            self.invocate(self.module.function_addr_list[module.start.func], [])
+        if module.star >= 0:
+            log.debugln(f'running start function {module.star}')
+            self.invocate(self.module.function_addr_list[module.star], [])
 
     def allocate(
         self,
         module: core.Module,
         extern_value_list: typing.List[ExternValue],
-        global_values: typing.List[Val],
+        global_values: typing.List[ValInst],
     ):
         # Let funcaddr be the list of function addresses extracted from externval, concatenated with funcaddr
         # Let tableaddr be the list of table addresses extracted from externval, concatenated with tableaddr
@@ -2032,27 +1965,27 @@ class Machine:
                 self.module.global_addr_list.append(e)
 
         # For each function func in module.funcs, do:
-        for e in module.function_list:
+        for e in module.func:
             function_addr = self.store.allocate_wasm_function(self.module, e)
             self.module.function_addr_list.append(function_addr)
 
         # For each table in module.tables, do:
-        for e in module.table_list:
+        for e in module.tabl:
             table_addr = self.store.allocate_table(e)
             self.module.table_addr_list.append(table_addr)
 
         # For each memory module.mems, do:
-        for e in module.memory_list:
-            memory_addr = self.store.allocate_memory(e.type)
+        for e in module.mems:
+            memory_addr = self.store.allocate_memory(e)
             self.module.memory_addr_list.append(memory_addr)
 
         # For each global in module.globals, do:
-        for i, e in enumerate(module.global_list):
+        for i, e in enumerate(module.glob):
             global_addr = self.store.allocate_global(e.type, global_values[i])
             self.module.global_addr_list.append(global_addr)
 
         # For each export in module.exports, do:
-        for e in module.export_list:
+        for e in module.exps:
             if e.type == 0x00:
                 addr = self.module.function_addr_list[e.desc]
             if e.type == 0x01:
@@ -2064,7 +1997,7 @@ class Machine:
             export_inst = ExportInstance(e.name, addr)
             self.module.export_list.append(export_inst)
 
-    def invocate(self, function_addr: FunctionAddress, function_args: typing.List[Val]) -> Result:
+    def invocate(self, function_addr: FunctionAddress, function_args: typing.List[ValInst]) -> core.ResultInst:
         config = Configuration(self.store)
         config.opts = self.opts
         return config.call(function_addr, function_args)

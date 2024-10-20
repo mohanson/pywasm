@@ -8,23 +8,23 @@ import pywasm
 
 def parse_val(m):
     if m['type'] == 'i32':
-        return pywasm.Val.from_i32(int(m['value']))
+        return pywasm.ValInst.from_i32(int(m['value']))
     if m['type'] == 'i64':
-        return pywasm.Val.from_i64(int(m['value']))
+        return pywasm.ValInst.from_i64(int(m['value']))
     if m['type'] == 'f32':
         if m['value'] == 'nan:canonical':
-            return pywasm.Val.from_f32_u32(0x7fc00000)
+            return pywasm.ValInst.from_f32_u32(0x7fc00000)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Val.from_f32_u32(0x7fc00001)
-        v = pywasm.Val.from_u32(int(m['value']))
+            return pywasm.ValInst.from_f32_u32(0x7fc00001)
+        v = pywasm.ValInst.from_u32(int(m['value']))
         v.type = pywasm.core.ValType.f32()
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
-            return pywasm.Val.from_f64_u64(0x7ff8000000000000)
+            return pywasm.ValInst.from_f64_u64(0x7ff8000000000000)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Val.from_f64_u64(0x7ff8000000000001)
-        v = pywasm.Val.from_u64(int(m['value']))
+            return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
+        v = pywasm.ValInst.from_u64(int(m['value']))
         v.type = pywasm.core.ValType.f64()
         return v
     raise NotImplementedError
@@ -66,11 +66,11 @@ def asset_val(a, b):
 
 
 def imps() -> typing.Dict:
-    memory_type = pywasm.core.MemType(pywasm.Limits(1, 2))
+    memory_type = pywasm.core.MemType(pywasm.core.Limits(1, 2))
     memory = pywasm.Memory(memory_type)
 
-    limits = pywasm.Limits(10, 20)
-    table = pywasm.Table(pywasm.FunctionAddress,  limits)
+    table_type = pywasm.core.TableType(pywasm.core.ElemType.funcref(), pywasm.core.Limits(10, 20))
+    table = pywasm.Table(table_type)
 
     return {
         'spectest': {

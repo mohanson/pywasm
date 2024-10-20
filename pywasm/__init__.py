@@ -6,7 +6,6 @@ from . import leb128
 from . import log
 from . import opcode
 from . import option
-from . import validation
 
 
 class Runtime:
@@ -21,11 +20,11 @@ class Runtime:
 
         imps = imps if imps else {}
         extern_value_list: typing.List[execution.ExternValue] = []
-        for e in module.import_list:
+        for e in module.imps:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if e.type == 0x00:
-                a = execution.HostFunc(module.type_list[e.desc], imps[e.module][e.name])
+                a = execution.HostFunc(module.type[e.desc], imps[e.module][e.name])
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(addr)
                 continue
@@ -40,14 +39,13 @@ class Runtime:
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
                     raise Exception('pywasm: out of memory limit')
-                memory.grow(e.desc.limits.n)
                 self.store.memory_list.append(memory)
                 extern_value_list.append(addr)
                 continue
             if e.type == 0x03:
                 addr = self.store.allocate_global(
                     e.desc,
-                    execution.Val.from_auto(e.desc.type, imps[e.module][e.name])
+                    core.ValInst.from_auto(e.desc.type, imps[e.module][e.name])
                 )
                 extern_value_list.append(addr)
                 continue
@@ -61,18 +59,18 @@ class Runtime:
                 return e.value
         raise Exception('pywasm: function not found')
 
-    def exec_accu(self, name: str, args: typing.List[execution.Val]) -> execution.Result:
+    def exec_accu(self, name: str, args: typing.List[core.ValInst]) -> core.ResultInst:
         # Invoke a function denoted by the function address with the provided arguments.
         func_addr = self.func_addr(name)
         return self.machine.invocate(func_addr, args)
 
-    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> execution.Result:
+    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> core.ResultInst:
         func_addr = self.func_addr(name)
         func = self.machine.store.function_list[func_addr]
         func_args = []
         # Mapping check for python valtype to webAssembly valtype
         for i, e in enumerate(func.type.args.data):
-            v = execution.Val.from_auto(e, args[i])
+            v = core.ValInst.from_auto(e, args[i])
             func_args.append(v)
         resp = self.exec_accu(name, func_args)
         if len(resp.data) == 0:
@@ -98,11 +96,10 @@ def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Optio
 
 
 Store = execution.Store
-Memory = execution.MemoryInstance
-Val = execution.Val
-Table = execution.TableInstance
+Memory = core.MemInst
+ValInst = core.ValInst
+Table = core.TableInst
 Global = execution.GlobalInstance
-Limits = core.Limits
 FunctionAddress = execution.FunctionAddress
 TableAddress = execution.TableAddress
 MemoryAddress = execution.MemoryAddress
