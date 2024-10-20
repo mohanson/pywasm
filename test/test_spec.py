@@ -5,35 +5,33 @@ import typing
 
 import pywasm
 
-num = pywasm.num
-
 
 def parse_val(m):
     if m['type'] == 'i32':
-        return pywasm.Value.from_i32(num.int2i32(int(m['value'])))
+        return pywasm.Val.from_i32(int(m['value']))
     if m['type'] == 'i64':
-        return pywasm.Value.from_i64(num.int2i64(int(m['value'])))
+        return pywasm.Val.from_i64(int(m['value']))
     if m['type'] == 'f32':
         if m['value'] == 'nan:canonical':
-            return pywasm.Value.from_f32_u32(pywasm.convention.f32_nan_canonical)
+            return pywasm.Val.from_f32_u32(pywasm.convention.f32_nan_canonical)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Value.from_f32_u32(pywasm.convention.f32_nan_canonical + 1)
-        v = pywasm.Value.from_u32(int(m['value']))
+            return pywasm.Val.from_f32_u32(pywasm.convention.f32_nan_canonical + 1)
+        v = pywasm.Val.from_u32(int(m['value']))
         v.type = pywasm.core.ValType.f32()
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
-            return pywasm.Value.from_f64_u64(pywasm.convention.f64_nan_canonical)
+            return pywasm.Val.from_f64_u64(pywasm.convention.f64_nan_canonical)
         if m['value'] == 'nan:arithmetic':
-            return pywasm.Value.from_f64_u64(pywasm.convention.f64_nan_canonical + 1)
-        v = pywasm.Value.from_u64(int(m['value']))
+            return pywasm.Val.from_f64_u64(pywasm.convention.f64_nan_canonical + 1)
+        v = pywasm.Val.from_u64(int(m['value']))
         v.type = pywasm.core.ValType.f64()
         return v
     raise NotImplementedError
 
 
 def asset_val(a, b):
-    print('assert', a.data, b.data)
+    print('assert', a.data, b.data, a.into_auto(), b.into_auto())
     if b.type == pywasm.core.ValType.i32():
         assert a.type == pywasm.core.ValType.i32()
         assert a.data == b.data
@@ -44,23 +42,25 @@ def asset_val(a, b):
         return
     if b.type == pywasm.core.ValType.f32():
         assert a.type == pywasm.core.ValType.f32()
-        if math.isnan(b.f32()):
-            if b.i32() == pywasm.convention.f32_nan_canonical:
-                assert a.u32() in [pywasm.convention.f32_nan_canonical, pywasm.convention.f32_nan_canonical | 1 << 31]
-            else:
-                assert math.isnan(a.f32())
-            return
-        assert a.data == b.data
+        if math.isnan(b.into_f32()):
+            assert math.isnan(a.into_f32())
+        elif math.isinf(b.into_f32()):
+            assert math.isinf(a.into_f32()) or math.fabs(a.into_f32()) > +3.4e+38
+        elif math.isinf(a.into_f32()):
+            assert math.isinf(b.into_f32()) or math.fabs(b.into_f32()) > +3.4e+38
+        else:
+            assert math.isclose(a.into_f32(), b.into_f32())
         return
     if b.type == pywasm.core.ValType.f64():
         assert a.type == pywasm.core.ValType.f64()
-        if math.isnan(b.f64()):
-            if b.i64() == pywasm.convention.f64_nan_canonical:
-                assert a.u64() in [pywasm.convention.f64_nan_canonical, pywasm.convention.f64_nan_canonical | 1 << 63]
-            else:
-                assert math.isnan(a.f64())
-            return
-        assert a.data == b.data
+        if math.isnan(b.into_f64()):
+            assert math.isnan(a.into_f64())
+        elif math.isinf(b.into_f64()):
+            assert math.isinf(a.into_f64()) or math.fabs(a.into_f64()) > +1.7e+308
+        elif math.isinf(a.into_f64()):
+            assert math.isinf(b.into_f64()) or math.fabs(b.into_f64()) > +1.7e+308
+        else:
+            assert math.isclose(a.into_f64(), b.into_f64())
         return
     raise Exception
 

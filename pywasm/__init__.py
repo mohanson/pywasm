@@ -5,7 +5,6 @@ from . import convention
 from . import execution
 from . import leb128
 from . import log
-from . import num
 from . import opcode
 from . import option
 from . import validation
@@ -49,7 +48,7 @@ class Runtime:
             if e.type == 0x03:
                 addr = self.store.allocate_global(
                     e.desc,
-                    execution.Value.new(e.desc.type, imps[e.module][e.name])
+                    execution.Val.from_auto(e.desc.type, imps[e.module][e.name])
                 )
                 extern_value_list.append(addr)
                 continue
@@ -63,7 +62,7 @@ class Runtime:
                 return e.value
         raise Exception('pywasm: function not found')
 
-    def exec_accu(self, name: str, args: typing.List[execution.Value]) -> execution.Result:
+    def exec_accu(self, name: str, args: typing.List[execution.Val]) -> execution.Result:
         # Invoke a function denoted by the function address with the provided arguments.
         func_addr = self.func_addr(name)
         return self.machine.invocate(func_addr, args)
@@ -74,14 +73,14 @@ class Runtime:
         func_args = []
         # Mapping check for python valtype to webAssembly valtype
         for i, e in enumerate(func.type.args.data):
-            v = execution.Value.new(e, args[i])
+            v = execution.Val.from_auto(e, args[i])
             func_args.append(v)
         resp = self.exec_accu(name, func_args)
         if len(resp.data) == 0:
             return None
         if len(resp.data) == 1:
-            return resp.data[0].val()
-        return [e.val() for e in resp.data]
+            return resp.data[0].into_auto()
+        return [e.into_auto() for e in resp.data]
 
 
 # Using the pywasm API.
@@ -101,7 +100,7 @@ def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Optio
 
 Store = execution.Store
 Memory = execution.MemoryInstance
-Value = execution.Value
+Val = execution.Val
 Table = execution.TableInstance
 Global = execution.GlobalInstance
 Limits = core.Limits

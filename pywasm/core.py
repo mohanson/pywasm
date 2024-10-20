@@ -1,9 +1,10 @@
 import io
+import math
+import struct
 import typing
 
 from . import leb128
 from . import log
-from . import num
 from . import opcode
 
 
@@ -47,6 +48,101 @@ class ValType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         return cls(ord(r.read(1)))
+
+
+class Val:
+    # Values are represented by themselves.
+
+    def __init__(self, type: ValType, data: bytearray) -> typing.Self:
+        assert len(data) == 8
+        self.type = type
+        self.data = data
+
+    def __repr__(self) -> str:
+        return f'{self.type} {self.into_auto()}'
+
+    @classmethod
+    def from_auto(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
+        return {
+            ValType.i32(): cls.from_i32,
+            ValType.i64(): cls.from_i64,
+            ValType.f32(): cls.from_f32,
+            ValType.f64(): cls.from_f64,
+        }[type](data)
+
+    @classmethod
+    def from_i32(cls, n: int) -> typing.Self:
+        n = n & 0xffffffff
+        n = n - ((n & 0x80000000) << 1)
+        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(4))
+
+    @classmethod
+    def from_i64(cls, n: int) -> typing.Self:
+        n = n & 0xffffffffffffffff
+        n = n - ((n & 0x8000000000000000) << 1)
+        return cls(ValType.i64(), bytearray(struct.pack('<q', n)))
+
+    @classmethod
+    def from_u32(cls, n: int) -> typing.Self:
+        n = n & 0xffffffff
+        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(4))
+
+    @classmethod
+    def from_u64(cls, n: int) -> typing.Self:
+        n = n & 0xffffffffffffffff
+        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)))
+
+    @classmethod
+    def from_f32(cls, n: float) -> typing.Self:
+        assert isinstance(n, float)
+        if math.fabs(n) > 3.40282346638528859811704183484516925440e+38:
+            n = math.copysign(math.inf, n)
+        return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
+
+    @classmethod
+    def from_f32_u32(cls, n: int) -> typing.Self:
+        o = cls.from_u32(n)
+        o.type = ValType.f32()
+        return o
+
+    @classmethod
+    def from_f64(cls, n: float) -> typing.Self:
+        assert isinstance(n, float)
+        if math.fabs(n) > 1.797693134862315708145274237317043567981e+308:
+            n = math.copysign(math.inf, n)
+        return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
+
+    @classmethod
+    def from_f64_u64(cls, n: int) -> typing.Self:
+        o = cls.from_u64(n)
+        o.type = ValType.f64()
+        return o
+
+    def into_auto(self) -> typing.Union[int, float]:
+        return {
+            ValType.i32(): self.into_i32,
+            ValType.i64(): self.into_i64,
+            ValType.f32(): self.into_f32,
+            ValType.f64(): self.into_f64,
+        }[self.type]()
+
+    def into_i32(self) -> int:
+        return struct.unpack('<i', self.data[0:4])[0]
+
+    def into_i64(self) -> int:
+        return struct.unpack('<q', self.data[0:8])[0]
+
+    def into_u32(self) -> int:
+        return struct.unpack('<I', self.data[0:4])[0]
+
+    def into_u64(self) -> int:
+        return struct.unpack('<Q', self.data[0:8])[0]
+
+    def into_f32(self) -> float:
+        return struct.unpack('<f', self.data[0:4])[0]
+
+    def into_f64(self) -> float:
+        return struct.unpack('<d', self.data[0:8])[0]
 
 
 class ResultType:
@@ -353,10 +449,10 @@ class Instruction:
         if o.opcode == opcode.f32_const:
             # https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
             # python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
-            o.args = [num.LittleEndian.i32(r.read(4))]
+            o.args = [struct.unpack('<i', r.read(4))[0]]
             return o
         if o.opcode == opcode.f64_const:
-            o.args = [num.LittleEndian.i64(r.read(8))]
+            o.args = [struct.unpack('<q', r.read(8))[0]]
             return o
         if o.opcode not in opcode.name:
             raise Exception("unsupported opcode", o.opcode)
