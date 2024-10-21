@@ -279,36 +279,6 @@ class Import:
         return cls(module, name, type, desc)
 
 
-class Export:
-    # The exports component of a module defines a set of exports that become accessible to the host environment once
-    # the module has been instantiated.
-    #
-    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
-    # which are referenced through a respective descriptor.
-
-    def __init__(self, name: str, type: int, desc: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02, 0x03]
-        self.name = name
-        self.type = type
-        self.desc = desc
-
-    def __repr__(self) -> str:
-        type_name = {
-            0x00: 'func',
-            0x01: 'table',
-            0x02: 'mem',
-            0x03: 'global'
-        }[self.type]
-        return f'{self.name} {type_name} {self.desc}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
-        type = ord(r.read(1))
-        desc = leb128.u.decode_reader(r)[0]
-        return cls(name, type, desc)
-
-
 class Data:
     # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
     # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
@@ -754,6 +724,48 @@ class GlobalInst:
         return f'{self.data}'
 
 
+class ExportDesc:
+    # The exports component of a module defines a set of exports that become accessible to the host environment once
+    # the module has been instantiated.
+    #
+    # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
+    # which are referenced through a respective descriptor.
+
+    def __init__(self, name: str, type: int, desc: int) -> typing.Self:
+        assert type in [0x00, 0x01, 0x02, 0x03]
+        self.name = name
+        self.type = type
+        self.desc = desc
+
+    def __repr__(self) -> str:
+        type_name = {
+            0x00: 'func',
+            0x01: 'table',
+            0x02: 'mem',
+            0x03: 'global'
+        }[self.type]
+        return f'{self.name} {type_name} {self.desc}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        type = ord(r.read(1))
+        desc = leb128.u.decode_reader(r)[0]
+        return cls(name, type, desc)
+
+
+class ExportInst:
+    # An export instance is the runtime representation of an export. It defines the export's name and the associated
+    # external value.
+
+    def __init__(self, name: str, data: Extern) -> typing.Self:
+        self.name = name
+        self.data = data
+
+    def __repr__(self):
+        return f'{self.name} {self.data}'
+
+
 class Module:
     # The binary encoding of modules is organized into sections. Most sections correspond to one component of a module
     # record, except that function definitions are split into two sections, separating their type declarations in the
@@ -770,7 +782,7 @@ class Module:
         data: typing.List[Data],
         star: int,
         imps: typing.List[Import],
-        exps: typing.List[Export]
+        exps: typing.List[ExportDesc]
     ):
         self.type = type
         self.func = func
@@ -797,7 +809,7 @@ class Module:
         data: typing.List[Data] = []
         star: int = -1
         imps: typing.List[Import] = []
-        exps: typing.List[Export] = []
+        exps: typing.List[ExportDesc] = []
 
         for _ in range(32):
             section_id_byte = r.read(1)
@@ -852,7 +864,7 @@ class Module:
                 case 0x07:
                     log.debugln('section export')
                     for i in range(leb128.u.decode_reader(section_reader)[0]):
-                        desc = Export.from_reader(section_reader)
+                        desc = ExportDesc.from_reader(section_reader)
                         exps.append(desc)
                         log.debugln(f'    {i:>3d} {desc}')
                 case 0x08:

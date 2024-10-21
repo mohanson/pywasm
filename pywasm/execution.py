@@ -30,7 +30,7 @@ class ModuleInstance:
         self.table_addr_list: typing.List[int] = []
         self.memory_addr_list: typing.List[int] = []
         self.global_addr_list: typing.List[int] = []
-        self.export_list: typing.List[ExportInstance] = []
+        self.export_list: typing.List[core.ExportInst] = []
 
 
 class WasmFunc:
@@ -119,20 +119,6 @@ class Store:
         global_instance = core.GlobalInst(value, global_type.mut)
         self.global_list.append(global_instance)
         return global_address
-
-
-class ExportInstance:
-    # An export instance is the runtime representation of an export. It defines the export's name and the associated
-    # external value.
-    #
-    # exportinst ::= {name name, value externval}
-    def __init__(self, name: str, value: core.Extern):
-        assert isinstance(value, core.Extern)
-        self.name = name
-        self.value = value
-
-    def __repr__(self):
-        return f'export_instance({self.name}, {self.value})'
 
 
 class Label:
@@ -1937,7 +1923,7 @@ class Machine:
             if e.type == 0x03:
                 addr = self.module.global_addr_list[e.desc]
                 addr = core.Extern(0x03, addr)
-            export_inst = ExportInstance(e.name, addr)
+            export_inst = core.ExportInst(e.name, addr)
             self.module.export_list.append(export_inst)
 
     def invocate(self, function_addr: int, function_args: typing.List[ValInst]) -> core.ResultInst:
