@@ -15,48 +15,45 @@ class Runtime:
         self.machine = execution.Machine()
         self.machine.opts = opts or option.Option()
 
-        # For compatibility with older 0.4.x versions
-        self.store = self.machine.store
-
         imps = imps if imps else {}
-        extern_value_list: typing.List[execution.ExternValue] = []
+        extern_value_list: typing.List[core.Extern] = []
         for e in module.imps:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if e.type == 0x00:
                 a = execution.HostFunc(module.type[e.desc], imps[e.module][e.name])
                 addr = self.machine.store.allocate_host_function(a)
-                extern_value_list.append(addr)
+                extern_value_list.append(core.Extern(0x00, addr))
                 continue
             if e.type == 0x01:
-                addr = execution.TableAddress(len(self.store.table_list))
+                addr = len(self.machine.store.table_list)
                 table = imps[e.module][e.name]
-                self.store.table_list.append(table)
-                extern_value_list.append(addr)
+                self.machine.store.table_list.append(table)
+                extern_value_list.append(core.Extern(0x01, addr))
                 continue
             if e.type == 0x02:
-                addr = execution.MemoryAddress(len(self.store.memory_list))
+                addr = len(self.machine.store.memory_list)
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
                     raise Exception('pywasm: out of memory limit')
-                self.store.memory_list.append(memory)
-                extern_value_list.append(addr)
+                self.machine.store.memory_list.append(memory)
+                extern_value_list.append(core.Extern(0x02, addr))
                 continue
             if e.type == 0x03:
-                addr = self.store.allocate_global(
+                addr = self.machine.store.allocate_global(
                     e.desc,
                     core.ValInst.from_auto(e.desc.type, imps[e.module][e.name])
                 )
-                extern_value_list.append(addr)
+                extern_value_list.append(core.Extern(0x03, addr))
                 continue
 
         self.machine.instantiate(module, extern_value_list)
 
-    def func_addr(self, name: str) -> execution.FunctionAddress:
+    def func_addr(self, name: str) -> int:
         # Get a function address denoted by the function name
         for e in self.machine.module.export_list:
-            if e.name == name and isinstance(e.value, execution.FunctionAddress):
-                return e.value
+            if e.name == name and e.value.type == 0x00:
+                return e.value.data
         raise Exception('pywasm: function not found')
 
     def exec_accu(self, name: str, args: typing.List[core.ValInst]) -> core.ResultInst:
@@ -100,10 +97,6 @@ Memory = core.MemInst
 ValInst = core.ValInst
 Table = core.TableInst
 Global = core.GlobalInst
-FunctionAddress = execution.FunctionAddress
-TableAddress = execution.TableAddress
-MemoryAddress = execution.MemoryAddress
-GlobalAddress = execution.GlobalAddress
 Option = option.Option
 
 # For compatibility with older 0.4.x versions

@@ -12,31 +12,6 @@ from .core import ValInst
 call_stack_depth = 128
 
 
-# ======================================================================================================================
-# Execution Runtime Structure
-# ======================================================================================================================
-
-
-class FunctionAddress(int):
-    def __repr__(self):
-        return f'FunctionAddress({super().__repr__()})'
-
-
-class TableAddress(int):
-    def __repr__(self):
-        return f'TableAddress({super().__repr__()})'
-
-
-class MemoryAddress(int):
-    def __repr__(self):
-        return f'MemoryAddress({super().__repr__()})'
-
-
-class GlobalAddress(int):
-    def __repr__(self):
-        return f'GlobalAddress({super().__repr__()})'
-
-
 class ModuleInstance:
     # A module instance is the runtime representation of a module. It is created by instantiating a module, and
     # collects runtime representations of all entities that are imported, defined, or exported by the module.
@@ -51,10 +26,10 @@ class ModuleInstance:
     # }
     def __init__(self):
         self.type_list: typing.List[core.FuncType] = []
-        self.function_addr_list: typing.List[FunctionAddress] = []
-        self.table_addr_list: typing.List[TableAddress] = []
-        self.memory_addr_list: typing.List[MemoryAddress] = []
-        self.global_addr_list: typing.List[GlobalAddress] = []
+        self.function_addr_list: typing.List[int] = []
+        self.table_addr_list: typing.List[int] = []
+        self.memory_addr_list: typing.List[int] = []
+        self.global_addr_list: typing.List[int] = []
         self.export_list: typing.List[ExportInstance] = []
 
 
@@ -91,16 +66,6 @@ class HostFunc:
 FunctionInstance = typing.Union[WasmFunc, HostFunc]
 
 
-# An external value is the runtime representation of an entity that can be imported or exported. It is an address
-# denoting either a function instance, table instance, memory instance, or global instances in the shared store.
-#
-# externval ::= func funcaddr
-#             | table tableaddr
-#             | mem memaddr
-#             | global globaladdr
-ExternValue = typing.Union[FunctionAddress, TableAddress, MemoryAddress, GlobalAddress]
-
-
 class Store:
     # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
     # representation of all instances of functions, tables, memories, and globals that have been allocated during the
@@ -125,32 +90,32 @@ class Store:
         # For compatibility with older 0.4.x versions
         self.mems = self.memory_list
 
-    def allocate_wasm_function(self, module: ModuleInstance, function: core.FuncDesc) -> FunctionAddress:
-        function_address = FunctionAddress(len(self.function_list))
+    def allocate_wasm_function(self, module: ModuleInstance, function: core.FuncDesc) -> int:
+        function_address = len(self.function_list)
         function_type = module.type_list[function.type]
         wasmfunc = WasmFunc(function_type, module, function)
         self.function_list.append(wasmfunc)
         return function_address
 
-    def allocate_host_function(self, hostfunc: HostFunc) -> FunctionAddress:
-        function_address = FunctionAddress(len(self.function_list))
+    def allocate_host_function(self, hostfunc: HostFunc) -> int:
+        function_address = len(self.function_list)
         self.function_list.append(hostfunc)
         return function_address
 
-    def allocate_table(self, table_type: core.TableType) -> TableAddress:
-        table_address = TableAddress(len(self.table_list))
+    def allocate_table(self, table_type: core.TableType) -> int:
+        table_address = len(self.table_list)
         table_instance = core.TableInst(table_type)
         self.table_list.append(table_instance)
         return table_address
 
-    def allocate_memory(self, memory_type: core.MemType) -> MemoryAddress:
-        memory_address = MemoryAddress(len(self.memory_list))
+    def allocate_memory(self, memory_type: core.MemType) -> int:
+        memory_address = len(self.memory_list)
         memory_instance = core.MemInst(memory_type)
         self.memory_list.append(memory_instance)
         return memory_address
 
-    def allocate_global(self, global_type: core.GlobalType, value: ValInst) -> GlobalAddress:
-        global_address = GlobalAddress(len(self.global_list))
+    def allocate_global(self, global_type: core.GlobalType, value: ValInst) -> int:
+        global_address = len(self.global_list)
         global_instance = core.GlobalInst(value, global_type.mut)
         self.global_list.append(global_instance)
         return global_address
@@ -161,7 +126,8 @@ class ExportInstance:
     # external value.
     #
     # exportinst ::= {name name, value externval}
-    def __init__(self, name: str, value: ExternValue):
+    def __init__(self, name: str, value: core.Extern):
+        assert isinstance(value, core.Extern)
         self.name = name
         self.value = value
 
@@ -225,18 +191,9 @@ class Stack:
         return self.data.pop()
 
 
-# ======================================================================================================================
-# Execution Runtime Import Matching
-# ======================================================================================================================
-
-
 def match_function(a: core.FuncType, b: core.FuncType) -> bool:
     return a.args.data == b.args.data and a.rets.data == b.rets.data
 
-
-# ======================================================================================================================
-# Abstract Machine
-# ======================================================================================================================
 
 class Configuration:
     # A configuration consists of the current store and an executing thread.
@@ -269,7 +226,7 @@ class Configuration:
         self.stack.append(frame)
         self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
 
-    def call(self, function_addr: FunctionAddress, function_args: typing.List[ValInst]) -> core.ResultInst:
+    def call(self, function_addr: int, function_args: typing.List[ValInst]) -> core.ResultInst:
         function = self.store.function_list[function_addr]
         log.debugln(f'call {function}({function_args})')
         for e, t in zip(function_args, function.type.args.data):
@@ -315,11 +272,6 @@ class Configuration:
         l = self.stack.pop()
         assert l == self.frame
         return core.ResultInst(r)
-
-
-# ======================================================================================================================
-# Instruction Set
-# ======================================================================================================================
 
 
 class ArithmeticLogicUnit:
@@ -450,7 +402,7 @@ class ArithmeticLogicUnit:
         config.pc = len(config.frame.expr.data) - 1
 
     @staticmethod
-    def call_function_addr(config: Configuration, function_addr: FunctionAddress):
+    def call_function_addr(config: Configuration, function_addr: int):
         if config.depth > call_stack_depth:
             raise Exception('pywasm: call stack exhausted')
 
@@ -1842,21 +1794,21 @@ class Machine:
         self.store: Store = Store()
         self.opts: option.Option = option.Option()
 
-    def instantiate(self, module: core.Module, extern_value_list: typing.List[ExternValue]):
+    def instantiate(self, module: core.Module, extern_value_list: typing.List[core.Extern]):
         self.module.type_list = module.type
 
         # [TODO] If module is not valid, then panic
 
         # Assert: module is valid with external types classifying its imports
         for e in extern_value_list:
-            if isinstance(e, FunctionAddress):
-                assert e < len(self.store.function_list)
-            if isinstance(e, TableAddress):
-                assert e < len(self.store.table_list)
-            if isinstance(e, MemoryAddress):
-                assert e < len(self.store.memory_list)
-            if isinstance(e, GlobalAddress):
-                assert e < len(self.store.global_list)
+            if e.type == 0x00:
+                assert e.data < len(self.store.function_list)
+            if e.type == 0x01:
+                assert e.data < len(self.store.table_list)
+            if e.type == 0x02:
+                assert e.data < len(self.store.memory_list)
+            if e.type == 0x03:
+                assert e.data < len(self.store.global_list)
 
         # If the number m of imports is not equal to the number n of provided external values, then fail
         assert len(module.imps) == len(extern_value_list)
@@ -1865,26 +1817,26 @@ class Machine:
         # If externval is not valid with an external type in store S, then fail
         # If externtype does not match externtype, then fail
         for i, e in enumerate(extern_value_list):
-            if isinstance(e, FunctionAddress):
-                a = self.store.function_list[e].type
+            if e.type == 0x00:
+                a = self.store.function_list[e.data].type
                 b = module.type[module.imps[i].desc]
                 assert match_function(a, b)
-            if isinstance(e, TableAddress):
-                a = self.store.table_list[e]
+            if e.type == 0x01:
+                a = self.store.table_list[e.data]
                 b = module.imps[i].desc
                 assert a.type.limits.suit(b.limits)
-            if isinstance(e, MemoryAddress):
-                a = self.store.memory_list[e].type
+            if e.type == 0x02:
+                a = self.store.memory_list[e.data].type
                 b = module.imps[i].desc
                 assert a.limits.suit(b.limits)
-            if isinstance(e, GlobalAddress):
-                assert module.imps[i].desc.type == self.store.global_list[e].data.type
-                assert module.imps[i].desc.mut == self.store.global_list[e].mut
+            if e.type == 0x03:
+                assert module.imps[i].desc.type == self.store.global_list[e.data].data.type
+                assert module.imps[i].desc.mut == self.store.global_list[e.data].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
         global_values: typing.List[ValInst] = []
         aux = ModuleInstance()
-        aux.global_addr_list = [e for e in extern_value_list if isinstance(e, GlobalAddress)]
+        aux.global_addr_list = [e for e in extern_value_list if e.type == 0x03]
         for e in module.glob:
             log.debugln(f'init global value')
             frame = Frame(aux, [], e.init, 1)
@@ -1934,7 +1886,7 @@ class Machine:
     def allocate(
         self,
         module: core.Module,
-        extern_value_list: typing.List[ExternValue],
+        extern_value_list: typing.List[core.Extern],
         global_values: typing.List[ValInst],
     ):
         # Let funcaddr be the list of function addresses extracted from externval, concatenated with funcaddr
@@ -1942,14 +1894,14 @@ class Machine:
         # Let memaddr be the list of memory addresses extracted from externval, concatenated with memaddr
         # Let globaladdr be the list of global addresses extracted from externval, concatenated with globaladdr
         for e in extern_value_list:
-            if isinstance(e, FunctionAddress):
-                self.module.function_addr_list.append(e)
-            if isinstance(e, TableAddress):
-                self.module.table_addr_list.append(e)
-            if isinstance(e, MemoryAddress):
-                self.module.memory_addr_list.append(e)
-            if isinstance(e, GlobalAddress):
-                self.module.global_addr_list.append(e)
+            if e.type == 0x00:
+                self.module.function_addr_list.append(e.data)
+            if e.type == 0x01:
+                self.module.table_addr_list.append(e.data)
+            if e.type == 0x02:
+                self.module.memory_addr_list.append(e.data)
+            if e.type == 0x03:
+                self.module.global_addr_list.append(e.data)
 
         # For each function func in module.funcs, do:
         for e in module.func:
@@ -1975,16 +1927,20 @@ class Machine:
         for e in module.exps:
             if e.type == 0x00:
                 addr = self.module.function_addr_list[e.desc]
+                addr = core.Extern(0x00, addr)
             if e.type == 0x01:
                 addr = self.module.table_addr_list[e.desc]
+                addr = core.Extern(0x01, addr)
             if e.type == 0x02:
                 addr = self.module.memory_addr_list[e.desc]
+                addr = core.Extern(0x02, addr)
             if e.type == 0x03:
                 addr = self.module.global_addr_list[e.desc]
+                addr = core.Extern(0x03, addr)
             export_inst = ExportInstance(e.name, addr)
             self.module.export_list.append(export_inst)
 
-    def invocate(self, function_addr: FunctionAddress, function_args: typing.List[ValInst]) -> core.ResultInst:
+    def invocate(self, function_addr: int, function_args: typing.List[ValInst]) -> core.ResultInst:
         config = Configuration(self.store)
         config.opts = self.opts
         return config.call(function_addr, function_args)
