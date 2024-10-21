@@ -52,8 +52,8 @@ class Runtime:
     def func_addr(self, name: str) -> int:
         # Get a function address denoted by the function name
         for e in self.machine.module.export_list:
-            if e.name == name and e.value.type == 0x00:
-                return e.value.data
+            if e.name == name and e.data.type == 0x00:
+                return e.data.data
         raise Exception('pywasm: function not found')
 
     def exec_accu(self, name: str, args: typing.List[core.ValInst]) -> core.ResultInst:
