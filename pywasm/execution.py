@@ -91,19 +91,6 @@ class HostFunc:
 FunctionInstance = typing.Union[WasmFunc, HostFunc]
 
 
-class GlobalInstance:
-    # A global instance is the runtime representation of a global variable. It holds an individual value and a flag
-    # indicating whether it is mutable.
-    #
-    # globalinst ::= {value val, mut mut}
-    #
-    # The value of mutable globals can be mutated through variable instructions or by external means provided by the
-    # embedder.
-    def __init__(self, value: ValInst, mut: int):
-        self.value = value
-        self.mut = mut
-
-
 # An external value is the runtime representation of an entity that can be imported or exported. It is an address
 # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
 #
@@ -133,7 +120,7 @@ class Store:
         self.function_list: typing.List[FunctionInstance] = []
         self.table_list: typing.List[core.TableInst] = []
         self.memory_list: typing.List[core.MemInst] = []
-        self.global_list: typing.List[GlobalInstance] = []
+        self.global_list: typing.List[core.GlobalInst] = []
 
         # For compatibility with older 0.4.x versions
         self.mems = self.memory_list
@@ -164,7 +151,7 @@ class Store:
 
     def allocate_global(self, global_type: core.GlobalType, value: ValInst) -> GlobalAddress:
         global_address = GlobalAddress(len(self.global_list))
-        global_instance = GlobalInstance(value, global_type.mut)
+        global_instance = core.GlobalInst(value, global_type.mut)
         self.global_list.append(global_instance)
         return global_address
 
@@ -532,7 +519,7 @@ class ArithmeticLogicUnit:
     def global_get(config: Configuration, i: core.Inst):
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
-        r = glob.value
+        r = glob.data
         config.stack.append(r)
 
     @staticmethod
@@ -540,7 +527,7 @@ class ArithmeticLogicUnit:
         a = config.frame.module.global_addr_list[i.args[0]]
         glob = config.store.global_list[a]
         assert glob.mut == 0x01
-        glob.value = config.stack.pop()
+        glob.data = config.stack.pop()
 
     @staticmethod
     def mem_load(config: Configuration, i: core.Inst, size: int) -> bytearray:
@@ -1891,7 +1878,7 @@ class Machine:
                 b = module.imps[i].desc
                 assert a.limits.suit(b.limits)
             if isinstance(e, GlobalAddress):
-                assert module.imps[i].desc.type == self.store.global_list[e].value.type
+                assert module.imps[i].desc.type == self.store.global_list[e].data.type
                 assert module.imps[i].desc.mut == self.store.global_list[e].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
