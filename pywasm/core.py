@@ -699,8 +699,8 @@ class GlobalType:
         self.mut = mut
 
     def __repr__(self) -> str:
-        preifx = ['const', 'var'][self.mut]
-        return f'{preifx} {self.type}'
+        prefix = ['const', 'var'][self.mut]
+        return f'{prefix} {self.type}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
@@ -720,6 +720,19 @@ class GlobalDesc:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         return cls(GlobalType.from_reader(r), Expr.from_reader(r))
+
+
+class GlobalInst:
+    # A global instance is the runtime representation of a global variable. It holds an individual value and a flag
+    # indicating whether it is mutable. The value of mutable globals can be mutated through variable instructions or by
+    # external means provided by the embedder.
+    def __init__(self, data: ValInst, mut: int) -> typing.Self:
+        assert mut in [0x00, 0x01]
+        self.data = data
+        self.mut = mut
+
+    def __repr__(self) -> str:
+        return f'{self.data}'
 
 
 class Module:
