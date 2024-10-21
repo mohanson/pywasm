@@ -330,6 +330,25 @@ class Data:
         return cls(data, offset, init)
 
 
+class Extern:
+    # An external value is the runtime representation of an entity that can be imported or exported. It is an address
+    # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
+
+    def __init__(self, type: int, data: int) -> typing.Self:
+        assert type in [0x00, 0x01, 0x02, 0x03]
+        self.type = type
+        self.data = data
+
+    def __repr__(self) -> str:
+        prefix = {
+            0x00: 'func',
+            0x01: 'table',
+            0x02: 'mem',
+            0x03: 'global',
+        }[self.data]
+        return f'{prefix} {self.data}'
+
+
 class ValType:
     # Value types are encoded by a single byte.
 
