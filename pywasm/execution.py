@@ -12,42 +12,6 @@ from .core import ValInst
 call_stack_depth = 128
 
 
-class WasmFunc:
-    # It effectively is a closure of the original function over the runtime module instance of its originating module.
-
-    def __init__(self, type: core.FuncType, module: core.ModuleInst, code: core.FuncDesc) -> typing.Self:
-        self.type = type
-        self.module = module
-        self.code = code
-
-    def __repr__(self) -> str:
-        return f'{self.type}'
-
-
-class HostFunc:
-    # A host function is a function expressed outside WebAssembly but passed to a module as an import. The definition
-    # and behavior of host functions are outside the scope of this specification. For the purpose of this
-    # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
-    # constraints that ensure the integrity of the runtime.
-
-    def __init__(self, type: core.FuncType, hostcode: typing.Callable) -> typing.Self:
-        self.type = type
-        self.hostcode = hostcode
-
-    def __repr__(self) -> str:
-        return self.hostcode.__name__
-
-
-# A function instance is the runtime representation of a function. It effectively is a closure of the original
-# function over the runtime module instance of its originating module. The module instance is used to resolve
-# references to other definitions during execution of the function.
-#
-# funcinst ::= {type functype,module moduleinst,code func}
-#            | {type functype,hostcode hostfunc}
-# hostfunc ::= ...
-FuncInst = typing.Union[WasmFunc, HostFunc]
-
-
 class Store:
     # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
     # representation of all instances of functions, tables, memories, and globals that have been allocated during the
@@ -64,7 +28,7 @@ class Store:
     # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
     # a memory instance in the store, not an offset inside a memory instance.
     def __init__(self):
-        self.function_list: typing.List[FuncInst] = []
+        self.function_list: typing.List[core.FuncInst | core.FuncHost] = []
         self.table_list: typing.List[core.TableInst] = []
         self.memory_list: typing.List[core.MemInst] = []
         self.global_list: typing.List[core.GlobalInst] = []
@@ -75,11 +39,11 @@ class Store:
     def allocate_wasm_function(self, module: core.ModuleInst, function: core.FuncDesc) -> int:
         function_address = len(self.function_list)
         function_type = module.type[function.type]
-        wasmfunc = WasmFunc(function_type, module, function)
+        wasmfunc = core.FuncInst(function_type, module, function)
         self.function_list.append(wasmfunc)
         return function_address
 
-    def allocate_host_function(self, hostfunc: HostFunc) -> int:
+    def allocate_host_function(self, hostfunc: core.FuncHost) -> int:
         function_address = len(self.function_list)
         self.function_list.append(hostfunc)
         return function_address
@@ -204,7 +168,7 @@ class Configuration:
             assert e.type == t
         assert len(function.type.rets.data) < 2
 
-        if isinstance(function, WasmFunc):
+        if function.kind == 0x00:
             local_list = core.LocalsInst(function_args)
             for e in function.code.locals:
                 for _ in range(e.n):
@@ -217,7 +181,7 @@ class Configuration:
             )
             self.set_frame(frame)
             return self.exec()
-        if isinstance(function, HostFunc):
+        if function.kind == 0x01:
             r = function.hostcode(self.store, *[e.into_auto() for e in function_args])
             l = len(function.type.rets.data)
             if l == 0:
@@ -377,7 +341,7 @@ class ArithmeticLogicUnit:
         if config.depth > call_stack_depth:
             raise Exception('pywasm: call stack exhausted')
 
-        function: FuncInst = config.store.function_list[function_addr]
+        function = config.store.function_list[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
 

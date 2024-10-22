@@ -906,3 +906,31 @@ class ModuleInst:
         self.mems: typing.List[int] = []
         self.glob: typing.List[int] = []
         self.exps: typing.List[ExportInst] = []
+
+
+class FuncInst:
+    # It effectively is a closure of the original function over the runtime module instance of its originating module.
+
+    def __init__(self, type: FuncType, module: ModuleInst, code: FuncDesc) -> typing.Self:
+        self.kind = 0x00
+        self.type = type
+        self.module = module
+        self.code = code
+
+    def __repr__(self) -> str:
+        return f'{self.type}'
+
+
+class FuncHost:
+    # A host function is a function expressed outside WebAssembly but passed to a module as an import. The definition
+    # and behavior of host functions are outside the scope of this specification. For the purpose of this
+    # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
+    # constraints that ensure the integrity of the runtime.
+
+    def __init__(self, type: FuncType, hostcode: typing.Callable) -> typing.Self:
+        self.kind = 0x01
+        self.type = type
+        self.hostcode = hostcode
+
+    def __repr__(self) -> str:
+        return self.hostcode.__name__

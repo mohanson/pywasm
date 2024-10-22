@@ -21,7 +21,7 @@ class Runtime:
             if e.module not in imps or e.name not in imps[e.module]:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if e.type == 0x00:
-                a = execution.HostFunc(module.type[e.desc], imps[e.module][e.name])
+                a = core.FuncHost(module.type[e.desc], imps[e.module][e.name])
                 addr = self.machine.store.allocate_host_function(a)
                 extern_value_list.append(core.Extern(0x00, addr))
                 continue
