@@ -766,7 +766,7 @@ class ExportInst:
         return f'{self.name} {self.data}'
 
 
-class Module:
+class ModuleDesc:
     # The binary encoding of modules is organized into sections. Most sections correspond to one component of a module
     # record, except that function definitions are split into two sections, separating their type declarations in the
     # function section from their bodies in the code section.
@@ -893,3 +893,16 @@ class Module:
                         log.debugln(f'    {i:>3d} {desc}')
 
         return cls(type, func, tabl, mems, glob, elem, data, star, imps, exps)
+
+
+class ModuleInst:
+    # A module instance is the runtime representation of a module. It is created by instantiating a module, and
+    # collects runtime representations of all entities that are imported, defined, or exported by the module.
+
+    def __init__(self) -> typing.Self:
+        self.type: typing.List[FuncType] = []
+        self.func: typing.List[int] = []
+        self.tabl: typing.List[int] = []
+        self.mems: typing.List[int] = []
+        self.glob: typing.List[int] = []
+        self.exps: typing.List[ExportInst] = []

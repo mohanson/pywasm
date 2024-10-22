@@ -12,29 +12,8 @@ from .core import ValInst
 call_stack_depth = 128
 
 
-class ModuleInstance:
-    # A module instance is the runtime representation of a module. It is created by instantiating a module, and
-    # collects runtime representations of all entities that are imported, defined, or exported by the module.
-    #
-    # moduleinst ::= {
-    #     types functype∗
-    #     funcaddrs funcaddr∗
-    #     tableaddrs tableaddr∗
-    #     memaddrs memaddr∗
-    #     globaladdrs globaladdr∗
-    #     exports exportinst∗
-    # }
-    def __init__(self):
-        self.type_list: typing.List[core.FuncType] = []
-        self.function_addr_list: typing.List[int] = []
-        self.table_addr_list: typing.List[int] = []
-        self.memory_addr_list: typing.List[int] = []
-        self.global_addr_list: typing.List[int] = []
-        self.export_list: typing.List[core.ExportInst] = []
-
-
 class WasmFunc:
-    def __init__(self, function_type: core.FuncType, module: ModuleInstance, code: core.FuncDesc):
+    def __init__(self, function_type: core.FuncType, module: core.ModuleInst, code: core.FuncDesc):
         self.type = function_type
         self.module = module
         self.code = code
@@ -90,9 +69,9 @@ class Store:
         # For compatibility with older 0.4.x versions
         self.mems = self.memory_list
 
-    def allocate_wasm_function(self, module: ModuleInstance, function: core.FuncDesc) -> int:
+    def allocate_wasm_function(self, module: core.ModuleInst, function: core.FuncDesc) -> int:
         function_address = len(self.function_list)
-        function_type = module.type_list[function.type]
+        function_type = module.type[function.type]
         wasmfunc = WasmFunc(function_type, module, function)
         self.function_list.append(wasmfunc)
         return function_address
@@ -142,10 +121,13 @@ class Frame:
     # (including arguments) in the order corresponding to their static local indices, and a reference to the function's
     # own module instance.
 
-    def __init__(self, module: ModuleInstance,
-                 local_list: core.LocalsInst,
-                 expr: core.Expr,
-                 arity: int):
+    def __init__(
+        self,
+        module: core.ModuleInst,
+        local_list: core.LocalsInst,
+        expr: core.Expr,
+        arity: int
+    ):
         self.module = module
         self.local_list = local_list
         self.expr = expr
@@ -412,7 +394,7 @@ class ArithmeticLogicUnit:
     def call_indirect(config: Configuration, i: core.Inst):
         if i.args[1] != 0x00:
             raise Exception("pywasm: zero byte malformed in call_indirect")
-        ta = config.frame.module.table_addr_list[0]
+        ta = config.frame.module.tabl[0]
         tab = config.store.table_list[ta]
         idx = config.stack.pop().into_i32()
         if not 0 <= idx < len(tab.elem):
@@ -455,21 +437,21 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def global_get(config: Configuration, i: core.Inst):
-        a = config.frame.module.global_addr_list[i.args[0]]
+        a = config.frame.module.glob[i.args[0]]
         glob = config.store.global_list[a]
         r = glob.data
         config.stack.append(r)
 
     @staticmethod
     def global_set(config: Configuration, i: core.Inst):
-        a = config.frame.module.global_addr_list[i.args[0]]
+        a = config.frame.module.glob[i.args[0]]
         glob = config.store.global_list[a]
         assert glob.mut == 0x01
         glob.data = config.stack.pop()
 
     @staticmethod
     def mem_load(config: Configuration, i: core.Inst, size: int) -> bytearray:
-        memory_addr = config.frame.module.memory_addr_list[0]
+        memory_addr = config.frame.module.mems[0]
         memory = config.store.memory_list[memory_addr]
         offset = i.args[1]
         addr = config.stack.pop().into_i32() + offset
@@ -549,7 +531,7 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def mem_store(config: Configuration, i: core.Inst, size: int):
-        memory_addr = config.frame.module.memory_addr_list[0]
+        memory_addr = config.frame.module.mems[0]
         memory = config.store.memory_list[memory_addr]
         r = config.stack.pop()
         offset = i.args[1]
@@ -596,14 +578,14 @@ class ArithmeticLogicUnit:
 
     @staticmethod
     def memory_size(config: Configuration, i: core.Inst):
-        memory_addr = config.frame.module.memory_addr_list[0]
+        memory_addr = config.frame.module.mems[0]
         memory = config.store.memory_list[memory_addr]
         r = ValInst.from_i32(memory.size)
         config.stack.append(r)
 
     @staticmethod
     def memory_grow(config: Configuration, i: core.Inst):
-        memory_addr = config.frame.module.memory_addr_list[0]
+        memory_addr = config.frame.module.mems[0]
         memory = config.store.memory_list[memory_addr]
         size = memory.size
         r = config.stack.pop().into_i32()
@@ -1776,12 +1758,12 @@ class Machine:
     # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
     # which records operand values and control constructs, and an abstract store containing global state.
     def __init__(self):
-        self.module: ModuleInstance = ModuleInstance()
+        self.module: core.ModuleInst = core.ModuleInst()
         self.store: Store = Store()
         self.opts: option.Option = option.Option()
 
-    def instantiate(self, module: core.Module, extern_value_list: typing.List[core.Extern]):
-        self.module.type_list = module.type
+    def instantiate(self, module: core.ModuleDesc, extern_value_list: typing.List[core.Extern]):
+        self.module.type = module.type
 
         # [TODO] If module is not valid, then panic
 
@@ -1821,8 +1803,8 @@ class Machine:
 
         # Let vals be the vector of global initialization values determined by module and externvaln
         global_values: typing.List[ValInst] = []
-        aux = ModuleInstance()
-        aux.global_addr_list = [e for e in extern_value_list if e.type == 0x03]
+        aux = core.ModuleInst()
+        aux.glob = [e for e in extern_value_list if e.type == 0x03]
         for e in module.glob:
             log.debugln(f'init global value')
             frame = Frame(aux, [], e.init, 1)
@@ -1845,7 +1827,7 @@ class Machine:
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.into_auto()
-            table_addr = self.module.table_addr_list[element_segment.data]
+            table_addr = self.module.tabl[element_segment.data]
             table_instance = self.store.table_list[table_addr]
             for i, e in enumerate(element_segment.init):
                 table_instance.elem[offset + i] = e
@@ -1858,7 +1840,7 @@ class Machine:
             config.set_frame(frame)
             r = config.exec().data[0]
             offset = r.into_auto()
-            memory_addr = self.module.memory_addr_list[data_segment.data]
+            memory_addr = self.module.mems[data_segment.data]
             memory_instance = self.store.memory_list[memory_addr]
             memory_instance.data[offset: offset + len(data_segment.init)] = data_segment.init
 
@@ -1867,11 +1849,11 @@ class Machine:
         # If the start function module.start is not empty, invoke the function instance
         if module.star >= 0:
             log.debugln(f'running start function {module.star}')
-            self.invocate(self.module.function_addr_list[module.star], [])
+            self.invocate(self.module.func[module.star], [])
 
     def allocate(
         self,
-        module: core.Module,
+        module: core.ModuleDesc,
         extern_value_list: typing.List[core.Extern],
         global_values: typing.List[ValInst],
     ):
@@ -1881,50 +1863,50 @@ class Machine:
         # Let globaladdr be the list of global addresses extracted from externval, concatenated with globaladdr
         for e in extern_value_list:
             if e.type == 0x00:
-                self.module.function_addr_list.append(e.data)
+                self.module.func.append(e.data)
             if e.type == 0x01:
-                self.module.table_addr_list.append(e.data)
+                self.module.tabl.append(e.data)
             if e.type == 0x02:
-                self.module.memory_addr_list.append(e.data)
+                self.module.mems.append(e.data)
             if e.type == 0x03:
-                self.module.global_addr_list.append(e.data)
+                self.module.glob.append(e.data)
 
         # For each function func in module.funcs, do:
         for e in module.func:
             function_addr = self.store.allocate_wasm_function(self.module, e)
-            self.module.function_addr_list.append(function_addr)
+            self.module.func.append(function_addr)
 
         # For each table in module.tables, do:
         for e in module.tabl:
             table_addr = self.store.allocate_table(e)
-            self.module.table_addr_list.append(table_addr)
+            self.module.tabl.append(table_addr)
 
         # For each memory module.mems, do:
         for e in module.mems:
             memory_addr = self.store.allocate_memory(e)
-            self.module.memory_addr_list.append(memory_addr)
+            self.module.mems.append(memory_addr)
 
         # For each global in module.globals, do:
         for i, e in enumerate(module.glob):
             global_addr = self.store.allocate_global(e.type, global_values[i])
-            self.module.global_addr_list.append(global_addr)
+            self.module.glob.append(global_addr)
 
         # For each export in module.exports, do:
         for e in module.exps:
             if e.type == 0x00:
-                addr = self.module.function_addr_list[e.desc]
+                addr = self.module.func[e.desc]
                 addr = core.Extern(0x00, addr)
             if e.type == 0x01:
-                addr = self.module.table_addr_list[e.desc]
+                addr = self.module.tabl[e.desc]
                 addr = core.Extern(0x01, addr)
             if e.type == 0x02:
-                addr = self.module.memory_addr_list[e.desc]
+                addr = self.module.mems[e.desc]
                 addr = core.Extern(0x02, addr)
             if e.type == 0x03:
-                addr = self.module.global_addr_list[e.desc]
+                addr = self.module.glob[e.desc]
                 addr = core.Extern(0x03, addr)
             export_inst = core.ExportInst(e.name, addr)
-            self.module.export_list.append(export_inst)
+            self.module.exps.append(export_inst)
 
     def invocate(self, function_addr: int, function_args: typing.List[ValInst]) -> core.ResultInst:
         config = Configuration(self.store)

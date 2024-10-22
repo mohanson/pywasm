@@ -11,7 +11,7 @@ from . import option
 class Runtime:
     # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
 
-    def __init__(self, module: core.Module, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None):
+    def __init__(self, module: core.ModuleDesc, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None):
         self.machine = execution.Machine()
         self.machine.opts = opts or option.Option()
 
@@ -51,7 +51,7 @@ class Runtime:
 
     def func_addr(self, name: str) -> int:
         # Get a function address denoted by the function name
-        for e in self.machine.module.export_list:
+        for e in self.machine.module.exps:
             if e.name == name and e.data.type == 0x00:
                 return e.data.data
         raise Exception('pywasm: function not found')
@@ -88,7 +88,7 @@ def on_debug():
 def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Option] = None) -> Runtime:
     # Generate a runtime directly by loading a file from disk.
     with open(name, 'rb') as f:
-        module = core.Module.from_reader(f)
+        module = core.ModuleDesc.from_reader(f)
         return Runtime(module, imps, opts)
 
 
