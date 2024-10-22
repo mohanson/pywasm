@@ -22,21 +22,21 @@ class Runtime:
                 raise Exception(f'pywasm: missing import {e.module}.{e.name}')
             if e.type == 0x00:
                 a = core.FuncHost(module.type[e.desc], imps[e.module][e.name])
-                addr = self.machine.store.allocate_host_function(a)
+                addr = self.machine.store.allocate_func_host(a)
                 extern_value_list.append(core.Extern(0x00, addr))
                 continue
             if e.type == 0x01:
-                addr = len(self.machine.store.table_list)
+                addr = len(self.machine.store.tabl)
                 table = imps[e.module][e.name]
-                self.machine.store.table_list.append(table)
+                self.machine.store.tabl.append(table)
                 extern_value_list.append(core.Extern(0x01, addr))
                 continue
             if e.type == 0x02:
-                addr = len(self.machine.store.memory_list)
+                addr = len(self.machine.store.mems)
                 memory = imps[e.module][e.name]
                 if self.machine.opts.pages_limit > 0 and e.desc.limits.n > self.machine.opts.pages_limit:
                     raise Exception('pywasm: out of memory limit')
-                self.machine.store.memory_list.append(memory)
+                self.machine.store.mems.append(memory)
                 extern_value_list.append(core.Extern(0x02, addr))
                 continue
             if e.type == 0x03:
@@ -63,7 +63,7 @@ class Runtime:
 
     def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> core.ResultInst:
         func_addr = self.func_addr(name)
-        func = self.machine.store.function_list[func_addr]
+        func = self.machine.store.func[func_addr]
         func_args = []
         # Mapping check for python valtype to webAssembly valtype
         for i, e in enumerate(func.type.args.data):
@@ -92,12 +92,9 @@ def load(name: str, imps: typing.Dict = None, opts: typing.Optional[option.Optio
         return Runtime(module, imps, opts)
 
 
-Store = execution.Store
+Store = core.Store
 Memory = core.MemInst
 ValInst = core.ValInst
 Table = core.TableInst
 Global = core.GlobalInst
 Option = option.Option
-
-# For compatibility with older 0.4.x versions
-Ctx = Store

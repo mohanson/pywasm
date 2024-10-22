@@ -934,3 +934,45 @@ class FuncHost:
 
     def __repr__(self) -> str:
         return self.hostcode.__name__
+
+
+class Store:
+    # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
+    # representation of all instances of functions, tables, memories, and globals that have been allocated during the
+    # life time of the abstract machine
+
+    def __init__(self):
+        self.func: typing.List[FuncInst | FuncHost] = []
+        self.tabl: typing.List[TableInst] = []
+        self.mems: typing.List[MemInst] = []
+        self.glob: typing.List[GlobalInst] = []
+
+    def allocate_func_wasm(self, module: ModuleInst, func: FuncDesc) -> int:
+        addr = len(self.func)
+        type = module.type[func.type]
+        inst = FuncInst(type, module, func)
+        self.func.append(inst)
+        return addr
+
+    def allocate_func_host(self, func: FuncHost) -> int:
+        addr = len(self.func)
+        self.func.append(func)
+        return addr
+
+    def allocate_table(self, type: TableType) -> int:
+        addr = len(self.tabl)
+        inst = TableInst(type)
+        self.tabl.append(inst)
+        return addr
+
+    def allocate_memory(self, type: MemType) -> int:
+        addr = len(self.mems)
+        inst = MemInst(type)
+        self.mems.append(inst)
+        return addr
+
+    def allocate_global(self, type: GlobalType, data: ValInst) -> int:
+        addr = len(self.glob)
+        inst = GlobalInst(data, type.mut)
+        self.glob.append(inst)
+        return addr

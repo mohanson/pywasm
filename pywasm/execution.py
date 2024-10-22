@@ -12,61 +12,6 @@ from .core import ValInst
 call_stack_depth = 128
 
 
-class Store:
-    # The store represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime
-    # representation of all instances of functions, tables, memories, and globals that have been allocated during the
-    # life time of the abstract machine
-    # Syntactically, the store is defined as a record listing the existing instances of each category:
-    # store ::= {
-    #     funcs funcinst∗
-    #     tables tableinst∗
-    #     mems meminst∗
-    #     globals globalinst∗
-    # }
-    #
-    # Addresses are dynamic, globally unique references to runtime objects, in contrast to indices, which are static,
-    # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
-    # a memory instance in the store, not an offset inside a memory instance.
-    def __init__(self):
-        self.function_list: typing.List[core.FuncInst | core.FuncHost] = []
-        self.table_list: typing.List[core.TableInst] = []
-        self.memory_list: typing.List[core.MemInst] = []
-        self.global_list: typing.List[core.GlobalInst] = []
-
-        # For compatibility with older 0.4.x versions
-        self.mems = self.memory_list
-
-    def allocate_wasm_function(self, module: core.ModuleInst, function: core.FuncDesc) -> int:
-        function_address = len(self.function_list)
-        function_type = module.type[function.type]
-        wasmfunc = core.FuncInst(function_type, module, function)
-        self.function_list.append(wasmfunc)
-        return function_address
-
-    def allocate_host_function(self, hostfunc: core.FuncHost) -> int:
-        function_address = len(self.function_list)
-        self.function_list.append(hostfunc)
-        return function_address
-
-    def allocate_table(self, table_type: core.TableType) -> int:
-        table_address = len(self.table_list)
-        table_instance = core.TableInst(table_type)
-        self.table_list.append(table_instance)
-        return table_address
-
-    def allocate_memory(self, memory_type: core.MemType) -> int:
-        memory_address = len(self.memory_list)
-        memory_instance = core.MemInst(memory_type)
-        self.memory_list.append(memory_instance)
-        return memory_address
-
-    def allocate_global(self, global_type: core.GlobalType, value: ValInst) -> int:
-        global_address = len(self.global_list)
-        global_instance = core.GlobalInst(value, global_type.mut)
-        self.global_list.append(global_instance)
-        return global_address
-
-
 class Label:
     # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
     # instruction sequence:
@@ -137,7 +82,7 @@ class Configuration:
     #
     # config ::= store;thread
     # thread ::= frame;instr∗
-    def __init__(self, store: Store):
+    def __init__(self, store: core.Store):
         self.store = store
         self.frame: typing.Optional[Frame] = None
         self.stack = Stack()
@@ -162,7 +107,7 @@ class Configuration:
         self.stack.append(Label(frame.arity, len(frame.expr.data) - 1))
 
     def call(self, function_addr: int, function_args: typing.List[ValInst]) -> core.ResultInst:
-        function = self.store.function_list[function_addr]
+        function = self.store.func[function_addr]
         log.debugln(f'call {function}({function_args})')
         for e, t in zip(function_args, function.type.args.data):
             assert e.type == t
@@ -341,7 +286,7 @@ class ArithmeticLogicUnit:
         if config.depth > call_stack_depth:
             raise Exception('pywasm: call stack exhausted')
 
-        function = config.store.function_list[function_addr]
+        function = config.store.func[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
 
@@ -362,7 +307,7 @@ class ArithmeticLogicUnit:
         if i.args[1] != 0x00:
             raise Exception("pywasm: zero byte malformed in call_indirect")
         ta = config.frame.module.tabl[0]
-        tab = config.store.table_list[ta]
+        tab = config.store.tabl[ta]
         idx = config.stack.pop().into_i32()
         if not 0 <= idx < len(tab.elem):
             raise Exception('pywasm: undefined element')
@@ -405,21 +350,21 @@ class ArithmeticLogicUnit:
     @staticmethod
     def global_get(config: Configuration, i: core.Inst):
         a = config.frame.module.glob[i.args[0]]
-        glob = config.store.global_list[a]
+        glob = config.store.glob[a]
         r = glob.data
         config.stack.append(r)
 
     @staticmethod
     def global_set(config: Configuration, i: core.Inst):
         a = config.frame.module.glob[i.args[0]]
-        glob = config.store.global_list[a]
+        glob = config.store.glob[a]
         assert glob.mut == 0x01
         glob.data = config.stack.pop()
 
     @staticmethod
     def mem_load(config: Configuration, i: core.Inst, size: int) -> bytearray:
         memory_addr = config.frame.module.mems[0]
-        memory = config.store.memory_list[memory_addr]
+        memory = config.store.mems[memory_addr]
         offset = i.args[1]
         addr = config.stack.pop().into_i32() + offset
         if addr < 0 or addr + size > len(memory.data):
@@ -499,7 +444,7 @@ class ArithmeticLogicUnit:
     @staticmethod
     def mem_store(config: Configuration, i: core.Inst, size: int):
         memory_addr = config.frame.module.mems[0]
-        memory = config.store.memory_list[memory_addr]
+        memory = config.store.mems[memory_addr]
         r = config.stack.pop()
         offset = i.args[1]
         addr = config.stack.pop().into_i32() + offset
@@ -546,14 +491,14 @@ class ArithmeticLogicUnit:
     @staticmethod
     def memory_size(config: Configuration, i: core.Inst):
         memory_addr = config.frame.module.mems[0]
-        memory = config.store.memory_list[memory_addr]
+        memory = config.store.mems[memory_addr]
         r = ValInst.from_i32(memory.size)
         config.stack.append(r)
 
     @staticmethod
     def memory_grow(config: Configuration, i: core.Inst):
         memory_addr = config.frame.module.mems[0]
-        memory = config.store.memory_list[memory_addr]
+        memory = config.store.mems[memory_addr]
         size = memory.size
         r = config.stack.pop().into_i32()
         if config.opts.pages_limit > 0 and memory.size + r > config.opts.pages_limit:
@@ -1726,7 +1671,7 @@ class Machine:
     # which records operand values and control constructs, and an abstract store containing global state.
     def __init__(self):
         self.module: core.ModuleInst = core.ModuleInst()
-        self.store: Store = Store()
+        self.store = core.Store()
         self.opts: option.Option = option.Option()
 
     def instantiate(self, module: core.ModuleDesc, extern_value_list: typing.List[core.Extern]):
@@ -1737,13 +1682,13 @@ class Machine:
         # Assert: module is valid with external types classifying its imports
         for e in extern_value_list:
             if e.type == 0x00:
-                assert e.data < len(self.store.function_list)
+                assert e.data < len(self.store.func)
             if e.type == 0x01:
-                assert e.data < len(self.store.table_list)
+                assert e.data < len(self.store.tabl)
             if e.type == 0x02:
-                assert e.data < len(self.store.memory_list)
+                assert e.data < len(self.store.mems)
             if e.type == 0x03:
-                assert e.data < len(self.store.global_list)
+                assert e.data < len(self.store.glob)
 
         # If the number m of imports is not equal to the number n of provided external values, then fail
         assert len(module.imps) == len(extern_value_list)
@@ -1753,20 +1698,20 @@ class Machine:
         # If externtype does not match externtype, then fail
         for i, e in enumerate(extern_value_list):
             if e.type == 0x00:
-                a = self.store.function_list[e.data].type
+                a = self.store.func[e.data].type
                 b = module.type[module.imps[i].desc]
                 assert match_function(a, b)
             if e.type == 0x01:
-                a = self.store.table_list[e.data]
+                a = self.store.tabl[e.data]
                 b = module.imps[i].desc
                 assert a.type.limits.suit(b.limits)
             if e.type == 0x02:
-                a = self.store.memory_list[e.data].type
+                a = self.store.mems[e.data].type
                 b = module.imps[i].desc
                 assert a.limits.suit(b.limits)
             if e.type == 0x03:
-                assert module.imps[i].desc.type == self.store.global_list[e.data].data.type
-                assert module.imps[i].desc.mut == self.store.global_list[e.data].mut
+                assert module.imps[i].desc.type == self.store.glob[e.data].data.type
+                assert module.imps[i].desc.mut == self.store.glob[e.data].mut
 
         # Let vals be the vector of global initialization values determined by module and externvaln
         global_values: typing.List[ValInst] = []
@@ -1795,7 +1740,7 @@ class Machine:
             r = config.exec().data[0]
             offset = r.into_auto()
             table_addr = self.module.tabl[element_segment.data]
-            table_instance = self.store.table_list[table_addr]
+            table_instance = self.store.tabl[table_addr]
             for i, e in enumerate(element_segment.init):
                 table_instance.elem[offset + i] = e
 
@@ -1808,7 +1753,7 @@ class Machine:
             r = config.exec().data[0]
             offset = r.into_auto()
             memory_addr = self.module.mems[data_segment.data]
-            memory_instance = self.store.memory_list[memory_addr]
+            memory_instance = self.store.mems[memory_addr]
             memory_instance.data[offset: offset + len(data_segment.init)] = data_segment.init
 
         # [TODO] Assert: due to validation, the frame F is now on the top of the stack.
@@ -1840,7 +1785,7 @@ class Machine:
 
         # For each function func in module.funcs, do:
         for e in module.func:
-            function_addr = self.store.allocate_wasm_function(self.module, e)
+            function_addr = self.store.allocate_func_wasm(self.module, e)
             self.module.func.append(function_addr)
 
         # For each table in module.tables, do:
