@@ -13,13 +13,15 @@ call_stack_depth = 128
 
 
 class WasmFunc:
-    def __init__(self, function_type: core.FuncType, module: core.ModuleInst, code: core.FuncDesc):
-        self.type = function_type
+    # It effectively is a closure of the original function over the runtime module instance of its originating module.
+
+    def __init__(self, type: core.FuncType, module: core.ModuleInst, code: core.FuncDesc) -> typing.Self:
+        self.type = type
         self.module = module
         self.code = code
 
-    def __repr__(self):
-        return f'wasm_func({self.type})'
+    def __repr__(self) -> str:
+        return f'{self.type}'
 
 
 class HostFunc:
@@ -27,11 +29,12 @@ class HostFunc:
     # and behavior of host functions are outside the scope of this specification. For the purpose of this
     # specification, it is assumed that when invoked, a host function behaves non-deterministically, but within certain
     # constraints that ensure the integrity of the runtime.
-    def __init__(self, function_type: core.FuncType, hostcode: typing.Callable):
-        self.type = function_type
+
+    def __init__(self, type: core.FuncType, hostcode: typing.Callable) -> typing.Self:
+        self.type = type
         self.hostcode = hostcode
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.hostcode.__name__
 
 
@@ -42,7 +45,7 @@ class HostFunc:
 # funcinst ::= {type functype,module moduleinst,code func}
 #            | {type functype,hostcode hostfunc}
 # hostfunc ::= ...
-FunctionInstance = typing.Union[WasmFunc, HostFunc]
+FuncInst = typing.Union[WasmFunc, HostFunc]
 
 
 class Store:
@@ -61,7 +64,7 @@ class Store:
     # module-local references to their original definitions. A memory address memaddr denotes the abstract address of
     # a memory instance in the store, not an offset inside a memory instance.
     def __init__(self):
-        self.function_list: typing.List[FunctionInstance] = []
+        self.function_list: typing.List[FuncInst] = []
         self.table_list: typing.List[core.TableInst] = []
         self.memory_list: typing.List[core.MemInst] = []
         self.global_list: typing.List[core.GlobalInst] = []
@@ -374,7 +377,7 @@ class ArithmeticLogicUnit:
         if config.depth > call_stack_depth:
             raise Exception('pywasm: call stack exhausted')
 
-        function: FunctionInstance = config.store.function_list[function_addr]
+        function: FuncInst = config.store.function_list[function_addr]
         function_type = function.type
         function_args = [config.stack.pop() for _ in function_type.args.data][::-1]
 
