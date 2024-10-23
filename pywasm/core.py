@@ -1037,6 +1037,16 @@ class Machine:
     def allocate(self, module: ModuleDesc, extern: typing.List[Extern], globin: typing.List[ValInst]) -> ModuleInst:
         inst = ModuleInst()
         inst.type = module.type
+        for e in extern:
+            match e.kind:
+                case 0x00:
+                    self.module.func.append(e.data)
+                case 0x01:
+                    self.module.tabl.append(e.data)
+                case 0x02:
+                    self.module.mems.append(e.data)
+                case 0x03:
+                    self.module.glob.append(e.data)
         for _, e in enumerate(module.func):
             addr = self.store.allocate_func_wasm(inst, e)
             inst.func.append(addr)
