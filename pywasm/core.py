@@ -1075,12 +1075,12 @@ class Machine:
 
     def evaluate_br(self, l: int) -> None:
         assert len(self.stack.label) >= l + 1
-        l = self.stack.label[-1 - l]
-        assert len(self.stack.value) >= l.value + l.arity
-        v = self.stack.value = self.stack.value[-l.arity:]
+        label = self.stack.label[-1 - l]
+        assert len(self.stack.value) >= label.value + label.arity
+        arity = self.stack.value[-label.arity:]
         self.stack.label = self.stack.label[:-1 - l]
-        self.stack.value = self.stack.value[:l.value]
-        self.stack.value.extend(v)
+        self.stack.value = self.stack.value[:label.value]
+        self.stack.value.extend(arity)
 
     def evaluate_bype(self, bype: Bype) -> FuncType:
         match bype.kind:
@@ -1096,12 +1096,13 @@ class Machine:
             if not self.stack.label:
                 break
             label = self.stack.label[-1]
+            frame = self.stack.frame[-1]
             if label.index == len(label.instr):
                 assert len(self.stack.value) == label.value + label.arity
                 self.stack.label.pop()
                 if label.carry == 0x00:
                     continue
-                frame = self.stack.frame.pop()
+                self.stack.frame.pop()
                 assert len(self.stack.value) == frame.value + frame.arity
                 continue
             instr = label.instr[label.index]
@@ -1114,7 +1115,7 @@ class Machine:
                     assert 1
                 case opcode.block:
                     bype = self.evaluate_bype(instr.args[0])
-                    assert len(self.stack.value) >= self.stack.label[-1].value + len(bype.args.data)
+                    assert len(self.stack.value) >= label.value + len(bype.args.data)
                     self.stack.label.append(Label(len(bype.rets.data), 0, len(self.stack.value), instr.args[1], 0))
                 # case opcode.loop: pass
                 # case opcode.if: pass
@@ -1126,7 +1127,13 @@ class Machine:
                     if self.stack.value.pop().into_i32() != 0:
                         self.evaluate_br(instr.args[0])
                 # case opcode.br_table: pass
-                # case opcode.return: pass
+                case opcode.return_call:
+                    assert len(self.stack.value) >= frame.value + frame.arity
+                    rets = self.stack.value[-frame.arity:]
+                    self.stack.frame.pop()
+                    self.stack.label = self.stack.label[:frame.label]
+                    self.stack.value = self.stack.value[:frame.value]
+                    self.stack.value.extend(rets)
                 # case opcode.call: pass
                 # case opcode.call_indirect: pass
                 # case opcode.drop: pass
