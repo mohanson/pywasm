@@ -1061,7 +1061,7 @@ class Machine:
         locals = LocalsInst(args)
         for e in func.code.locals:
             locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
-        self.stack.frame.append(Frame(self, locals, len(func.type.rets.data), 0, 0))
+        self.stack.frame.append(Frame(func.module, locals, len(func.type.rets.data), 0, 0))
         self.stack.label.append(Label(len(func.type.rets.data), 1, len(self.stack.value), func.code.expr.data, 0))
         self.evaluate()
         rets = [self.stack.value.pop() for _ in range(len(func.type.rets.data))][::-1]
@@ -1077,10 +1077,10 @@ class Machine:
         assert len(self.stack.label) >= l + 1
         label = self.stack.label[-1 - l]
         assert len(self.stack.value) >= label.value + label.arity
-        arity = self.stack.value[-label.arity:]
+        rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
         self.stack.label = self.stack.label[:-1 - l]
         self.stack.value = self.stack.value[:label.value]
-        self.stack.value.extend(arity)
+        self.stack.value.extend(rets)
 
     def evaluate_bype(self, bype: Bype) -> FuncType:
         match bype.kind:
@@ -1129,12 +1129,24 @@ class Machine:
                 # case opcode.br_table: pass
                 case opcode.return_call:
                     assert len(self.stack.value) >= frame.value + frame.arity
-                    rets = self.stack.value[-frame.arity:]
+                    rets = [self.stack.value.pop() for _ in range(frame.arity)][::-1]
                     self.stack.frame.pop()
                     self.stack.label = self.stack.label[:frame.label]
                     self.stack.value = self.stack.value[:frame.value]
                     self.stack.value.extend(rets)
-                # case opcode.call: pass
+                case opcode.call:
+                    addr = frame.module.func[instr.args[0]]
+                    func = self.store.func[addr]
+                    assert len(self.stack.value) >= label.value + len(func.type.args.data)
+                    args = [self.stack.value.pop() for _ in range(len(func.type.args.data))][::-1]
+                    log.debugln(f'call {func} {args}')
+                    locals = LocalsInst(args)
+                    for e in func.code.locals:
+                        locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+                    self.stack.frame.append(Frame(func.module, locals, len(func.type.rets.data),
+                                            len(self.stack.label), len(self.stack.value)))
+                    self.stack.label.append(Label(len(func.type.rets.data), 1,
+                                            len(self.stack.value), func.code.expr.data, 0))
                 # case opcode.call_indirect: pass
                 # case opcode.drop: pass
                 # case opcode.select: pass
@@ -1189,7 +1201,10 @@ class Machine:
                 # case opcode.i32_gt_u: pass
                 # case opcode.i32_le_s: pass
                 # case opcode.i32_le_u: pass
-                # case opcode.i32_ge_s: pass
+                case opcode.i32_ge_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    self.stack.value.append(ValInst.from_i32(a >= b))
                 # case opcode.i32_ge_u: pass
                 # case opcode.i64_eqz: pass
                 # case opcode.i64_eq: pass
