@@ -1283,7 +1283,10 @@ class Machine:
                 # case opcode.f64_min: pass
                 # case opcode.f64_max: pass
                 # case opcode.f64_copysign: pass
-                # case opcode.i32_wrap_i64: pass
+                case opcode.i32_wrap_i64:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_i32(a)
+                    self.stack.value.append(b)
                 # case opcode.i32_trunc_f32_s: pass
                 # case opcode.i32_trunc_f32_u: pass
                 # case opcode.i32_trunc_f64_s: pass
