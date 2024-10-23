@@ -1034,18 +1034,21 @@ class Machine:
         self.store = Store()
         self.stack = Stack()
 
-    def allocate(self, module: ModuleDesc) -> ModuleInst:
+    def allocate(self, module: ModuleDesc, extern: typing.List[Extern], globin: typing.List[ValInst]) -> ModuleInst:
         inst = ModuleInst()
         inst.type = module.type
-        for e in module.func:
+        for _, e in enumerate(module.func):
             addr = self.store.allocate_func_wasm(inst, e)
             inst.func.append(addr)
-        for e in module.tabl:
+        for _, e in enumerate(module.tabl):
             addr = self.store.allocate_table(e)
             inst.tabl.append(addr)
-        for e in module.mems:
+        for _, e in enumerate(module.mems):
             addr = self.store.allocate_memory(e)
             inst.mems.append(addr)
+        for i, e in enumerate(module.glob):
+            addr = self.store.allocate_global(e.type, globin[i])
+            inst.glob.append(addr)
         return inst
 
     def instance(self, module: ModuleDesc, extern: typing.List[Extern]) -> ModuleInst:
@@ -1080,7 +1083,7 @@ class Machine:
             globin.append(rets)
         self.stack.frame.pop()
 
-        return self.allocate(module)
+        return self.allocate(module, extern, globin)
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
         func = self.store.func[addr]
