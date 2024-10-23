@@ -1134,6 +1134,21 @@ class Machine:
             for i, e in enumerate(e.init):
                 mems.data[offs + i] = e
         self.stack.frame.pop()
+        if module.star >= 0:
+            func = self.store.func[newmod.func[module.star]]
+            assert func.kind == 0x00
+            assert len(func.type.args.data) == 0
+            assert len(func.type.rets.data) == 0
+            log.debugln(f'call {func}')
+            locals = LocalsInst([])
+            for e in func.code.locals:
+                locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+            self.stack.frame.append(Frame(func.module, locals, 0, 0, 0))
+            self.stack.label.append(Label(0, 1, 0, func.code.expr.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 0
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 0
         return newmod
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
