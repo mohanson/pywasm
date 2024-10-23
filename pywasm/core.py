@@ -48,8 +48,10 @@ class Inst:
         self.args = args
 
     def __repr__(self) -> str:
-        args = ' '.join([repr(e) for e in self.args])
-        return f'{opcode.name[self.opcode]} {args}'
+        seps = [opcode.name[self.opcode]]
+        if self.args:
+            seps.append(repr(self.args[0]))
+        return ' '.join(seps)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
