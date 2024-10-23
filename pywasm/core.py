@@ -1052,6 +1052,17 @@ class Machine:
         assert len(module.imps) == len(extern)
         for a, b in zip(module.imps, extern):
             assert a.kind == b.kind
+            match a.kind:
+                case 0x00:
+                    assert self.store.func[b.data].type == module.type[a.desc]
+                case 0x01:
+                    assert self.store.tabl[b.data].type.type == module.tabl[a.desc].type
+                    assert self.store.tabl[b.data].type.limits.suit(module.tabl[a.desc].limits)
+                case 0x02:
+                    assert self.store.mems[b.data].type.limits.suit(module.mems[a.desc].limits)
+                case 0x03:
+                    assert self.store.glob[b.data].data.type == module.glob[a.desc].type.type
+                    assert self.store.glob[b.data].mut == module.glob[a.desc].type.mut
         return self.allocate(module)
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
