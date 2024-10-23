@@ -1088,14 +1088,13 @@ class Machine:
                 case 0x03:
                     assert self.store.glob[b.data].data.type == module.glob[a.desc].type.type
                     assert self.store.glob[b.data].mut == module.glob[a.desc].type.mut
-
         globin: typing.List[ValInst] = []
         auxmod = ModuleInst()
         auxmod.glob = [e for e in extern if e.kind == 0x03]
-        self.stack.frame.append(Frame(auxmod, LocalsInst([]), 0, 0, 0))
+        self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
         log.debugln(f'init global')
         for i, e in enumerate(module.glob):
-            self.stack.label.append(Label(1, 1, 0, e.init.data, 0))
+            self.stack.label.append(Label(1, 0, 0, e.init.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1104,8 +1103,36 @@ class Machine:
             log.debugln(f'    {i:>3d} {rets}')
             globin.append(rets)
         self.stack.frame.pop()
-
-        return self.allocate(module, extern, globin)
+        newmod = self.allocate(module, extern, globin)
+        self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
+        log.debugln('init elem')
+        for i, e in enumerate(module.elem):
+            self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            assert rets.type == ValType.i32()
+            log.debugln(f'    {i:>3d} {rets}')
+            tabl = self.store.tabl[newmod.tabl[e.data]]
+            offs = rets.into_i32()
+            tabl.elem[offs:offs + len(e.init)] = e.init
+        log.debugln('init data')
+        for i, e in enumerate(module.data):
+            self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            assert rets.type == ValType.i32()
+            log.debugln(f'    {i:>3d} {rets}')
+            mems = self.store.mems[newmod.mems[e.data]]
+            offs = rets.into_i32()
+            mems.data[offs:offs + len(e.init)] = e.init
+        self.stack.frame.pop()
+        return newmod
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
         func = self.store.func[addr]
