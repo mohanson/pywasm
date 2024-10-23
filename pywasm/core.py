@@ -1248,7 +1248,11 @@ class Machine:
                 # case opcode.i64_xor: pass
                 # case opcode.i64_shl: pass
                 # case opcode.i64_shr_s: pass
-                # case opcode.i64_shr_u: pass
+                case opcode.i64_shr_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64(a >> (b % 0x40))
+                    self.stack.value.append(c)
                 # case opcode.i64_rotl: pass
                 # case opcode.i64_rotr: pass
                 # case opcode.f32_abs: pass
