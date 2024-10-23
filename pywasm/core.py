@@ -731,10 +731,10 @@ class ExportDesc:
     # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
     # which are referenced through a respective descriptor.
 
-    def __init__(self, name: str, type: int, desc: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02, 0x03]
+    def __init__(self, name: str, kind: int, desc: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02, 0x03]
         self.name = name
-        self.type = type
+        self.kind = kind
         self.desc = desc
 
     def __repr__(self) -> str:
@@ -743,15 +743,15 @@ class ExportDesc:
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global'
-        }[self.type]
+        }[self.kind]
         return f'{self.name} {type_name} {self.desc}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
-        type = ord(r.read(1))
+        kind = ord(r.read(1))
         desc = leb128.u.decode_reader(r)[0]
-        return cls(name, type, desc)
+        return cls(name, kind, desc)
 
 
 class ExportInst:
@@ -1059,6 +1059,18 @@ class Machine:
         for i, e in enumerate(module.glob):
             addr = self.store.allocate_global(e.type, globin[i])
             inst.glob.append(addr)
+        for _, e in enumerate(module.exps):
+            expi = ExportInst(e.name, Extern(e.kind, 0))
+            match e.kind:
+                case 0x00:
+                    expi.data.data = inst.func[e.desc]
+                case 0x01:
+                    expi.data.data = inst.tabl[e.desc]
+                case 0x02:
+                    expi.data.data = inst.mems[e.desc]
+                case 0x03:
+                    expi.data.data = inst.glob[e.desc]
+            inst.exps.append(expi)
         return inst
 
     def instance(self, module: ModuleDesc, extern: typing.List[Extern]) -> ModuleInst:

@@ -1805,16 +1805,16 @@ class Machine:
 
         # For each export in module.exports, do:
         for e in module.exps:
-            if e.type == 0x00:
+            if e.kind == 0x00:
                 addr = self.module.func[e.desc]
                 addr = core.Extern(0x00, addr)
-            if e.type == 0x01:
+            if e.kind == 0x01:
                 addr = self.module.tabl[e.desc]
                 addr = core.Extern(0x01, addr)
-            if e.type == 0x02:
+            if e.kind == 0x02:
                 addr = self.module.mems[e.desc]
                 addr = core.Extern(0x02, addr)
-            if e.type == 0x03:
+            if e.kind == 0x03:
                 addr = self.module.glob[e.desc]
                 addr = core.Extern(0x03, addr)
             export_inst = core.ExportInst(e.name, addr)
