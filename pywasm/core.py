@@ -1040,13 +1040,13 @@ class Machine:
         for e in extern:
             match e.kind:
                 case 0x00:
-                    self.module.func.append(e.data)
+                    inst.func.append(e.data)
                 case 0x01:
-                    self.module.tabl.append(e.data)
+                    inst.tabl.append(e.data)
                 case 0x02:
-                    self.module.mems.append(e.data)
+                    inst.mems.append(e.data)
                 case 0x03:
-                    self.module.glob.append(e.data)
+                    inst.glob.append(e.data)
         for _, e in enumerate(module.func):
             addr = self.store.allocate_func_wasm(inst, e)
             inst.func.append(addr)
