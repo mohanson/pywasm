@@ -1263,9 +1263,10 @@ class Machine:
                         case 0x01:
                             match nret:
                                 case 0x00:
-                                    func.hostcode(*[e.into_auto() for e in args])
+                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
+                                    assert rets is None
                                 case 0x01:
-                                    rets = func.hostcode(*[e.into_auto() for e in args])
+                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
                                     self.stack.value.append(ValInst.from_auto(func.type.rets.data[0], rets))
                                 case _:
                                     rets = func.hostcode(*[e.into_auto() for e in args])
