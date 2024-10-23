@@ -1098,3 +1098,5 @@ class Machine:
                     c = ValInst.from_i32(a.into_i32() + b.into_i32())
                     self.stack.value.append(c)
                     self.stack.label[-1].index += 1
+                case _:
+                    assert 0

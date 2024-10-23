@@ -1,5 +1,5 @@
 import pywasm
-pywasm.on_debug()
+# pywasm.on_debug()
 
 runtime = pywasm.load('./examples/add.wasm')
 r = runtime.exec('add', [4, 5])
