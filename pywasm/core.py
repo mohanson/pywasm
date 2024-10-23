@@ -1073,6 +1073,15 @@ class Machine:
         assert len(self.stack.frame) == 0
         return rets
 
+    def evaluate_br(self, l: int) -> None:
+        assert len(self.stack.label) >= l + 1
+        l = self.stack.label[-1 - l]
+        assert len(self.stack.value) >= l.value + l.arity
+        v = self.stack.value = self.stack.value[-l.arity:]
+        self.stack.label = self.stack.label[:-1 - l]
+        self.stack.value = self.stack.value[:l.value]
+        self.stack.value.extend(v)
+
     def evaluate_bype(self, bype: Bype) -> FuncType:
         match bype.kind:
             case 0x00:
@@ -1096,6 +1105,7 @@ class Machine:
                 assert len(self.stack.value) == frame.value + frame.arity
                 continue
             instr = label.instr[label.index]
+            label.index += 1
             log.debugln(f'    {instr}')
             match instr.opcode:
                 case opcode.unreachable:
@@ -1105,14 +1115,16 @@ class Machine:
                 case opcode.block:
                     bype = self.evaluate_bype(instr.args[0])
                     assert len(self.stack.value) >= self.stack.label[-1].value + len(bype.args.data)
-                    self.stack.label[-1].index += 1
                     self.stack.label.append(Label(len(bype.rets.data), 0, len(self.stack.value), instr.args[1], 0))
                 # case opcode.loop: pass
                 # case opcode.if: pass
                 # case opcode.else: pass
                 # case opcode.end: pass
-                # case opcode.br: pass
-                # case opcode.br_if: pass
+                case opcode.br:
+                    self.evaluate_br(instr.args[0])
+                case opcode.br_if:
+                    if self.stack.value.pop().into_i32() != 0:
+                        self.evaluate_br(instr.args[0])
                 # case opcode.br_table: pass
                 # case opcode.return: pass
                 # case opcode.call: pass
@@ -1123,7 +1135,6 @@ class Machine:
                     a = self.stack.frame[-1].locals.data[instr.args[0]]
                     b = ValInst(a.type, a.data.copy())
                     self.stack.value.append(b)
-                    self.stack.label[-1].index += 1
                 # case opcode.local_set: pass
                 # case opcode.local_tee: pass
                 # case opcode.global_get: pass
@@ -1155,7 +1166,6 @@ class Machine:
                 # case opcode.memory_grow: pass
                 case opcode.i32_const:
                     self.stack.value.append(ValInst.from_i32(instr.args[0]))
-                    self.stack.label[-1].index += 1
                 # case opcode.i64_const: pass
                 # case opcode.f32_const: pass
                 # case opcode.f64_const: pass
@@ -1166,7 +1176,6 @@ class Machine:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
                     self.stack.value.append(ValInst.from_i32(a < b))
-                    self.stack.label[-1].index += 1
                 # case opcode.i32_lt_u: pass
                 # case opcode.i32_gt_s: pass
                 # case opcode.i32_gt_u: pass
@@ -1205,7 +1214,6 @@ class Machine:
                     a = self.stack.value.pop()
                     c = ValInst.from_i32(a.into_i32() + b.into_i32())
                     self.stack.value.append(c)
-                    self.stack.label[-1].index += 1
                 # case opcode.i32_sub: pass
                 # case opcode.i32_mul: pass
                 # case opcode.i32_div_s: pass
