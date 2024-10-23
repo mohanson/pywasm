@@ -12,18 +12,18 @@ class Bype:
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
     # single value type, or as a type index encoded as a positive signed integer.
 
-    def __init__(self, type: int, data: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02]
-        self.type = type
+    def __init__(self, kind: int, data: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02]
+        self.kind = kind
         self.data = data
 
     def __eq__(self, value: typing.Self) -> bool:
-        return self.type == value.type and self.data == value.data
+        return self.kind == value.kind and self.data == value.data
 
     def __repr__(self) -> str:
-        if self.type == 0x00:
+        if self.kind == 0x00:
             return 'empty'
-        if self.type == 0x01:
+        if self.kind == 0x01:
             return repr(ValType(self.data))
         return repr(self.data)
 
@@ -1073,6 +1073,15 @@ class Machine:
         assert len(self.stack.frame) == 0
         return rets
 
+    def evaluate_bype(self, bype: Bype) -> FuncType:
+        match bype.kind:
+            case 0x00:
+                return FuncType(ResultType([]), ResultType([]))
+            case 0x01:
+                return FuncType(ResultType([]), ResultType([ValType(bype.data)]))
+            case 0x02:
+                return self.stack.frame[-1].module.type[bype.data]
+
     def evaluate(self) -> None:
         for _ in range(1 << 32):
             if not self.stack.label:
@@ -1089,9 +1098,15 @@ class Machine:
             instr = label.instr[label.index]
             log.debugln(f'    {instr}')
             match instr.opcode:
-                # case opcode.unreachable: pass
-                # case opcode.nop: pass
-                # case opcode.block: pass
+                case opcode.unreachable:
+                    assert 0
+                case opcode.nop:
+                    assert 1
+                case opcode.block:
+                    bype = self.evaluate_bype(instr.args[0])
+                    assert len(self.stack.value) >= self.stack.label[-1].value + len(bype.args.data)
+                    self.stack.label[-1].index += 1
+                    self.stack.label.append(Label(len(bype.rets.data), 0, len(self.stack.value), instr.args[1], 0))
                 # case opcode.loop: pass
                 # case opcode.if: pass
                 # case opcode.else: pass
@@ -1138,14 +1153,20 @@ class Machine:
                 # case opcode.i64_store32: pass
                 # case opcode.memory_size: pass
                 # case opcode.memory_grow: pass
-                # case opcode.i32_const: pass
+                case opcode.i32_const:
+                    self.stack.value.append(ValInst.from_i32(instr.args[0]))
+                    self.stack.label[-1].index += 1
                 # case opcode.i64_const: pass
                 # case opcode.f32_const: pass
                 # case opcode.f64_const: pass
                 # case opcode.i32_eqz: pass
                 # case opcode.i32_eq: pass
                 # case opcode.i32_ne: pass
-                # case opcode.i32_lt_s: pass
+                case opcode.i32_lt_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    self.stack.value.append(ValInst.from_i32(a < b))
+                    self.stack.label[-1].index += 1
                 # case opcode.i32_lt_u: pass
                 # case opcode.i32_gt_s: pass
                 # case opcode.i32_gt_u: pass
