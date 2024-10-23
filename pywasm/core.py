@@ -1063,6 +1063,23 @@ class Machine:
                 case 0x03:
                     assert self.store.glob[b.data].data.type == module.glob[a.desc].type.type
                     assert self.store.glob[b.data].mut == module.glob[a.desc].type.mut
+
+        globin: typing.List[ValInst] = []
+        auxmod = ModuleInst()
+        auxmod.glob = [e for e in extern if e.kind == 0x03]
+        self.stack.frame.append(Frame(auxmod, LocalsInst([]), 0, 0, 0))
+        log.debugln(f'init global')
+        for i, e in enumerate(module.glob):
+            self.stack.label.append(Label(1, 1, 0, e.init.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            log.debugln(f'    {i:>3d} {rets}')
+            globin.append(rets)
+        self.stack.frame.pop()
+
         return self.allocate(module)
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
