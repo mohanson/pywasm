@@ -1348,3 +1348,13 @@ class Machine:
                 # case opcode.f64_reinterpret_i64: pass
                 case _:
                     assert 0
+
+
+class Runtime:
+    # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
+
+    def __init__(self) -> typing.Self:
+        self.machine = Machine()
+
+    def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+        pass

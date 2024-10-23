@@ -61,7 +61,7 @@ class Runtime:
         func_addr = self.func_addr(name)
         return self.machine.invocate(func_addr, args)
 
-    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> core.ResultInst:
+    def exec(self, name: str, args: typing.List[typing.Union[int, float]]) -> typing.List[typing.Union[int, float]]:
         func_addr = self.func_addr(name)
         func = self.machine.store.func[func_addr]
         func_args = []
