@@ -1166,7 +1166,8 @@ class Machine:
                 # case opcode.memory_grow: pass
                 case opcode.i32_const:
                     self.stack.value.append(ValInst.from_i32(instr.args[0]))
-                # case opcode.i64_const: pass
+                case opcode.i64_const:
+                    self.stack.value.append(ValInst.from_i64(instr.args[0]))
                 # case opcode.f32_const: pass
                 # case opcode.f64_const: pass
                 # case opcode.i32_eqz: pass
@@ -1233,7 +1234,11 @@ class Machine:
                 # case opcode.i64_popcnt: pass
                 # case opcode.i64_add: pass
                 # case opcode.i64_sub: pass
-                # case opcode.i64_mul: pass
+                case opcode.i64_mul:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a * b)
+                    self.stack.value.append(c)
                 # case opcode.i64_div_s: pass
                 # case opcode.i64_div_u: pass
                 # case opcode.i64_rem_s: pass
@@ -1280,7 +1285,10 @@ class Machine:
                 # case opcode.i32_trunc_f64_s: pass
                 # case opcode.i32_trunc_f64_u: pass
                 # case opcode.i64_extend_i32_s: pass
-                # case opcode.i64_extend_i32_u: pass
+                case opcode.i64_extend_i32_u:
+                    a = self.stack.value.pop().into_u32()
+                    b = ValInst.from_i64(a)
+                    self.stack.value.append(b)
                 # case opcode.i64_trunc_f32_s: pass
                 # case opcode.i64_trunc_f32_u: pass
                 # case opcode.i64_trunc_f64_s: pass
