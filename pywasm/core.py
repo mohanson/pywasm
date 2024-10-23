@@ -1239,24 +1239,38 @@ class Machine:
                     func = self.store.func[addr]
                     assert len(self.stack.value) >= label.value + len(func.type.args.data)
                     args = [self.stack.value.pop() for _ in range(len(func.type.args.data))][::-1]
+                    nret = len(func.type.rets.data)
                     log.debugln(f'call {func} {args}')
-                    locals = LocalsInst(args)
-                    for e in func.code.locals:
-                        locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
-                    self.stack.frame.append(Frame(
-                        func.module,
-                        locals,
-                        len(func.type.rets.data),
-                        len(self.stack.label),
-                        len(self.stack.value),
-                    ))
-                    self.stack.label.append(Label(
-                        len(func.type.rets.data),
-                        1,
-                        len(self.stack.value),
-                        func.code.expr.data,
-                        0,
-                    ))
+                    match func.kind:
+                        case 0x00:
+                            locals = LocalsInst(args)
+                            for e in func.code.locals:
+                                locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+                            self.stack.frame.append(Frame(
+                                func.module,
+                                locals,
+                                nret,
+                                len(self.stack.label),
+                                len(self.stack.value),
+                            ))
+                            self.stack.label.append(Label(
+                                nret,
+                                1,
+                                len(self.stack.value),
+                                func.code.expr.data,
+                                0,
+                            ))
+                        case 0x01:
+                            match nret:
+                                case 0x00:
+                                    func.hostcode(*[e.into_auto() for e in args])
+                                case 0x01:
+                                    rets = func.hostcode(*[e.into_auto() for e in args])
+                                    self.stack.value.append(ValInst.from_auto(func.type.rets.data[0], rets))
+                                case _:
+                                    rets = func.hostcode(*[e.into_auto() for e in args])
+                                    rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets.data, rets)]
+                                    self.stack.value.extend(rets)
                 # case opcode.call_indirect: pass
                 # case opcode.drop: pass
                 # case opcode.select: pass
