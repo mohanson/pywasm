@@ -58,9 +58,30 @@ class Inst:
         if o.opcode in [
             opcode.block,
             opcode.loop,
+        ]:
+            o.args.append(Bype.from_reader(r))
+            o.args.append([])
+            for _ in range(1 << 32):
+                i = Inst.from_reader(r)
+                if i.opcode == opcode.end:
+                    break
+                o.args[1].append(i)
+            return o
+        if o.opcode in [
             opcode.if_then,
         ]:
             o.args.append(Bype.from_reader(r))
+            o.args.append([])
+            o.args.append([])
+            argidx = 1
+            for _ in range(1 << 32):
+                i = Inst.from_reader(r)
+                if i.opcode == opcode.end:
+                    break
+                if i.opcode == opcode.else_fi:
+                    argidx = 2
+                    continue
+                o.args[argidx].append(i)
             return o
         if o.opcode in [
             opcode.br,
@@ -163,41 +184,18 @@ class Expr:
 
     def __init__(self, data: typing.List[Inst]) -> typing.Self:
         self.data = data
-        self.jump = self.mark(self.data)
 
-    @classmethod
-    def mark(cls, data: typing.List[Inst]) -> typing.Dict[int, typing.List[int]]:
-        jump = {}
-        vect = []
-        for i, e in enumerate(data):
-            if e.opcode in [opcode.block, opcode.loop, opcode.if_then]:
-                vect.append([i])
-                continue
-            if e.opcode in [opcode.else_fi]:
-                vect[-1].append(i)
-                continue
-            if e.opcode in [opcode.end]:
-                if vect:
-                    b = vect.pop()
-                    b.insert(1, i)
-                    for e in b:
-                        jump[e] = b
-                continue
-        return jump
+    def __repr__(self) -> str:
+        return repr(self.data)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         s = []
-        d = 1
         for _ in range(1 << 32):
             i = Inst.from_reader(r)
+            if i.opcode == opcode.end:
+                break
             s.append(i)
-            if i.opcode in [opcode.block, opcode.loop, opcode.if_then]:
-                d += 1
-            if i.opcode in [opcode.end]:
-                d -= 1
-                if d == 0:
-                    break
         return cls(s)
 
 
@@ -976,3 +974,127 @@ class Store:
         inst = GlobalInst(data, type.mut)
         self.glob.append(inst)
         return addr
+
+
+class Label:
+    # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
+    # instruction sequence.
+
+    def __init__(self, arity: int, carry: int, value: int, instr: typing.List[Inst], index: int) -> typing.Self:
+        assert carry in [0x00, 0x01]
+        self.arity = arity
+        self.carry = carry
+        self.value = value
+        self.instr = instr
+        self.index = index
+
+    def __repr__(self) -> str:
+        return f'{self.arity}'
+
+
+class Frame:
+    # Activation frames carry the return arity n of the respective function, hold the values of its locals
+    # (including arguments) in the order corresponding to their static local indices, and a reference to the function's
+    # own module instance.
+
+    def __init__(self, module: ModuleInst, locals: LocalsInst, arity: int, label: int, value: int) -> typing.Self:
+        self.module = module
+        self.locals = locals
+        self.arity = arity
+        self.label = label
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f'{self.arity}'
+
+
+class Stack:
+    # Besides the store, most instructions interact with an implicit stack. The stack contains three kinds of entries:
+    #
+    # Values: the operands of instructions.
+    # Labels: active structured control instructions that can be targeted by branches.
+    # Activations: the call frames of active function calls.
+    #
+    # These entries can occur on the stack in any order during the execution of a program. Stack entries are described
+    # by abstract syntax as follows.
+
+    def __init__(self) -> typing.Self:
+        self.value: typing.List[ValInst] = []
+        self.label: typing.List[Label] = []
+        self.frame: typing.List[Frame] = []
+
+
+class Machine:
+    # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
+    # which records operand values and control constructs, and an abstract store containing global state.
+
+    def __init__(self) -> typing.Self:
+        self.store = Store()
+        self.stack = Stack()
+
+    def allocate(self, module: ModuleDesc) -> ModuleInst:
+        inst = ModuleInst()
+        inst.type = module.type
+        for e in module.func:
+            addr = self.store.allocate_func_wasm(inst, e)
+            inst.func.append(addr)
+        for e in module.tabl:
+            addr = self.store.allocate_table(e)
+            inst.tabl.append(addr)
+        for e in module.mems:
+            addr = self.store.allocate_memory(e)
+            inst.mems.append(addr)
+        return inst
+
+    def instance(self, module: ModuleDesc) -> ModuleInst:
+        return self.allocate(module)
+
+    def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
+        func = self.store.func[addr]
+        assert func.kind == 0x00
+        for a, b in zip(func.type.args.data, args):
+            assert a == b.type
+        self.stack.frame.append(Frame(ModuleInst(), LocalsInst([]), 0, 0, 0))
+        log.debugln(f'call {func} {args}')
+        locals = LocalsInst(args)
+        for e in func.code.locals:
+            locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+        self.stack.frame.append(Frame(self, locals, len(func.type.rets.data), 0, 0))
+        self.stack.label.append(Label(len(func.type.rets.data), 1, len(self.stack.value), func.code.expr.data, 0))
+        self.evaluate()
+        rets = [self.stack.value.pop() for _ in range(len(func.type.rets.data))][::-1]
+        for a, b in zip(func.type.rets.data, rets):
+            assert a == b.type
+        f = self.stack.frame.pop()
+        assert f.label == len(self.stack.label)
+        assert f.value == len(self.stack.value)
+        assert len(self.stack.frame) == 0
+        return rets
+
+    def evaluate(self) -> None:
+        for _ in range(1 << 32):
+            if not self.stack.label:
+                break
+            label = self.stack.label[-1]
+            if label.index == len(label.instr):
+                assert len(self.stack.value) == label.value + label.arity
+                self.stack.label.pop()
+                if label.carry == 0x00:
+                    continue
+                frame = self.stack.frame.pop()
+                assert len(self.stack.value) == frame.value + frame.arity
+                continue
+            instr = label.instr[label.index]
+            log.debugln(f'    {instr}')
+            match instr.opcode:
+                case opcode.local_get:
+                    a = self.stack.frame[-1].locals.data[instr.args[0]]
+                    b = ValInst(a.type, a.data.copy())
+                    self.stack.value.append(b)
+                    self.stack.label[-1].index += 1
+                case opcode.i32_add:
+                    b = self.stack.value.pop()
+                    a = self.stack.value.pop()
+                    c = ValInst.from_i32(a.into_i32() + b.into_i32())
+                    self.stack.value.append(c)
+                    self.stack.label[-1].index += 1
