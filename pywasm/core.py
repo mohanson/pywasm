@@ -1117,7 +1117,8 @@ class Machine:
             log.debugln(f'    {i:>3d} {rets}')
             tabl = self.store.tabl[newmod.tabl[e.data]]
             offs = rets.into_i32()
-            tabl.elem[offs:offs + len(e.init)] = e.init
+            for i, e in enumerate(e.init):
+                tabl.elem[offs + i] = newmod.func[e]
         log.debugln('init data')
         for i, e in enumerate(module.data):
             self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
@@ -1130,7 +1131,8 @@ class Machine:
             log.debugln(f'    {i:>3d} {rets}')
             mems = self.store.mems[newmod.mems[e.data]]
             offs = rets.into_i32()
-            mems.data[offs:offs + len(e.init)] = e.init
+            for i, e in enumerate(e.init):
+                mems.data[offs + i] = e
         self.stack.frame.pop()
         return newmod
 
