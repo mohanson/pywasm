@@ -304,9 +304,9 @@ class Extern:
     # An external value is the runtime representation of an entity that can be imported or exported. It is an address
     # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
 
-    def __init__(self, type: int, data: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02, 0x03]
-        self.type = type
+    def __init__(self, kind: int, data: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02, 0x03]
+        self.kind = kind
         self.data = data
 
     def __repr__(self) -> str:
@@ -315,7 +315,7 @@ class Extern:
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global',
-        }[self.data]
+        }[self.kind]
         return f'{prefix} {self.data}'
 
 
@@ -1048,7 +1048,10 @@ class Machine:
             inst.mems.append(addr)
         return inst
 
-    def instance(self, module: ModuleDesc) -> ModuleInst:
+    def instance(self, module: ModuleDesc, extern: typing.List[Extern]) -> ModuleInst:
+        assert len(module.imps) == len(extern)
+        for a, b in zip(module.imps, extern):
+            pass
         return self.allocate(module)
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
