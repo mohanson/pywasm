@@ -1143,10 +1143,20 @@ class Machine:
                     locals = LocalsInst(args)
                     for e in func.code.locals:
                         locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
-                    self.stack.frame.append(Frame(func.module, locals, len(func.type.rets.data),
-                                            len(self.stack.label), len(self.stack.value)))
-                    self.stack.label.append(Label(len(func.type.rets.data), 1,
-                                            len(self.stack.value), func.code.expr.data, 0))
+                    self.stack.frame.append(Frame(
+                        func.module,
+                        locals,
+                        len(func.type.rets.data),
+                        len(self.stack.label),
+                        len(self.stack.value),
+                    ))
+                    self.stack.label.append(Label(
+                        len(func.type.rets.data),
+                        1,
+                        len(self.stack.value),
+                        func.code.expr.data,
+                        0,
+                    ))
                 # case opcode.call_indirect: pass
                 # case opcode.drop: pass
                 # case opcode.select: pass
