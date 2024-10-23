@@ -248,20 +248,20 @@ class Import:
     # import defines an index in the respective index space. In each index space, the indices of imports go before the
     # first index of any definition contained in the module itself.
 
-    def __init__(self, module: str, name: str, type: int, desc: typing.Any) -> typing.Self:
+    def __init__(self, module: str, name: str, kind: int, desc: typing.Any) -> typing.Self:
         self.module = module
         self.name = name
-        self.type = type
+        self.kind = kind
         self.desc = desc
 
     def __repr__(self) -> str:
-        type_name = {
+        kind = {
             0x00: 'func',
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global'
-        }[self.type]
-        return f'{self.module}.{self.name} {type_name} {self.desc}'
+        }[self.kind]
+        return f'{self.module}.{self.name} {kind} {self.desc}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
@@ -1051,7 +1051,7 @@ class Machine:
     def instance(self, module: ModuleDesc, extern: typing.List[Extern]) -> ModuleInst:
         assert len(module.imps) == len(extern)
         for a, b in zip(module.imps, extern):
-            pass
+            assert a.kind == b.kind
         return self.allocate(module)
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
