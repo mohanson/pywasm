@@ -1,6 +1,7 @@
 import pywasm
-# pywasm.on_debug()
+pywasm.log.lvl = 1
 
-runtime = pywasm.load('./examples/add.wasm')
-r = runtime.exec('add', [4, 5])
-print(r) # 4 + 5 = 9
+runtime = pywasm.core.Runtime()
+m = runtime.instance_from_file('./examples/add.wasm', {})
+r = runtime.invocate(m, 'add', [4, 5])
+print(f'4 + 5 = {r[0]}')

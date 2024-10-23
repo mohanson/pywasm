@@ -7,5 +7,3 @@ dist/
 *.egg
 
 .pytest_cache/
-
-/res/testsuite

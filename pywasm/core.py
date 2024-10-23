@@ -1,29 +1,29 @@
+import ctypes
 import io
 import math
+import pywasm.leb128
+import pywasm.log
+import pywasm.opcode
 import struct
 import typing
-
-from . import leb128
-from . import log
-from . import opcode
 
 
 class Bype:
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
     # single value type, or as a type index encoded as a positive signed integer.
 
-    def __init__(self, type: int, data: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02]
-        self.type = type
+    def __init__(self, kind: int, data: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02]
+        self.kind = kind
         self.data = data
 
     def __eq__(self, value: typing.Self) -> bool:
-        return self.type == value.type and self.data == value.data
+        return self.kind == value.kind and self.data == value.data
 
     def __repr__(self) -> str:
-        if self.type == 0x00:
+        if self.kind == 0x00:
             return 'empty'
-        if self.type == 0x01:
+        if self.kind == 0x01:
             return repr(ValType(self.data))
         return repr(self.data)
 
@@ -35,7 +35,7 @@ class Bype:
         if n in [0x7f, 0x7e, 0x7d, 0x7c]:
             return cls(0x01, n)
         r.seek(1, -1)
-        return cls(0x02, leb128.i.decode_reader(r)[0])
+        return cls(0x02, pywasm.leb128.i.decode_reader(r)[0])
 
 
 class Inst:
@@ -48,109 +48,135 @@ class Inst:
         self.args = args
 
     def __repr__(self) -> str:
-        args = ' '.join([repr(e) for e in self.args])
-        return f'{opcode.name[self.opcode]} {args}'
+        seps = [pywasm.opcode.name[self.opcode]]
+        if self.opcode in [pywasm.opcode.block, pywasm.opcode.loop, pywasm.opcode.if_then]:
+            seps.append(repr(self.args[0]))
+            return ' '.join(seps)
+        for e in self.args:
+            seps.append(repr(e))
+        return ' '.join(seps)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         o = Inst(ord(r.read(1)), [])
-        assert o.opcode in opcode.name
+        assert o.opcode in pywasm.opcode.name
         if o.opcode in [
-            opcode.block,
-            opcode.loop,
-            opcode.if_then,
+            pywasm.opcode.block,
+            pywasm.opcode.loop,
         ]:
             o.args.append(Bype.from_reader(r))
+            o.args.append([])
+            for _ in range(1 << 32):
+                i = Inst.from_reader(r)
+                if i.opcode == pywasm.opcode.end:
+                    break
+                o.args[1].append(i)
             return o
         if o.opcode in [
-            opcode.br,
-            opcode.br_if,
+            pywasm.opcode.if_then,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(Bype.from_reader(r))
+            o.args.append([])
+            o.args.append([])
+            argidx = 1
+            for _ in range(1 << 32):
+                i = Inst.from_reader(r)
+                if i.opcode == pywasm.opcode.end:
+                    break
+                if i.opcode == pywasm.opcode.else_fi:
+                    argidx = 2
+                    continue
+                o.args[argidx].append(i)
             return o
         if o.opcode in [
-            opcode.br_table,
+            pywasm.opcode.br,
+            pywasm.opcode.br_if,
         ]:
-            o.args.append([leb128.u.decode_reader(r)[0] for _ in range(leb128.u.decode_reader(r)[0])])
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.call,
+            pywasm.opcode.br_table,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append([pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.call_indirect,
+            pywasm.opcode.call,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            return o
+        if o.opcode in [
+            pywasm.opcode.call_indirect,
+        ]:
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
-            opcode.local_get,
-            opcode.local_set,
-            opcode.local_tee,
+            pywasm.opcode.local_get,
+            pywasm.opcode.local_set,
+            pywasm.opcode.local_tee,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.global_get,
-            opcode.global_set,
+            pywasm.opcode.global_get,
+            pywasm.opcode.global_set,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.i32_load,
-            opcode.i64_load,
-            opcode.f32_load,
-            opcode.f64_load,
-            opcode.i32_load8_s,
-            opcode.i32_load8_u,
-            opcode.i32_load16_s,
-            opcode.i32_load16_u,
-            opcode.i64_load8_s,
-            opcode.i64_load8_u,
-            opcode.i64_load16_s,
-            opcode.i64_load16_u,
-            opcode.i64_load32_s,
-            opcode.i64_load32_u,
-            opcode.i32_store,
-            opcode.i64_store,
-            opcode.f32_store,
-            opcode.f64_store,
-            opcode.i32_store8,
-            opcode.i32_store16,
-            opcode.i64_store8,
-            opcode.i64_store16,
-            opcode.i64_store32,
+            pywasm.opcode.i32_load,
+            pywasm.opcode.i64_load,
+            pywasm.opcode.f32_load,
+            pywasm.opcode.f64_load,
+            pywasm.opcode.i32_load8_s,
+            pywasm.opcode.i32_load8_u,
+            pywasm.opcode.i32_load16_s,
+            pywasm.opcode.i32_load16_u,
+            pywasm.opcode.i64_load8_s,
+            pywasm.opcode.i64_load8_u,
+            pywasm.opcode.i64_load16_s,
+            pywasm.opcode.i64_load16_u,
+            pywasm.opcode.i64_load32_s,
+            pywasm.opcode.i64_load32_u,
+            pywasm.opcode.i32_store,
+            pywasm.opcode.i64_store,
+            pywasm.opcode.f32_store,
+            pywasm.opcode.f64_store,
+            pywasm.opcode.i32_store8,
+            pywasm.opcode.i32_store16,
+            pywasm.opcode.i64_store8,
+            pywasm.opcode.i64_store16,
+            pywasm.opcode.i64_store32,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.memory_size,
-            opcode.memory_grow
+            pywasm.opcode.memory_size,
+            pywasm.opcode.memory_grow
         ]:
             o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
-            opcode.i32_const,
+            pywasm.opcode.i32_const,
         ]:
-            o.args.append(leb128.i.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.i64_const,
+            pywasm.opcode.i64_const,
         ]:
-            o.args.append(leb128.i.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.f32_const,
+            pywasm.opcode.f32_const,
         ]:
             # Python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
             # See: https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
             o.args.append(struct.unpack('<i', r.read(4))[0])
             return o
         if o.opcode in [
-            opcode.f64_const,
+            pywasm.opcode.f64_const,
         ]:
             o.args.append(struct.unpack('<q', r.read(8))[0])
             return o
@@ -163,41 +189,18 @@ class Expr:
 
     def __init__(self, data: typing.List[Inst]) -> typing.Self:
         self.data = data
-        self.jump = self.mark(self.data)
 
-    @classmethod
-    def mark(cls, data: typing.List[Inst]) -> typing.Dict[int, typing.List[int]]:
-        jump = {}
-        vect = []
-        for i, e in enumerate(data):
-            if e.opcode in [opcode.block, opcode.loop, opcode.if_then]:
-                vect.append([i])
-                continue
-            if e.opcode in [opcode.else_fi]:
-                vect[-1].append(i)
-                continue
-            if e.opcode in [opcode.end]:
-                if vect:
-                    b = vect.pop()
-                    b.insert(1, i)
-                    for e in b:
-                        jump[e] = b
-                continue
-        return jump
+    def __repr__(self) -> str:
+        return repr(self.data)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         s = []
-        d = 1
         for _ in range(1 << 32):
             i = Inst.from_reader(r)
+            if i.opcode == pywasm.opcode.end:
+                break
             s.append(i)
-            if i.opcode in [opcode.block, opcode.loop, opcode.if_then]:
-                d += 1
-            if i.opcode in [opcode.end]:
-                d -= 1
-                if d == 0:
-                    break
         return cls(s)
 
 
@@ -221,7 +224,7 @@ class Limits:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         flag = ord(r.read(1))
-        return cls(leb128.u.decode_reader(r)[0],  leb128.u.decode_reader(r)[0] if flag else 0x00)
+        return cls(pywasm.leb128.u.decode_reader(r)[0],  pywasm.leb128.u.decode_reader(r)[0] if flag else 0x00)
 
 
 class Custom:
@@ -235,7 +238,7 @@ class Custom:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         return cls(r.read(n).decode(), bytearray(r.read(-1)))
 
 
@@ -248,30 +251,30 @@ class Import:
     # import defines an index in the respective index space. In each index space, the indices of imports go before the
     # first index of any definition contained in the module itself.
 
-    def __init__(self, module: str, name: str, type: int, desc: typing.Any) -> typing.Self:
+    def __init__(self, module: str, name: str, kind: int, desc: typing.Any) -> typing.Self:
         self.module = module
         self.name = name
-        self.type = type
+        self.kind = kind
         self.desc = desc
 
     def __repr__(self) -> str:
-        type_name = {
+        kind = {
             0x00: 'func',
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global'
-        }[self.type]
-        return f'{self.module}.{self.name} {type_name} {self.desc}'
+        }[self.kind]
+        return f'{self.module}.{self.name} {kind} {self.desc}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         module = r.read(n).decode()
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         name = r.read(n).decode()
         type = ord(r.read(1))
         desc = {
-            0x00: lambda r: leb128.u.decode_reader(r)[0],
+            0x00: lambda r: pywasm.leb128.u.decode_reader(r)[0],
             0x01: TableType.from_reader,
             0x02: MemType.from_reader,
             0x03: GlobalType.from_reader,
@@ -294,9 +297,9 @@ class Data:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = leb128.u.decode_reader(r)[0]
+        data = pywasm.leb128.u.decode_reader(r)[0]
         offset = Expr.from_reader(r)
-        init = bytearray(r.read(leb128.u.decode_reader(r)[0]))
+        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
         return cls(data, offset, init)
 
 
@@ -304,9 +307,9 @@ class Extern:
     # An external value is the runtime representation of an entity that can be imported or exported. It is an address
     # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
 
-    def __init__(self, type: int, data: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02, 0x03]
-        self.type = type
+    def __init__(self, kind: int, data: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02, 0x03]
+        self.kind = kind
         self.data = data
 
     def __repr__(self) -> str:
@@ -315,7 +318,7 @@ class Extern:
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global',
-        }[self.data]
+        }[self.kind]
         return f'{prefix} {self.data}'
 
 
@@ -369,6 +372,9 @@ class ValInst:
         self.type = type
         self.data = data
 
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.type == value.type and self.data == value.data
+
     def __repr__(self) -> str:
         return f'{self.type} {self.into_auto()}'
 
@@ -406,8 +412,7 @@ class ValInst:
     @classmethod
     def from_f32(cls, n: float) -> typing.Self:
         assert isinstance(n, float)
-        if math.fabs(n) > 3.40282346638528859811704183484516925440e+38:
-            n = math.copysign(math.inf, n)
+        n = ctypes.c_float(n).value
         return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
 
     @classmethod
@@ -419,8 +424,6 @@ class ValInst:
     @classmethod
     def from_f64(cls, n: float) -> typing.Self:
         assert isinstance(n, float)
-        if math.fabs(n) > 1.797693134862315708145274237317043567981e+308:
-            n = math.copysign(math.inf, n)
         return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
 
     @classmethod
@@ -456,32 +459,6 @@ class ValInst:
         return struct.unpack('<d', self.data[0:8])[0]
 
 
-class ResultType:
-    # Result types are encoded by the respective vectors of value types. Result types classify the result of executing
-    # instructions or blocks, which is a sequence of values written with brackets.
-
-    def __init__(self, data: typing.List[ValType]) -> typing.Self:
-        self.data = data
-
-    def __repr__(self) -> str:
-        return repr(self.data)
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
-        return cls([ValType.from_reader(r) for _ in range(n)])
-
-
-class ResultInst:
-    # A result is the outcome of a computation. It is either a sequence of values or a trap.
-
-    def __init__(self, data: typing.List[ValInst]) -> typing.Self:
-        self.data = data
-
-    def __repr__(self) -> str:
-        return repr(self.data)
-
-
 class LocalsDesc:
     # The locals declare a vector of mutable local variables and their types. These variables are referenced through
     # local indices in the function’s body. The index of the first local is the smallest index not referencing a
@@ -496,7 +473,7 @@ class LocalsDesc:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(leb128.u.decode_reader(r)[0], ValType.from_reader(r))
+        return cls(pywasm.leb128.u.decode_reader(r)[0], ValType.from_reader(r))
 
 
 class LocalsInst:
@@ -514,9 +491,12 @@ class FuncType:
     # Function types classify the signature of functions, mapping a vector of parameters to a vector of results. They
     # are also used to classify the inputs and outputs of instructions.
 
-    def __init__(self, args: ResultType, rets: ResultType) -> typing.Self:
+    def __init__(self, args: typing.List[ValType], rets: typing.List[ValType]) -> typing.Self:
         self.args = args
         self.rets = rets
+
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.args == value.args and self.rets == value.rets
 
     def __repr__(self) -> str:
         return f'{self.args} -> {self.rets}'
@@ -524,7 +504,11 @@ class FuncType:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         assert ord(r.read(1)) == 0x60
-        return cls(ResultType.from_reader(r), ResultType.from_reader(r))
+        n = pywasm.leb128.u.decode_reader(r)[0]
+        args = [ValType.from_reader(r) for _ in range(n)]
+        n = pywasm.leb128.u.decode_reader(r)[0]
+        rets = [ValType.from_reader(r) for _ in range(n)]
+        return cls(args, rets)
 
 
 class FuncDesc:
@@ -549,11 +533,11 @@ class FuncDesc:
 
     @classmethod
     def from_reader_type(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(leb128.u.decode_reader(r)[0], [], Expr([]))
+        return cls(pywasm.leb128.u.decode_reader(r)[0], [], Expr([]))
 
     @classmethod
     def from_reader_code(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(0, [LocalsDesc.from_reader(r) for _ in range(leb128.u.decode_reader(r)[0])], Expr.from_reader(r))
+        return cls(0, [LocalsDesc.from_reader(r) for _ in range(pywasm.leb128.u.decode_reader(r)[0])], Expr.from_reader(r))
 
 
 class MemType:
@@ -640,9 +624,9 @@ class ElemDesc:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = leb128.u.decode_reader(r)[0]
+        data = pywasm.leb128.u.decode_reader(r)[0]
         offset = Expr.from_reader(r)
-        init = [leb128.u.decode_reader(r)[0] for _ in range(leb128.u.decode_reader(r)[0])]
+        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
         return cls(data, offset, init)
 
 
@@ -731,10 +715,10 @@ class ExportDesc:
     # Each export is labeled by a unique name. Exportable definitions are functions, tables, memories, and globals,
     # which are referenced through a respective descriptor.
 
-    def __init__(self, name: str, type: int, desc: int) -> typing.Self:
-        assert type in [0x00, 0x01, 0x02, 0x03]
+    def __init__(self, name: str, kind: int, desc: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02, 0x03]
         self.name = name
-        self.type = type
+        self.kind = kind
         self.desc = desc
 
     def __repr__(self) -> str:
@@ -743,15 +727,15 @@ class ExportDesc:
             0x01: 'table',
             0x02: 'mem',
             0x03: 'global'
-        }[self.type]
+        }[self.kind]
         return f'{self.name} {type_name} {self.desc}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
-        type = ord(r.read(1))
-        desc = leb128.u.decode_reader(r)[0]
-        return cls(name, type, desc)
+        name = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0])).decode()
+        kind = ord(r.read(1))
+        desc = pywasm.leb128.u.decode_reader(r)[0]
+        return cls(name, kind, desc)
 
 
 class ExportInst:
@@ -816,7 +800,7 @@ class ModuleDesc:
             if not section_id_byte:
                 break
             section_id = ord(section_id_byte)
-            n = leb128.u.decode_reader(r)[0]
+            n = pywasm.leb128.u.decode_reader(r)[0]
             section_data = bytearray(r.read(n))
             assert len(section_data) == n
             section_reader = io.BytesIO(section_data)
@@ -824,73 +808,73 @@ class ModuleDesc:
             match section_id:
                 case 0x00:
                     desc = Custom.from_reader(section_reader)
-                    log.debugln('section custom', desc.name)
+                    pywasm.log.debugln('section custom', desc.name)
                 case 0x01:
-                    log.debugln('section type')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section type')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncType.from_reader(section_reader)
                         type.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x02:
-                    log.debugln('section import')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section import')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = Import.from_reader(section_reader)
                         imps.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x03:
-                    log.debugln('section func')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section func')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncDesc.from_reader_type(section_reader)
                         func.append(desc)
-                        log.debugln(f'    {i:>3d} {desc.type}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc.type}')
                 case 0x04:
-                    log.debugln('section table')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section table')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = TableType.from_reader(section_reader)
                         tabl.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x05:
-                    log.debugln('section mem')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section mem')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = MemType.from_reader(section_reader)
                         mems.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x06:
-                    log.debugln('section global')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section global')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = GlobalDesc.from_reader(section_reader)
                         glob.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x07:
-                    log.debugln('section export')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section export')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ExportDesc.from_reader(section_reader)
                         exps.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x08:
-                    desc = leb128.u.decode_reader(section_reader)[0]
+                    desc = pywasm.leb128.u.decode_reader(section_reader)[0]
                     star = desc
-                    log.debugln('section start', desc)
+                    pywasm.log.debugln('section start', desc)
                 case 0x09:
-                    log.debugln('section elem')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section elem')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ElemDesc.from_reader(section_reader)
                         elem.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0a:
-                    log.debugln('section code')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
-                        size = leb128.u.decode_reader(section_reader)[0]
+                    pywasm.log.debugln('section code')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
+                        size = pywasm.leb128.u.decode_reader(section_reader)[0]
                         desc = FuncDesc.from_reader_code(io.BytesIO(section_reader.read(size)))
                         func[i].locals = desc.locals
                         func[i].expr = desc.expr
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0b:
-                    log.debugln('section data')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section data')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = Data.from_reader(section_reader)
                         data.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
 
         return cls(type, func, tabl, mems, glob, elem, data, star, imps, exps)
 
@@ -976,3 +960,1203 @@ class Store:
         inst = GlobalInst(data, type.mut)
         self.glob.append(inst)
         return addr
+
+
+class Label:
+    # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
+    # instruction sequence.
+
+    def __init__(self, arity: int, frame: int, value: int, carry: int, instr: typing.List[Inst], index: int) -> typing.Self:
+        assert carry in [0x00, 0x01, 0x03]
+        self.arity = arity
+        self.frame = frame
+        self.value = value
+        self.carry = carry
+        self.instr = instr
+        self.index = index
+
+    def __repr__(self) -> str:
+        return f'{self.arity}'
+
+
+class Frame:
+    # Activation frames carry the return arity n of the respective function, hold the values of its locals
+    # (including arguments) in the order corresponding to their static local indices, and a reference to the function's
+    # own module instance.
+
+    def __init__(self, module: ModuleInst, locals: LocalsInst, arity: int, label: int, value: int) -> typing.Self:
+        self.module = module
+        self.locals = locals
+        self.arity = arity
+        self.label = label
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f'{self.arity}'
+
+
+class Stack:
+    # Besides the store, most instructions interact with an implicit stack. The stack contains three kinds of entries:
+    #
+    # Values: the operands of instructions.
+    # Labels: active structured control instructions that can be targeted by branches.
+    # Activations: the call frames of active function calls.
+    #
+    # These entries can occur on the stack in any order during the execution of a program. Stack entries are described
+    # by abstract syntax as follows.
+
+    def __init__(self) -> typing.Self:
+        self.value: typing.List[ValInst] = []
+        self.label: typing.List[Label] = []
+        self.frame: typing.List[Frame] = []
+
+
+class Machine:
+    # Execution behavior is defined in terms of an abstract machine that models the program state. It includes a stack,
+    # which records operand values and control constructs, and an abstract store containing global state.
+
+    def __init__(self) -> typing.Self:
+        self.store = Store()
+        self.stack = Stack()
+
+    def allocate(self, module: ModuleDesc, extern: typing.List[Extern], globin: typing.List[ValInst]) -> ModuleInst:
+        inst = ModuleInst()
+        inst.type = module.type
+        for e in extern:
+            match e.kind:
+                case 0x00:
+                    inst.func.append(e.data)
+                case 0x01:
+                    inst.tabl.append(e.data)
+                case 0x02:
+                    inst.mems.append(e.data)
+                case 0x03:
+                    inst.glob.append(e.data)
+        for _, e in enumerate(module.func):
+            addr = self.store.allocate_func_wasm(inst, e)
+            inst.func.append(addr)
+        for _, e in enumerate(module.tabl):
+            addr = self.store.allocate_table(e)
+            inst.tabl.append(addr)
+        for _, e in enumerate(module.mems):
+            addr = self.store.allocate_memory(e)
+            inst.mems.append(addr)
+        for i, e in enumerate(module.glob):
+            addr = self.store.allocate_global(e.type, globin[i])
+            inst.glob.append(addr)
+        for _, e in enumerate(module.exps):
+            expi = ExportInst(e.name, Extern(e.kind, 0))
+            match e.kind:
+                case 0x00:
+                    expi.data.data = inst.func[e.desc]
+                case 0x01:
+                    expi.data.data = inst.tabl[e.desc]
+                case 0x02:
+                    expi.data.data = inst.mems[e.desc]
+                case 0x03:
+                    expi.data.data = inst.glob[e.desc]
+            inst.exps.append(expi)
+        return inst
+
+    def instance(self, module: ModuleDesc, extern: typing.List[Extern]) -> ModuleInst:
+        assert len(module.imps) == len(extern)
+        for a, b in zip(module.imps, extern):
+            assert a.kind == b.kind
+            match a.kind:
+                case 0x00:
+                    assert self.store.func[b.data].type == module.type[a.desc]
+                case 0x01:
+                    assert self.store.tabl[b.data].type.type == a.desc.type
+                    assert self.store.tabl[b.data].type.limits.suit(a.desc.limits)
+                case 0x02:
+                    assert self.store.mems[b.data].type.limits.suit(a.desc.limits)
+                case 0x03:
+                    assert self.store.glob[b.data].data.type == a.desc.type
+                    assert self.store.glob[b.data].mut == a.desc.mut
+        globin: typing.List[ValInst] = []
+        auxmod = ModuleInst()
+        auxmod.glob = [e.data for e in extern if e.kind == 0x03]
+        self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
+        pywasm.log.debugln(f'init global')
+        for i, e in enumerate(module.glob):
+            self.stack.label.append(Label(1, 1, 0, 1, e.init.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
+            globin.append(rets)
+        self.stack.frame.pop()
+        newmod = self.allocate(module, extern, globin)
+        self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
+        pywasm.log.debugln('init elem')
+        for i, e in enumerate(module.elem):
+            self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            assert rets.type == ValType.i32()
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
+            tabl = self.store.tabl[newmod.tabl[e.data]]
+            offs = rets.into_i32()
+            for i, e in enumerate(e.init):
+                tabl.elem[offs + i] = newmod.func[e]
+        pywasm.log.debugln('init data')
+        for i, e in enumerate(module.data):
+            self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 1
+            rets = self.stack.value.pop()
+            assert rets.type == ValType.i32()
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
+            mems = self.store.mems[newmod.mems[e.data]]
+            offs = rets.into_i32()
+            for i, e in enumerate(e.init):
+                mems.data[offs + i] = e
+        self.stack.frame.pop()
+        if module.star >= 0:
+            addr = newmod.func[module.star]
+            func = self.store.func[addr]
+            assert len(func.type.args) == 0
+            assert len(func.type.rets) == 0
+            self.evaluate_call(addr)
+            self.evaluate()
+            assert len(self.stack.frame) == 0
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 0
+        return newmod
+
+    def invocate(self, addr: int, args: typing.List[ValInst]) -> typing.List[ValInst]:
+        func = self.store.func[addr]
+        assert func.kind == 0x00
+        for a, b in zip(func.type.args, args):
+            assert a == b.type
+        self.stack.frame.append(Frame(ModuleInst(), LocalsInst([]), 0, 0, 0))
+        pywasm.log.debugln(f'call {func} {args}')
+        locals = LocalsInst(args)
+        for e in func.code.locals:
+            locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+        self.stack.frame.append(Frame(func.module, locals, len(func.type.rets), 0, 0))
+        self.stack.label.append(Label(len(func.type.rets), 1, 0, 3, func.code.expr.data, 0))
+        self.evaluate()
+        rets = [self.stack.value.pop() for _ in range(len(func.type.rets))][::-1]
+        for a, b in zip(func.type.rets, rets):
+            assert a == b.type
+        self.stack.frame.pop()
+        assert len(self.stack.frame) == 0
+        assert len(self.stack.label) == 0
+        assert len(self.stack.value) == 0
+        return rets
+
+    def evaluate_br(self, l: int) -> None:
+        assert len(self.stack.label) >= l + 1
+        label = self.stack.label[-1 - l]
+        assert len(self.stack.value) >= label.value + label.arity
+        rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
+        self.stack.frame = self.stack.frame[:label.frame]
+        self.stack.label = self.stack.label[:len(self.stack.label)-l]
+        match label.carry & 1:
+            case 0x00:
+                label.index = 0
+            case 0x01:
+                self.stack.label.pop()
+        self.stack.value = self.stack.value[:label.value]
+        self.stack.value.extend(rets)
+
+    def evaluate_bype(self, bype: Bype) -> FuncType:
+        match bype.kind:
+            case 0x00:
+                return FuncType([], [])
+            case 0x01:
+                return FuncType([], [ValType(bype.data)])
+            case 0x02:
+                return self.stack.frame[-1].module.type[bype.data]
+
+    def evaluate_call(self, addr: int) -> None:
+        func = self.store.func[addr]
+        args = [self.stack.value.pop() for _ in range(len(func.type.args))][::-1]
+        nret = len(func.type.rets)
+        pywasm.log.debugln(f'call {func} {args}')
+        match func.kind:
+            case 0x00:
+                locals = LocalsInst(args)
+                for e in func.code.locals:
+                    locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+                self.stack.frame.append(Frame(
+                    func.module,
+                    locals,
+                    nret,
+                    len(self.stack.label),
+                    len(self.stack.value),
+                ))
+                self.stack.label.append(Label(
+                    nret,
+                    len(self.stack.frame),
+                    len(self.stack.value),
+                    3,
+                    func.code.expr.data,
+                    0,
+                ))
+            case 0x01:
+                match nret:
+                    case 0x00:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        assert rets is None
+                    case 0x01:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        self.stack.value.append(ValInst.from_auto(func.type.rets[0], rets))
+                    case _:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets, rets)]
+                        self.stack.value.extend(rets)
+            case _:
+                assert 0
+
+    def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
+        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        addr = self.stack.value.pop().into_i32()
+        addr = addr + offset
+        assert addr >= 0 and addr + size <= len(inst.data)
+        return inst.data[addr:addr+size]
+
+    def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
+        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        data = self.stack.value.pop().data
+        addr = self.stack.value.pop().into_i32()
+        addr = addr + offset
+        assert addr >= 0 and addr + size <= len(inst.data)
+        inst.data[addr:addr+size] = data[:size]
+
+    def evaluate(self) -> None:
+        for _ in range(1 << 32):
+            if not self.stack.label:
+                break
+            label = self.stack.label[-1]
+            frame = self.stack.frame[-1]
+            if label.index == len(label.instr):
+                self.stack.label.pop()
+                if label.carry & 2:
+                    assert len(self.stack.value) == frame.value + frame.arity
+                    self.stack.frame.pop()
+                continue
+            instr = label.instr[label.index]
+            label.index += 1
+            pywasm.log.debugln(f'    {instr}')
+            match instr.opcode:
+                case pywasm.opcode.unreachable:
+                    assert 0
+                case pywasm.opcode.nop:
+                    assert 1
+                case pywasm.opcode.block:
+                    bype = self.evaluate_bype(instr.args[0])
+                    assert len(self.stack.value) >= label.value + len(bype.args)
+                    self.stack.label.append(Label(
+                        len(bype.rets),
+                        len(self.stack.frame),
+                        len(self.stack.value) - len(bype.args),
+                        1,
+                        instr.args[1],
+                        0,
+                    ))
+                case pywasm.opcode.loop:
+                    bype = self.evaluate_bype(instr.args[0])
+                    assert len(self.stack.value) >= label.value + len(bype.args)
+                    self.stack.label.append(Label(
+                        len(bype.args),
+                        len(self.stack.frame),
+                        len(self.stack.value) - len(bype.args),
+                        0,
+                        instr.args[1],
+                        0,
+                    ))
+                case pywasm.opcode.if_then:
+                    bype = self.evaluate_bype(instr.args[0])
+                    cond = self.stack.value.pop().into_i32()
+                    assert len(self.stack.value) >= label.value + len(bype.args)
+                    aidx = 1 if cond != 0 else 2
+                    self.stack.label.append(Label(
+                        len(bype.rets),
+                        len(self.stack.frame),
+                        len(self.stack.value) - len(bype.args),
+                        1,
+                        instr.args[aidx],
+                        0,
+                    ))
+                case pywasm.opcode.else_fi:
+                    assert 0
+                case pywasm.opcode.end:
+                    assert 0
+                case pywasm.opcode.br:
+                    self.evaluate_br(instr.args[0])
+                case pywasm.opcode.br_if:
+                    if self.stack.value.pop().into_i32() != 0:
+                        self.evaluate_br(instr.args[0])
+                case pywasm.opcode.br_table:
+                    a = self.stack.value.pop().into_u32()
+                    b = instr.args[1]
+                    if a < len(instr.args[0]):
+                        b = instr.args[0][a]
+                    self.evaluate_br(b)
+                case pywasm.opcode.return_call:
+                    assert len(self.stack.value) >= frame.value + frame.arity
+                    rets = [self.stack.value.pop() for _ in range(frame.arity)][::-1]
+                    self.stack.frame.pop()
+                    self.stack.label = self.stack.label[:frame.label]
+                    self.stack.value = self.stack.value[:frame.value]
+                    self.stack.value.extend(rets)
+                case pywasm.opcode.call:
+                    addr = frame.module.func[instr.args[0]]
+                    self.evaluate_call(addr)
+                case pywasm.opcode.call_indirect:
+                    tabl = self.store.tabl[frame.module.tabl[0]]
+                    type = frame.module.type[instr.args[0]]
+                    addr = tabl.elem[self.stack.value.pop().into_i32()]
+                    assert self.store.func[addr].type == type
+                    self.evaluate_call(addr)
+                case pywasm.opcode.drop:
+                    self.stack.value.pop()
+                case pywasm.opcode.select:
+                    c = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop()
+                    a = self.stack.value.pop()
+                    d = a if c != 0 else b
+                    self.stack.value.append(d)
+                case pywasm.opcode.local_get:
+                    a = self.stack.frame[-1].locals.data[instr.args[0]]
+                    self.stack.value.append(a)
+                case pywasm.opcode.local_set:
+                    a = self.stack.value.pop()
+                    self.stack.frame[-1].locals.data[instr.args[0]] = a
+                case pywasm.opcode.local_tee:
+                    a = self.stack.value[-1]
+                    self.stack.frame[-1].locals.data[instr.args[0]] = a
+                case pywasm.opcode.global_get:
+                    glob = self.store.glob[frame.module.glob[instr.args[0]]]
+                    self.stack.value.append(glob.data)
+                case pywasm.opcode.global_set:
+                    glob = self.store.glob[frame.module.glob[instr.args[0]]]
+                    assert glob.mut == 0x01
+                    glob.data = self.stack.value.pop()
+                case pywasm.opcode.i32_load:
+                    a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load:
+                    a = ValInst.from_i64(struct.unpack('<q', self.evaluate_mem_load(instr.args[1], 8))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.f32_load:
+                    a = ValInst.from_f32(struct.unpack('<f', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.f64_load:
+                    a = ValInst.from_f64(struct.unpack('<d', self.evaluate_mem_load(instr.args[1], 8))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_load8_s:
+                    a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_load8_u:
+                    a = ValInst.from_i32(struct.unpack('<B', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_load16_s:
+                    a = ValInst.from_i32(struct.unpack('<h', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_load16_u:
+                    a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load8_s:
+                    a = ValInst.from_i64(struct.unpack('<b', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load8_u:
+                    a = ValInst.from_i64(struct.unpack('<B', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load16_s:
+                    a = ValInst.from_i64(struct.unpack('<h', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load16_u:
+                    a = ValInst.from_i64(struct.unpack('<H', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load32_s:
+                    a = ValInst.from_i64(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load32_u:
+                    a = ValInst.from_i64(struct.unpack('<I', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_store:
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.i64_store:
+                    self.evaluate_mem_save(instr.args[1], 8)
+                case pywasm.opcode.f32_store:
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.f64_store:
+                    self.evaluate_mem_save(instr.args[1], 8)
+                case pywasm.opcode.i32_store8:
+                    self.evaluate_mem_save(instr.args[1], 1)
+                case pywasm.opcode.i32_store16:
+                    self.evaluate_mem_save(instr.args[1], 2)
+                case pywasm.opcode.i64_store8:
+                    self.evaluate_mem_save(instr.args[1], 1)
+                case pywasm.opcode.i64_store16:
+                    self.evaluate_mem_save(instr.args[1], 2)
+                case pywasm.opcode.i64_store32:
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.memory_size:
+                    mems = self.store.mems[frame.module.mems[0]]
+                    size = mems.size
+                    self.stack.value.append(ValInst.from_i32(size))
+                case pywasm.opcode.memory_grow:
+                    mems = self.store.mems[frame.module.mems[0]]
+                    size = mems.size
+                    incr = self.stack.value.pop().into_i32()
+                    rets = -1
+                    # Limit memory size to 64m.
+                    cnda = size + incr <= 1024
+                    cndb = mems.type.limits.m == 0 or size + incr <= mems.type.limits.m
+                    if cnda and cndb:
+                        rets = size
+                        mems.grow(incr)
+                    self.stack.value.append(ValInst.from_i32(rets))
+                case pywasm.opcode.i32_const:
+                    a = ValInst.from_i32(instr.args[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_const:
+                    a = ValInst.from_i64(instr.args[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.f32_const:
+                    a = ValInst.from_i32(instr.args[0])
+                    a.type = ValType.f32()
+                    self.stack.value.append(a)
+                case pywasm.opcode.f64_const:
+                    a = ValInst.from_i64(instr.args[0])
+                    a.type = ValType.f64()
+                    self.stack.value.append(a)
+                case pywasm.opcode.i32_eqz:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_i32(a == 0)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_eq:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a == b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_ne:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a != b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_lt_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_lt_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_gt_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_gt_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_le_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_le_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_ge_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_ge_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_eqz:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_i32(a == 0)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_eq:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a == b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_ne:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a != b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_lt_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_lt_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_gt_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_gt_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_le_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_le_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_ge_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_ge_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_eq:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a == b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_ne:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a != b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_lt:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_gt:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_le:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_ge:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_eq:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a == b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_ne:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a != b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_lt:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a < b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_gt:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_le:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a <= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_ge:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_i32(a >= b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_clz:
+                    a = self.stack.value.pop().into_u32()
+                    b = 0
+                    for _ in range(32):
+                        if a & 0x80000000 != 0:
+                            break
+                        b += 1
+                        a = a << 1
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_ctz:
+                    a = self.stack.value.pop().into_u32()
+                    b = 0
+                    for _ in range(32):
+                        if a & 0x00000001 != 0:
+                            break
+                        b += 1
+                        a = a >> 1
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_popcnt:
+                    a = self.stack.value.pop().into_u32()
+                    b = 0
+                    for _ in range(32):
+                        if a & 0x00000001 != 0:
+                            b += 1
+                        a = a >> 1
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_add:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a + b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_sub:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a - b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_mul:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a * b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_div_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    # Python's default division of integers is return the floor (towards negative infinity) with no
+                    # ability to change that. You can read the BDFL's reason why.
+                    # See: https://python-history.blogspot.com/2010/08/why-pythons-integer-division-floors.html
+                    # But in webassembly, it requires do truncation towards zero.
+                    c = a // b if a * b > 0 else (a + (-a % b)) // b
+                    d = ValInst.from_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32_div_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a // b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_rem_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = a % b if a * b > 0 else -(-a % b)
+                    d = ValInst.from_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32_rem_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a % b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_and:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a & b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_or:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a | b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_xor:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a ^ b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_shl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a << (b % 0x20))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_shr_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a >> (b % 0x20))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_shr_u:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(a >> (b % 0x20))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_rotl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_rotr:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_u32()
+                    c = ValInst.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_clz:
+                    a = self.stack.value.pop().into_u64()
+                    b = 0
+                    for _ in range(64):
+                        if a & 0x8000000000000000 != 0:
+                            break
+                        b += 1
+                        a = a << 1
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_ctz:
+                    a = self.stack.value.pop().into_u64()
+                    b = 0
+                    for _ in range(64):
+                        if a & 0x0000000000000001 != 0:
+                            break
+                        b += 1
+                        a = a >> 1
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_popcnt:
+                    a = self.stack.value.pop().into_u64()
+                    b = 0
+                    for _ in range(64):
+                        if a & 0x0000000000000001 != 0:
+                            b += 1
+                        a = a >> 1
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_add:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a + b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_sub:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a - b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_mul:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a * b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_div_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = a // b if a * b > 0 else (a + (-a % b)) // b
+                    d = ValInst.from_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64_div_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64(a // b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_rem_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = a % b if a * b > 0 else -(-a % b)
+                    d = ValInst.from_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64_rem_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64(a % b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_and:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a & b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_or:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a | b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_xor:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a ^ b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_shl:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a << (b % 0x40))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_shr_s:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_i64()
+                    c = ValInst.from_i64(a >> (b % 0x40))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_shr_u:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64(a >> (b % 0x40))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_rotl:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64((((a << (b % 0x40)) & 0xffffffffffffffff) | (a >> (0x40 - (b % 0x40)))))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_rotr:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_u64()
+                    c = ValInst.from_i64(((a >> (b % 0x40)) | ((a << (0x40 - (b % 0x40))) & 0xffffffffffffffff)))
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_abs:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f32(), a.data.copy())
+                    b.data[3] = b.data[3] & 0x7f
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_neg:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f32(), a.data.copy())
+                    b.data[3] = b.data[3] ^ 0x80
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_ceil:
+                    a = self.stack.value.pop().into_f32()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.ceil(a))
+                    c = ValInst.from_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_floor:
+                    a = self.stack.value.pop().into_f32()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.floor(a))
+                    c = ValInst.from_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_trunc:
+                    a = self.stack.value.pop().into_f32()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.trunc(a))
+                    c = ValInst.from_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_nearest:
+                    a = self.stack.value.pop().into_f32()
+                    b = a if math.isnan(a) or math.isinf(a) else float(round(a))
+                    c = ValInst.from_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_sqrt:
+                    a = self.stack.value.pop().into_f32()
+                    b = math.sqrt(a) if a >= 0 else math.nan
+                    c = ValInst.from_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_add:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_f32(a + b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_sub:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_f32(a - b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_mul:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_f32(a * b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32_div:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    match b:
+                        case 0:
+                            s = +1 if math.copysign(1, a) == math.copysign(1, b) else -1
+                            c = math.copysign(math.inf, s)
+                            if a == 0 or math.isnan(a):
+                                c = math.copysign(math.nan, s)
+                        case _:
+                            c = a / b
+                    d = ValInst.from_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32_min:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = min(a, b)
+                    if math.isnan(a):
+                        c = a
+                    if math.isnan(b):
+                        c = b
+                    d = ValInst.from_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32_max:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = max(a, b)
+                    if math.isnan(a):
+                        c = a
+                    if math.isnan(b):
+                        c = b
+                    d = ValInst.from_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32_copysign:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_f32(math.copysign(a, b))
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_abs:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f64(), a.data.copy())
+                    b.data[7] = b.data[7] & 0x7f
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_neg:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f64(), a.data.copy())
+                    b.data[7] = b.data[7] ^ 0x80
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_ceil:
+                    a = self.stack.value.pop().into_f64()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.ceil(a))
+                    c = ValInst.from_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_floor:
+                    a = self.stack.value.pop().into_f64()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.floor(a))
+                    c = ValInst.from_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_trunc:
+                    a = self.stack.value.pop().into_f64()
+                    b = a if math.isnan(a) or math.isinf(a) else float(math.trunc(a))
+                    c = ValInst.from_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_nearest:
+                    a = self.stack.value.pop().into_f64()
+                    b = a if math.isnan(a) or math.isinf(a) else float(round(a))
+                    c = ValInst.from_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_sqrt:
+                    a = self.stack.value.pop().into_f64()
+                    b = math.sqrt(a) if a >= 0 else math.nan
+                    c = ValInst.from_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_add:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_f64(a + b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_sub:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_f64(a - b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_mul:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_f64(a * b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64_div:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    match b:
+                        case 0:
+                            s = +1 if math.copysign(1, a) == math.copysign(1, b) else -1
+                            c = math.copysign(math.inf, s)
+                            if a == 0 or math.isnan(a):
+                                c = math.copysign(math.nan, s)
+                        case _:
+                            c = a / b
+                    d = ValInst.from_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64_min:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = min(a, b)
+                    if math.isnan(a):
+                        c = a
+                    if math.isnan(b):
+                        c = b
+                    d = ValInst.from_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64_max:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = max(a, b)
+                    if math.isnan(a):
+                        c = a
+                    if math.isnan(b):
+                        c = b
+                    d = ValInst.from_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64_copysign:
+                    b = self.stack.value.pop().into_f64()
+                    a = self.stack.value.pop().into_f64()
+                    c = ValInst.from_f64(math.copysign(a, b))
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_wrap_i64:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_i32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_trunc_f32_s:
+                    a = self.stack.value.pop().into_f32()
+                    b = ValInst.from_i32(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_trunc_f32_u:
+                    a = self.stack.value.pop().into_f32()
+                    b = ValInst.from_u32(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_trunc_f64_s:
+                    a = self.stack.value.pop().into_f64()
+                    b = ValInst.from_i32(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_trunc_f64_u:
+                    a = self.stack.value.pop().into_f64()
+                    b = ValInst.from_u32(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_extend_i32_s:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_extend_i32_u:
+                    a = self.stack.value.pop().into_u32()
+                    b = ValInst.from_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_trunc_f32_s:
+                    a = self.stack.value.pop().into_f32()
+                    b = ValInst.from_i64(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_trunc_f32_u:
+                    a = self.stack.value.pop().into_f32()
+                    b = ValInst.from_u64(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_trunc_f64_s:
+                    a = self.stack.value.pop().into_f64()
+                    b = ValInst.from_i64(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_trunc_f64_u:
+                    a = self.stack.value.pop().into_f64()
+                    b = ValInst.from_u64(int(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_convert_i32_s:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_f32(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_convert_i32_u:
+                    a = self.stack.value.pop().into_u32()
+                    b = ValInst.from_f32(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_convert_i64_s:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_f32(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_convert_i64_u:
+                    a = self.stack.value.pop().into_u64()
+                    b = ValInst.from_f32(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_demote_f64:
+                    a = self.stack.value.pop().into_f64()
+                    b = ValInst.from_f32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_convert_i32_s:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_f64(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_convert_i32_u:
+                    a = self.stack.value.pop().into_u32()
+                    b = ValInst.from_f64(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_convert_i64_s:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_f64(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_convert_i64_u:
+                    a = self.stack.value.pop().into_u64()
+                    b = ValInst.from_f64(float(a))
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_promote_f32:
+                    a = self.stack.value.pop().into_f32()
+                    b = ValInst.from_f64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32_reinterpret_f32:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.i32(), a.data.copy())
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64_reinterpret_f64:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.i64(), a.data.copy())
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32_reinterpret_i32:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f32(), a.data.copy())
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64_reinterpret_i64:
+                    a = self.stack.value.pop()
+                    b = ValInst(ValType.f64(), a.data.copy())
+                    self.stack.value.append(b)
+                case _:
+                    assert 0
+
+
+class Runtime:
+    # A webassembly runtime manages Store, stack, and other runtime structure. They forming the WebAssembly abstract.
+
+    def __init__(self) -> typing.Self:
+        self.machine = Machine()
+
+    def exported_mem(self, module: ModuleInst, name: str) -> MemInst:
+        addr = [e for e in module.exps if e.name == name][0].data.data
+        return self.machine.store.mems[addr]
+
+    def exported_global(self, module: ModuleInst, name: str) -> GlobalInst:
+        addr = [e for e in module.exps if e.name == name][0].data.data
+        return self.machine.store.glob[addr]
+
+    def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+        extern: typing.List[Extern] = []
+        for e in module.imps:
+            assert e.module in imps
+            assert e.name in imps[e.module]
+            match e.kind:
+                case 0x00:
+                    match imps[e.module][e.name]:
+                        case x if callable(x):
+                            func = FuncHost(module.type[e.desc], imps[e.module][e.name])
+                            addr = self.machine.store.allocate_func_host(func)
+                            extern.append(Extern(0x00, addr))
+                        case _:
+                            addr = len(self.machine.store.func)
+                            func = imps[e.module][e.name]
+                            self.machine.store.func.append(func)
+                            extern.append(Extern(0x00, addr))
+                case 0x01:
+                    addr = len(self.machine.store.tabl)
+                    tabl = imps[e.module][e.name]
+                    self.machine.store.tabl.append(tabl)
+                    extern.append(Extern(0x01, addr))
+                case 0x02:
+                    addr = len(self.machine.store.mems)
+                    mems = imps[e.module][e.name]
+                    self.machine.store.mems.append(mems)
+                    extern.append(Extern(0x02, addr))
+                case 0x03:
+                    match imps[e.module][e.name]:
+                        case x if isinstance(x, (int, float)):
+                            glob = ValInst.from_auto(e.desc.type, imps[e.module][e.name])
+                            addr = self.machine.store.allocate_global(e.desc, glob)
+                            extern.append(Extern(0x03, addr))
+                        case _:
+                            addr = len(self.machine.store.glob)
+                            glob = imps[e.module][e.name]
+                            self.machine.store.glob.append(glob)
+                            extern.append(Extern(0x03, addr))
+        return self.machine.instance(module, extern)
+
+    def instance_from_file(self, path: str, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+        with open(path, 'rb') as f:
+            return self.instance(ModuleDesc.from_reader(f), imps)
+
+    def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
+        addr = [e for e in module.exps if e.name == func][0].data.data
+        func = self.machine.store.func[addr]
+        args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args, args)]
+        rets = self.machine.invocate(addr, args)
+        return [e.into_auto() for e in rets]
