@@ -18,7 +18,7 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.ValInst.from_f32_u32(0x7fc00001)
         v = pywasm.ValInst.from_u32(int(m['value']))
-        v.type = pywasm.core.ValType.f32()
+        v.type = pywasm.ValType.f32()
         return v
     if m['type'] == 'f64':
         if m['value'] == 'nan:canonical':
@@ -26,23 +26,23 @@ def parse_val(m):
         if m['value'] == 'nan:arithmetic':
             return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
         v = pywasm.ValInst.from_u64(int(m['value']))
-        v.type = pywasm.core.ValType.f64()
+        v.type = pywasm.ValType.f64()
         return v
     raise NotImplementedError
 
 
 def asset_val(a, b):
     print('assert', a.data, b.data, a.into_auto(), b.into_auto())
-    if b.type == pywasm.core.ValType.i32():
-        assert a.type == pywasm.core.ValType.i32()
+    if b.type == pywasm.ValType.i32():
+        assert a.type == pywasm.ValType.i32()
         assert a.data == b.data
         return
-    if b.type == pywasm.core.ValType.i64():
-        assert a.type == pywasm.core.ValType.i64()
+    if b.type == pywasm.ValType.i64():
+        assert a.type == pywasm.ValType.i64()
         assert a.data == b.data
         return
-    if b.type == pywasm.core.ValType.f32():
-        assert a.type == pywasm.core.ValType.f32()
+    if b.type == pywasm.ValType.f32():
+        assert a.type == pywasm.ValType.f32()
         if math.isnan(b.into_f32()):
             assert math.isnan(a.into_f32())
         elif math.isinf(b.into_f32()):
@@ -52,8 +52,8 @@ def asset_val(a, b):
         else:
             assert math.isclose(a.into_f32(), b.into_f32())
         return
-    if b.type == pywasm.core.ValType.f64():
-        assert a.type == pywasm.core.ValType.f64()
+    if b.type == pywasm.ValType.f64():
+        assert a.type == pywasm.ValType.f64()
         if math.isnan(b.into_f64()):
             assert math.isnan(a.into_f64())
         elif math.isinf(b.into_f64()):
@@ -67,10 +67,10 @@ def asset_val(a, b):
 
 
 def imps() -> typing.Dict:
-    memory_type = pywasm.core.MemType(pywasm.core.Limits(1, 2))
+    memory_type = pywasm.MemType(pywasm.Limits(1, 2))
     memory = pywasm.Memory(memory_type)
 
-    table_type = pywasm.core.TableType(pywasm.core.ElemType.funcref(), pywasm.core.Limits(10, 20))
+    table_type = pywasm.TableType(pywasm.ElemType.funcref(), pywasm.Limits(10, 20))
     table = pywasm.Table(table_type)
 
     return {
@@ -149,8 +149,8 @@ imps = {
         'global_i64': 0,
         'global_f32': 0.0,
         'global_f64': 0.0,
-        'table': pywasm.core.TableInst(pywasm.core.TableType(pywasm.core.ElemType.funcref(), pywasm.core.Limits(10, 20))),
-        'memory': pywasm.core.MemInst(pywasm.core.MemType(pywasm.core.Limits(1, 2))),
+        'table': pywasm.TableInst(pywasm.TableType(pywasm.ElemType.funcref(), pywasm.Limits(10, 20))),
+        'memory': pywasm.MemInst(pywasm.MemType(pywasm.Limits(1, 2))),
         'print_i32': lambda _, x: print(x),
         'print_i64': lambda _, x: print(x),
         'print_f32': lambda _, x: print(x),
@@ -163,8 +163,8 @@ imps = {
 for name in sorted(glob.glob('res/spectest/*.json')):
     with open(name) as f:
         suit = json.load(f)
-    runtime = pywasm.core.Runtime()
-    imodule: pywasm.core.ModuleInst
+    runtime = pywasm.Runtime()
+    imodule: pywasm.ModuleInst
     for elem in suit['commands']:
         print(elem)
         match elem['type']:

@@ -5,7 +5,6 @@ import typing
 from . import core
 from . import log
 from . import opcode
-from . import option
 
 from .core import ValInst
 

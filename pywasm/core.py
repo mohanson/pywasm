@@ -1,11 +1,10 @@
 import io
 import math
+import pywasm.leb128
+import pywasm.log
+import pywasm.opcode
 import struct
 import typing
-
-from . import leb128
-from . import log
-from . import opcode
 
 
 class Bype:
@@ -35,7 +34,7 @@ class Bype:
         if n in [0x7f, 0x7e, 0x7d, 0x7c]:
             return cls(0x01, n)
         r.seek(1, -1)
-        return cls(0x02, leb128.i.decode_reader(r)[0])
+        return cls(0x02, pywasm.leb128.i.decode_reader(r)[0])
 
 
 class Inst:
@@ -48,7 +47,7 @@ class Inst:
         self.args = args
 
     def __repr__(self) -> str:
-        seps = [opcode.name[self.opcode]]
+        seps = [pywasm.opcode.name[self.opcode]]
         if self.args:
             seps.append(repr(self.args[0]))
         return ' '.join(seps)
@@ -56,21 +55,21 @@ class Inst:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         o = Inst(ord(r.read(1)), [])
-        assert o.opcode in opcode.name
+        assert o.opcode in pywasm.opcode.name
         if o.opcode in [
-            opcode.block,
-            opcode.loop,
+            pywasm.opcode.block,
+            pywasm.opcode.loop,
         ]:
             o.args.append(Bype.from_reader(r))
             o.args.append([])
             for _ in range(1 << 32):
                 i = Inst.from_reader(r)
-                if i.opcode == opcode.end:
+                if i.opcode == pywasm.opcode.end:
                     break
                 o.args[1].append(i)
             return o
         if o.opcode in [
-            opcode.if_then,
+            pywasm.opcode.if_then,
         ]:
             o.args.append(Bype.from_reader(r))
             o.args.append([])
@@ -78,102 +77,102 @@ class Inst:
             argidx = 1
             for _ in range(1 << 32):
                 i = Inst.from_reader(r)
-                if i.opcode == opcode.end:
+                if i.opcode == pywasm.opcode.end:
                     break
-                if i.opcode == opcode.else_fi:
+                if i.opcode == pywasm.opcode.else_fi:
                     argidx = 2
                     continue
                 o.args[argidx].append(i)
             return o
         if o.opcode in [
-            opcode.br,
-            opcode.br_if,
+            pywasm.opcode.br,
+            pywasm.opcode.br_if,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.br_table,
+            pywasm.opcode.br_table,
         ]:
-            o.args.append([leb128.u.decode_reader(r)[0] for _ in range(leb128.u.decode_reader(r)[0])])
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append([pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.call,
+            pywasm.opcode.call,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.call_indirect,
+            pywasm.opcode.call_indirect,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
-            opcode.local_get,
-            opcode.local_set,
-            opcode.local_tee,
+            pywasm.opcode.local_get,
+            pywasm.opcode.local_set,
+            pywasm.opcode.local_tee,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.global_get,
-            opcode.global_set,
+            pywasm.opcode.global_get,
+            pywasm.opcode.global_set,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.i32_load,
-            opcode.i64_load,
-            opcode.f32_load,
-            opcode.f64_load,
-            opcode.i32_load8_s,
-            opcode.i32_load8_u,
-            opcode.i32_load16_s,
-            opcode.i32_load16_u,
-            opcode.i64_load8_s,
-            opcode.i64_load8_u,
-            opcode.i64_load16_s,
-            opcode.i64_load16_u,
-            opcode.i64_load32_s,
-            opcode.i64_load32_u,
-            opcode.i32_store,
-            opcode.i64_store,
-            opcode.f32_store,
-            opcode.f64_store,
-            opcode.i32_store8,
-            opcode.i32_store16,
-            opcode.i64_store8,
-            opcode.i64_store16,
-            opcode.i64_store32,
+            pywasm.opcode.i32_load,
+            pywasm.opcode.i64_load,
+            pywasm.opcode.f32_load,
+            pywasm.opcode.f64_load,
+            pywasm.opcode.i32_load8_s,
+            pywasm.opcode.i32_load8_u,
+            pywasm.opcode.i32_load16_s,
+            pywasm.opcode.i32_load16_u,
+            pywasm.opcode.i64_load8_s,
+            pywasm.opcode.i64_load8_u,
+            pywasm.opcode.i64_load16_s,
+            pywasm.opcode.i64_load16_u,
+            pywasm.opcode.i64_load32_s,
+            pywasm.opcode.i64_load32_u,
+            pywasm.opcode.i32_store,
+            pywasm.opcode.i64_store,
+            pywasm.opcode.f32_store,
+            pywasm.opcode.f64_store,
+            pywasm.opcode.i32_store8,
+            pywasm.opcode.i32_store16,
+            pywasm.opcode.i64_store8,
+            pywasm.opcode.i64_store16,
+            pywasm.opcode.i64_store32,
         ]:
-            o.args.append(leb128.u.decode_reader(r)[0])
-            o.args.append(leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.memory_size,
-            opcode.memory_grow
+            pywasm.opcode.memory_size,
+            pywasm.opcode.memory_grow
         ]:
             o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
-            opcode.i32_const,
+            pywasm.opcode.i32_const,
         ]:
-            o.args.append(leb128.i.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.i64_const,
+            pywasm.opcode.i64_const,
         ]:
-            o.args.append(leb128.i.decode_reader(r)[0])
+            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
             return o
         if o.opcode in [
-            opcode.f32_const,
+            pywasm.opcode.f32_const,
         ]:
             # Python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
             # See: https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
             o.args.append(struct.unpack('<i', r.read(4))[0])
             return o
         if o.opcode in [
-            opcode.f64_const,
+            pywasm.opcode.f64_const,
         ]:
             o.args.append(struct.unpack('<q', r.read(8))[0])
             return o
@@ -195,7 +194,7 @@ class Expr:
         s = []
         for _ in range(1 << 32):
             i = Inst.from_reader(r)
-            if i.opcode == opcode.end:
+            if i.opcode == pywasm.opcode.end:
                 break
             s.append(i)
         return cls(s)
@@ -221,7 +220,7 @@ class Limits:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         flag = ord(r.read(1))
-        return cls(leb128.u.decode_reader(r)[0],  leb128.u.decode_reader(r)[0] if flag else 0x00)
+        return cls(pywasm.leb128.u.decode_reader(r)[0],  pywasm.leb128.u.decode_reader(r)[0] if flag else 0x00)
 
 
 class Custom:
@@ -235,7 +234,7 @@ class Custom:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         return cls(r.read(n).decode(), bytearray(r.read(-1)))
 
 
@@ -265,13 +264,13 @@ class Import:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         module = r.read(n).decode()
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         name = r.read(n).decode()
         type = ord(r.read(1))
         desc = {
-            0x00: lambda r: leb128.u.decode_reader(r)[0],
+            0x00: lambda r: pywasm.leb128.u.decode_reader(r)[0],
             0x01: TableType.from_reader,
             0x02: MemType.from_reader,
             0x03: GlobalType.from_reader,
@@ -294,9 +293,9 @@ class Data:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = leb128.u.decode_reader(r)[0]
+        data = pywasm.leb128.u.decode_reader(r)[0]
         offset = Expr.from_reader(r)
-        init = bytearray(r.read(leb128.u.decode_reader(r)[0]))
+        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
         return cls(data, offset, init)
 
 
@@ -468,7 +467,7 @@ class ResultType:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = leb128.u.decode_reader(r)[0]
+        n = pywasm.leb128.u.decode_reader(r)[0]
         return cls([ValType.from_reader(r) for _ in range(n)])
 
 
@@ -496,7 +495,7 @@ class LocalsDesc:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(leb128.u.decode_reader(r)[0], ValType.from_reader(r))
+        return cls(pywasm.leb128.u.decode_reader(r)[0], ValType.from_reader(r))
 
 
 class LocalsInst:
@@ -549,11 +548,11 @@ class FuncDesc:
 
     @classmethod
     def from_reader_type(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(leb128.u.decode_reader(r)[0], [], Expr([]))
+        return cls(pywasm.leb128.u.decode_reader(r)[0], [], Expr([]))
 
     @classmethod
     def from_reader_code(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(0, [LocalsDesc.from_reader(r) for _ in range(leb128.u.decode_reader(r)[0])], Expr.from_reader(r))
+        return cls(0, [LocalsDesc.from_reader(r) for _ in range(pywasm.leb128.u.decode_reader(r)[0])], Expr.from_reader(r))
 
 
 class MemType:
@@ -640,9 +639,9 @@ class ElemDesc:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = leb128.u.decode_reader(r)[0]
+        data = pywasm.leb128.u.decode_reader(r)[0]
         offset = Expr.from_reader(r)
-        init = [leb128.u.decode_reader(r)[0] for _ in range(leb128.u.decode_reader(r)[0])]
+        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
         return cls(data, offset, init)
 
 
@@ -748,9 +747,9 @@ class ExportDesc:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        name = bytearray(r.read(leb128.u.decode_reader(r)[0])).decode()
+        name = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0])).decode()
         kind = ord(r.read(1))
-        desc = leb128.u.decode_reader(r)[0]
+        desc = pywasm.leb128.u.decode_reader(r)[0]
         return cls(name, kind, desc)
 
 
@@ -816,7 +815,7 @@ class ModuleDesc:
             if not section_id_byte:
                 break
             section_id = ord(section_id_byte)
-            n = leb128.u.decode_reader(r)[0]
+            n = pywasm.leb128.u.decode_reader(r)[0]
             section_data = bytearray(r.read(n))
             assert len(section_data) == n
             section_reader = io.BytesIO(section_data)
@@ -824,73 +823,73 @@ class ModuleDesc:
             match section_id:
                 case 0x00:
                     desc = Custom.from_reader(section_reader)
-                    log.debugln('section custom', desc.name)
+                    pywasm.log.debugln('section custom', desc.name)
                 case 0x01:
-                    log.debugln('section type')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section type')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncType.from_reader(section_reader)
                         type.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x02:
-                    log.debugln('section import')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section import')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = Import.from_reader(section_reader)
                         imps.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x03:
-                    log.debugln('section func')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section func')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncDesc.from_reader_type(section_reader)
                         func.append(desc)
-                        log.debugln(f'    {i:>3d} {desc.type}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc.type}')
                 case 0x04:
-                    log.debugln('section table')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section table')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = TableType.from_reader(section_reader)
                         tabl.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x05:
-                    log.debugln('section mem')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section mem')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = MemType.from_reader(section_reader)
                         mems.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x06:
-                    log.debugln('section global')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section global')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = GlobalDesc.from_reader(section_reader)
                         glob.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x07:
-                    log.debugln('section export')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section export')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ExportDesc.from_reader(section_reader)
                         exps.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x08:
-                    desc = leb128.u.decode_reader(section_reader)[0]
+                    desc = pywasm.leb128.u.decode_reader(section_reader)[0]
                     star = desc
-                    log.debugln('section start', desc)
+                    pywasm.log.debugln('section start', desc)
                 case 0x09:
-                    log.debugln('section elem')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section elem')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ElemDesc.from_reader(section_reader)
                         elem.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0a:
-                    log.debugln('section code')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
-                        size = leb128.u.decode_reader(section_reader)[0]
+                    pywasm.log.debugln('section code')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
+                        size = pywasm.leb128.u.decode_reader(section_reader)[0]
                         desc = FuncDesc.from_reader_code(io.BytesIO(section_reader.read(size)))
                         func[i].locals = desc.locals
                         func[i].expr = desc.expr
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0b:
-                    log.debugln('section data')
-                    for i in range(leb128.u.decode_reader(section_reader)[0]):
+                    pywasm.log.debugln('section data')
+                    for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = Data.from_reader(section_reader)
                         data.append(desc)
-                        log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln(f'    {i:>3d} {desc}')
 
         return cls(type, func, tabl, mems, glob, elem, data, star, imps, exps)
 
@@ -1092,7 +1091,7 @@ class Machine:
         auxmod = ModuleInst()
         auxmod.glob = [e for e in extern if e.kind == 0x03]
         self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
-        log.debugln(f'init global')
+        pywasm.log.debugln(f'init global')
         for i, e in enumerate(module.glob):
             self.stack.label.append(Label(1, 0, 0, e.init.data, 0))
             self.evaluate()
@@ -1100,12 +1099,12 @@ class Machine:
             assert len(self.stack.label) == 0
             assert len(self.stack.value) == 1
             rets = self.stack.value.pop()
-            log.debugln(f'    {i:>3d} {rets}')
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
             globin.append(rets)
         self.stack.frame.pop()
         newmod = self.allocate(module, extern, globin)
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
-        log.debugln('init elem')
+        pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
             self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
             self.evaluate()
@@ -1114,12 +1113,12 @@ class Machine:
             assert len(self.stack.value) == 1
             rets = self.stack.value.pop()
             assert rets.type == ValType.i32()
-            log.debugln(f'    {i:>3d} {rets}')
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
             tabl = self.store.tabl[newmod.tabl[e.data]]
             offs = rets.into_i32()
             for i, e in enumerate(e.init):
                 tabl.elem[offs + i] = newmod.func[e]
-        log.debugln('init data')
+        pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
             self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
             self.evaluate()
@@ -1128,7 +1127,7 @@ class Machine:
             assert len(self.stack.value) == 1
             rets = self.stack.value.pop()
             assert rets.type == ValType.i32()
-            log.debugln(f'    {i:>3d} {rets}')
+            pywasm.log.debugln(f'    {i:>3d} {rets}')
             mems = self.store.mems[newmod.mems[e.data]]
             offs = rets.into_i32()
             for i, e in enumerate(e.init):
@@ -1139,7 +1138,7 @@ class Machine:
             assert func.kind == 0x00
             assert len(func.type.args.data) == 0
             assert len(func.type.rets.data) == 0
-            log.debugln(f'call {func}')
+            pywasm.log.debugln(f'call {func}')
             locals = LocalsInst([])
             for e in func.code.locals:
                 locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
@@ -1157,7 +1156,7 @@ class Machine:
         for a, b in zip(func.type.args.data, args):
             assert a == b.type
         self.stack.frame.append(Frame(ModuleInst(), LocalsInst([]), 0, 0, 0))
-        log.debugln(f'call {func} {args}')
+        pywasm.log.debugln(f'call {func} {args}')
         locals = LocalsInst(args)
         for e in func.code.locals:
             locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
@@ -1213,40 +1212,40 @@ class Machine:
                 continue
             instr = label.instr[label.index]
             label.index += 1
-            log.debugln(f'    {instr}')
+            pywasm.log.debugln(f'    {instr}')
             match instr.opcode:
-                case opcode.unreachable:
+                case pywasm.opcode.unreachable:
                     assert 0
-                case opcode.nop:
+                case pywasm.opcode.nop:
                     assert 1
-                case opcode.block:
+                case pywasm.opcode.block:
                     bype = self.evaluate_bype(instr.args[0])
                     assert len(self.stack.value) >= label.value + len(bype.args.data)
                     self.stack.label.append(Label(len(bype.rets.data), 0, len(self.stack.value), instr.args[1], 0))
-                # case opcode.loop: pass
-                # case opcode.if: pass
-                # case opcode.else: pass
-                # case opcode.end: pass
-                case opcode.br:
+                # case pywasm.opcode.loop: pass
+                # case pywasm.opcode.if: pass
+                # case pywasm.opcode.else: pass
+                # case pywasm.opcode.end: pass
+                case pywasm.opcode.br:
                     self.evaluate_br(instr.args[0])
-                case opcode.br_if:
+                case pywasm.opcode.br_if:
                     if self.stack.value.pop().into_i32() != 0:
                         self.evaluate_br(instr.args[0])
-                # case opcode.br_table: pass
-                case opcode.return_call:
+                # case pywasm.opcode.br_table: pass
+                case pywasm.opcode.return_call:
                     assert len(self.stack.value) >= frame.value + frame.arity
                     rets = [self.stack.value.pop() for _ in range(frame.arity)][::-1]
                     self.stack.frame.pop()
                     self.stack.label = self.stack.label[:frame.label]
                     self.stack.value = self.stack.value[:frame.value]
                     self.stack.value.extend(rets)
-                case opcode.call:
+                case pywasm.opcode.call:
                     addr = frame.module.func[instr.args[0]]
                     func = self.store.func[addr]
                     assert len(self.stack.value) >= label.value + len(func.type.args.data)
                     args = [self.stack.value.pop() for _ in range(len(func.type.args.data))][::-1]
                     nret = len(func.type.rets.data)
-                    log.debugln(f'call {func} {args}')
+                    pywasm.log.debugln(f'call {func} {args}')
                     match func.kind:
                         case 0x00:
                             locals = LocalsInst(args)
@@ -1278,205 +1277,205 @@ class Machine:
                                     rets = func.hostcode(*[e.into_auto() for e in args])
                                     rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets.data, rets)]
                                     self.stack.value.extend(rets)
-                # case opcode.call_indirect: pass
-                # case opcode.drop: pass
-                # case opcode.select: pass
-                case opcode.local_get:
+                # case pywasm.opcode.call_indirect: pass
+                # case pywasm.opcode.drop: pass
+                # case pywasm.opcode.select: pass
+                case pywasm.opcode.local_get:
                     a = self.stack.frame[-1].locals.data[instr.args[0]]
                     b = ValInst(a.type, a.data.copy())
                     self.stack.value.append(b)
-                # case opcode.local_set: pass
-                # case opcode.local_tee: pass
-                # case opcode.global_get: pass
-                # case opcode.global_set: pass
-                case opcode.i32_load:
+                # case pywasm.opcode.local_set: pass
+                # case pywasm.opcode.local_tee: pass
+                # case pywasm.opcode.global_get: pass
+                # case pywasm.opcode.global_set: pass
+                case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[0], 4))[0])
                     self.stack.value.append(a)
-                # case opcode.i64_load: pass
-                # case opcode.f32_load: pass
-                # case opcode.f64_load: pass
-                case opcode.i32_load8_s:
+                # case pywasm.opcode.i64_load: pass
+                # case pywasm.opcode.f32_load: pass
+                # case pywasm.opcode.f64_load: pass
+                case pywasm.opcode.i32_load8_s:
                     a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[0], 1))[0])
                     self.stack.value.append(a)
-                case opcode.i32_load8_u:
+                case pywasm.opcode.i32_load8_u:
                     a = ValInst.from_i32(struct.unpack('<B', self.evaluate_mem_load(instr.args[0], 1))[0])
                     self.stack.value.append(a)
-                case opcode.i32_load16_s:
+                case pywasm.opcode.i32_load16_s:
                     a = ValInst.from_i32(struct.unpack('<h', self.evaluate_mem_load(instr.args[0], 2))[0])
                     self.stack.value.append(a)
-                case opcode.i32_load16_u:
+                case pywasm.opcode.i32_load16_u:
                     a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[0], 2))[0])
                     self.stack.value.append(a)
-                # case opcode.i64_load8_s: pass
-                # case opcode.i64_load8_u: pass
-                # case opcode.i64_load16_s: pass
-                # case opcode.i64_load16_u: pass
-                # case opcode.i64_load32_s: pass
-                # case opcode.i64_load32_u: pass
-                # case opcode.i32_store: pass
-                # case opcode.i64_store: pass
-                # case opcode.f32_store: pass
-                # case opcode.f64_store: pass
-                # case opcode.i32_store8: pass
-                # case opcode.i32_store16: pass
-                # case opcode.i64_store8: pass
-                # case opcode.i64_store16: pass
-                # case opcode.i64_store32: pass
-                # case opcode.memory_size: pass
-                # case opcode.memory_grow: pass
-                case opcode.i32_const:
+                # case pywasm.opcode.i64_load8_s: pass
+                # case pywasm.opcode.i64_load8_u: pass
+                # case pywasm.opcode.i64_load16_s: pass
+                # case pywasm.opcode.i64_load16_u: pass
+                # case pywasm.opcode.i64_load32_s: pass
+                # case pywasm.opcode.i64_load32_u: pass
+                # case pywasm.opcode.i32_store: pass
+                # case pywasm.opcode.i64_store: pass
+                # case pywasm.opcode.f32_store: pass
+                # case pywasm.opcode.f64_store: pass
+                # case pywasm.opcode.i32_store8: pass
+                # case pywasm.opcode.i32_store16: pass
+                # case pywasm.opcode.i64_store8: pass
+                # case pywasm.opcode.i64_store16: pass
+                # case pywasm.opcode.i64_store32: pass
+                # case pywasm.opcode.memory_size: pass
+                # case pywasm.opcode.memory_grow: pass
+                case pywasm.opcode.i32_const:
                     self.stack.value.append(ValInst.from_i32(instr.args[0]))
-                case opcode.i64_const:
+                case pywasm.opcode.i64_const:
                     self.stack.value.append(ValInst.from_i64(instr.args[0]))
-                # case opcode.f32_const: pass
-                # case opcode.f64_const: pass
-                # case opcode.i32_eqz: pass
-                # case opcode.i32_eq: pass
-                # case opcode.i32_ne: pass
-                case opcode.i32_lt_s:
+                # case pywasm.opcode.f32_const: pass
+                # case pywasm.opcode.f64_const: pass
+                # case pywasm.opcode.i32_eqz: pass
+                # case pywasm.opcode.i32_eq: pass
+                # case pywasm.opcode.i32_ne: pass
+                case pywasm.opcode.i32_lt_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
                     self.stack.value.append(ValInst.from_i32(a < b))
-                # case opcode.i32_lt_u: pass
-                # case opcode.i32_gt_s: pass
-                # case opcode.i32_gt_u: pass
-                # case opcode.i32_le_s: pass
-                # case opcode.i32_le_u: pass
-                case opcode.i32_ge_s:
+                # case pywasm.opcode.i32_lt_u: pass
+                # case pywasm.opcode.i32_gt_s: pass
+                # case pywasm.opcode.i32_gt_u: pass
+                # case pywasm.opcode.i32_le_s: pass
+                # case pywasm.opcode.i32_le_u: pass
+                case pywasm.opcode.i32_ge_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
                     self.stack.value.append(ValInst.from_i32(a >= b))
-                # case opcode.i32_ge_u: pass
-                # case opcode.i64_eqz: pass
-                # case opcode.i64_eq: pass
-                # case opcode.i64_ne: pass
-                # case opcode.i64_lt_s: pass
-                # case opcode.i64_lt_u: pass
-                # case opcode.i64_gt_s: pass
-                # case opcode.i64_gt_u: pass
-                # case opcode.i64_le_s: pass
-                # case opcode.i64_le_u: pass
-                # case opcode.i64_ge_s: pass
-                # case opcode.i64_ge_u: pass
-                # case opcode.f32_eq: pass
-                # case opcode.f32_ne: pass
-                # case opcode.f32_lt: pass
-                # case opcode.f32_gt: pass
-                # case opcode.f32_le: pass
-                # case opcode.f32_ge: pass
-                # case opcode.f64_eq: pass
-                # case opcode.f64_ne: pass
-                # case opcode.f64_lt: pass
-                # case opcode.f64_gt: pass
-                # case opcode.f64_le: pass
-                # case opcode.f64_ge: pass
-                # case opcode.i32_clz: pass
-                # case opcode.i32_ctz: pass
-                # case opcode.i32_popcnt: pass
-                case opcode.i32_add:
+                # case pywasm.opcode.i32_ge_u: pass
+                # case pywasm.opcode.i64_eqz: pass
+                # case pywasm.opcode.i64_eq: pass
+                # case pywasm.opcode.i64_ne: pass
+                # case pywasm.opcode.i64_lt_s: pass
+                # case pywasm.opcode.i64_lt_u: pass
+                # case pywasm.opcode.i64_gt_s: pass
+                # case pywasm.opcode.i64_gt_u: pass
+                # case pywasm.opcode.i64_le_s: pass
+                # case pywasm.opcode.i64_le_u: pass
+                # case pywasm.opcode.i64_ge_s: pass
+                # case pywasm.opcode.i64_ge_u: pass
+                # case pywasm.opcode.f32_eq: pass
+                # case pywasm.opcode.f32_ne: pass
+                # case pywasm.opcode.f32_lt: pass
+                # case pywasm.opcode.f32_gt: pass
+                # case pywasm.opcode.f32_le: pass
+                # case pywasm.opcode.f32_ge: pass
+                # case pywasm.opcode.f64_eq: pass
+                # case pywasm.opcode.f64_ne: pass
+                # case pywasm.opcode.f64_lt: pass
+                # case pywasm.opcode.f64_gt: pass
+                # case pywasm.opcode.f64_le: pass
+                # case pywasm.opcode.f64_ge: pass
+                # case pywasm.opcode.i32_clz: pass
+                # case pywasm.opcode.i32_ctz: pass
+                # case pywasm.opcode.i32_popcnt: pass
+                case pywasm.opcode.i32_add:
                     b = self.stack.value.pop()
                     a = self.stack.value.pop()
                     c = ValInst.from_i32(a.into_i32() + b.into_i32())
                     self.stack.value.append(c)
-                # case opcode.i32_sub: pass
-                # case opcode.i32_mul: pass
-                # case opcode.i32_div_s: pass
-                # case opcode.i32_div_u: pass
-                # case opcode.i32_rem_s: pass
-                # case opcode.i32_rem_u: pass
-                # case opcode.i32_and: pass
-                # case opcode.i32_or: pass
-                # case opcode.i32_xor: pass
-                # case opcode.i32_shl: pass
-                # case opcode.i32_shr_s: pass
-                # case opcode.i32_shr_u: pass
-                # case opcode.i32_rotl: pass
-                # case opcode.i32_rotr: pass
-                # case opcode.i64_clz: pass
-                # case opcode.i64_ctz: pass
-                # case opcode.i64_popcnt: pass
-                # case opcode.i64_add: pass
-                # case opcode.i64_sub: pass
-                case opcode.i64_mul:
+                # case pywasm.opcode.i32_sub: pass
+                # case pywasm.opcode.i32_mul: pass
+                # case pywasm.opcode.i32_div_s: pass
+                # case pywasm.opcode.i32_div_u: pass
+                # case pywasm.opcode.i32_rem_s: pass
+                # case pywasm.opcode.i32_rem_u: pass
+                # case pywasm.opcode.i32_and: pass
+                # case pywasm.opcode.i32_or: pass
+                # case pywasm.opcode.i32_xor: pass
+                # case pywasm.opcode.i32_shl: pass
+                # case pywasm.opcode.i32_shr_s: pass
+                # case pywasm.opcode.i32_shr_u: pass
+                # case pywasm.opcode.i32_rotl: pass
+                # case pywasm.opcode.i32_rotr: pass
+                # case pywasm.opcode.i64_clz: pass
+                # case pywasm.opcode.i64_ctz: pass
+                # case pywasm.opcode.i64_popcnt: pass
+                # case pywasm.opcode.i64_add: pass
+                # case pywasm.opcode.i64_sub: pass
+                case pywasm.opcode.i64_mul:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
                     c = ValInst.from_i64(a * b)
                     self.stack.value.append(c)
-                # case opcode.i64_div_s: pass
-                # case opcode.i64_div_u: pass
-                # case opcode.i64_rem_s: pass
-                # case opcode.i64_rem_u: pass
-                # case opcode.i64_and: pass
-                # case opcode.i64_or: pass
-                # case opcode.i64_xor: pass
-                # case opcode.i64_shl: pass
-                # case opcode.i64_shr_s: pass
-                case opcode.i64_shr_u:
+                # case pywasm.opcode.i64_div_s: pass
+                # case pywasm.opcode.i64_div_u: pass
+                # case pywasm.opcode.i64_rem_s: pass
+                # case pywasm.opcode.i64_rem_u: pass
+                # case pywasm.opcode.i64_and: pass
+                # case pywasm.opcode.i64_or: pass
+                # case pywasm.opcode.i64_xor: pass
+                # case pywasm.opcode.i64_shl: pass
+                # case pywasm.opcode.i64_shr_s: pass
+                case pywasm.opcode.i64_shr_u:
                     b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
                     c = ValInst.from_i64(a >> (b % 0x40))
                     self.stack.value.append(c)
-                # case opcode.i64_rotl: pass
-                # case opcode.i64_rotr: pass
-                # case opcode.f32_abs: pass
-                # case opcode.f32_neg: pass
-                # case opcode.f32_ceil: pass
-                # case opcode.f32_floor: pass
-                # case opcode.f32_trunc: pass
-                # case opcode.f32_nearest: pass
-                # case opcode.f32_sqrt: pass
-                # case opcode.f32_add: pass
-                # case opcode.f32_sub: pass
-                # case opcode.f32_mul: pass
-                # case opcode.f32_div: pass
-                # case opcode.f32_min: pass
-                # case opcode.f32_max: pass
-                # case opcode.f32_copysign: pass
-                # case opcode.f64_abs: pass
-                # case opcode.f64_neg: pass
-                # case opcode.f64_ceil: pass
-                # case opcode.f64_floor: pass
-                # case opcode.f64_trunc: pass
-                # case opcode.f64_nearest: pass
-                # case opcode.f64_sqrt: pass
-                # case opcode.f64_add: pass
-                # case opcode.f64_sub: pass
-                # case opcode.f64_mul: pass
-                # case opcode.f64_div: pass
-                # case opcode.f64_min: pass
-                # case opcode.f64_max: pass
-                # case opcode.f64_copysign: pass
-                case opcode.i32_wrap_i64:
+                # case pywasm.opcode.i64_rotl: pass
+                # case pywasm.opcode.i64_rotr: pass
+                # case pywasm.opcode.f32_abs: pass
+                # case pywasm.opcode.f32_neg: pass
+                # case pywasm.opcode.f32_ceil: pass
+                # case pywasm.opcode.f32_floor: pass
+                # case pywasm.opcode.f32_trunc: pass
+                # case pywasm.opcode.f32_nearest: pass
+                # case pywasm.opcode.f32_sqrt: pass
+                # case pywasm.opcode.f32_add: pass
+                # case pywasm.opcode.f32_sub: pass
+                # case pywasm.opcode.f32_mul: pass
+                # case pywasm.opcode.f32_div: pass
+                # case pywasm.opcode.f32_min: pass
+                # case pywasm.opcode.f32_max: pass
+                # case pywasm.opcode.f32_copysign: pass
+                # case pywasm.opcode.f64_abs: pass
+                # case pywasm.opcode.f64_neg: pass
+                # case pywasm.opcode.f64_ceil: pass
+                # case pywasm.opcode.f64_floor: pass
+                # case pywasm.opcode.f64_trunc: pass
+                # case pywasm.opcode.f64_nearest: pass
+                # case pywasm.opcode.f64_sqrt: pass
+                # case pywasm.opcode.f64_add: pass
+                # case pywasm.opcode.f64_sub: pass
+                # case pywasm.opcode.f64_mul: pass
+                # case pywasm.opcode.f64_div: pass
+                # case pywasm.opcode.f64_min: pass
+                # case pywasm.opcode.f64_max: pass
+                # case pywasm.opcode.f64_copysign: pass
+                case pywasm.opcode.i32_wrap_i64:
                     a = self.stack.value.pop().into_i64()
                     b = ValInst.from_i32(a)
                     self.stack.value.append(b)
-                # case opcode.i32_trunc_f32_s: pass
-                # case opcode.i32_trunc_f32_u: pass
-                # case opcode.i32_trunc_f64_s: pass
-                # case opcode.i32_trunc_f64_u: pass
-                # case opcode.i64_extend_i32_s: pass
-                case opcode.i64_extend_i32_u:
+                # case pywasm.opcode.i32_trunc_f32_s: pass
+                # case pywasm.opcode.i32_trunc_f32_u: pass
+                # case pywasm.opcode.i32_trunc_f64_s: pass
+                # case pywasm.opcode.i32_trunc_f64_u: pass
+                # case pywasm.opcode.i64_extend_i32_s: pass
+                case pywasm.opcode.i64_extend_i32_u:
                     a = self.stack.value.pop().into_u32()
                     b = ValInst.from_i64(a)
                     self.stack.value.append(b)
-                # case opcode.i64_trunc_f32_s: pass
-                # case opcode.i64_trunc_f32_u: pass
-                # case opcode.i64_trunc_f64_s: pass
-                # case opcode.i64_trunc_f64_u: pass
-                # case opcode.f32_convert_i32_s: pass
-                # case opcode.f32_convert_i32_u: pass
-                # case opcode.f32_convert_i64_s: pass
-                # case opcode.f32_convert_i64_u: pass
-                # case opcode.f32_demote_f64: pass
-                # case opcode.f64_convert_i32_s: pass
-                # case opcode.f64_convert_i32_u: pass
-                # case opcode.f64_convert_i64_s: pass
-                # case opcode.f64_convert_i64_u: pass
-                # case opcode.f64_promote_f32: pass
-                # case opcode.i32_reinterpret_f32: pass
-                # case opcode.i64_reinterpret_f64: pass
-                # case opcode.f32_reinterpret_i32: pass
-                # case opcode.f64_reinterpret_i64: pass
+                # case pywasm.opcode.i64_trunc_f32_s: pass
+                # case pywasm.opcode.i64_trunc_f32_u: pass
+                # case pywasm.opcode.i64_trunc_f64_s: pass
+                # case pywasm.opcode.i64_trunc_f64_u: pass
+                # case pywasm.opcode.f32_convert_i32_s: pass
+                # case pywasm.opcode.f32_convert_i32_u: pass
+                # case pywasm.opcode.f32_convert_i64_s: pass
+                # case pywasm.opcode.f32_convert_i64_u: pass
+                # case pywasm.opcode.f32_demote_f64: pass
+                # case pywasm.opcode.f64_convert_i32_s: pass
+                # case pywasm.opcode.f64_convert_i32_u: pass
+                # case pywasm.opcode.f64_convert_i64_s: pass
+                # case pywasm.opcode.f64_convert_i64_u: pass
+                # case pywasm.opcode.f64_promote_f32: pass
+                # case pywasm.opcode.i32_reinterpret_f32: pass
+                # case pywasm.opcode.i64_reinterpret_f64: pass
+                # case pywasm.opcode.f32_reinterpret_i32: pass
+                # case pywasm.opcode.f64_reinterpret_i64: pass
                 case _:
                     assert 0
 
