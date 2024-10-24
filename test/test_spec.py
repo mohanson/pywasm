@@ -142,6 +142,15 @@ def case(path: str):
 
 pywasm.log.lvl = 1
 
+
+def parse_jval(j: typing.Dict[str, str]) -> pywasm.ValInst:
+    match j['type']:
+        case 'i32':
+            return pywasm.ValInst.from_i32(int(j['value']))
+        case _:
+            assert 0
+
+
 # See https://github.com/WebAssembly/spec/tree/main/interpreter#spectest-host-module
 imps = {
     'spectest': {
@@ -174,13 +183,12 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                 match elem['action']['type']:
                     case 'invoke':
                         name = elem['action']['field']
-                        args = [parse_val(e) for e in elem['action']['args']]
-                        good = [parse_val(e) for e in elem['expected']]
-                        print(args)
-                        print(good)
+                        args = [parse_jval(e) for e in elem['action']['args']]
+                        good = [parse_jval(e) for e in elem['expected']]
                         fidx = [e for e in imodule.exps if e.name == name][0].data.data
                         addr = imodule.func[fidx]
                         rets = runtime.machine.invocate(addr, args)
+                        assert rets == good, f'{rets}, {good}'
                     case _:
                         assert 0
             case _:

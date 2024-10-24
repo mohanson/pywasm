@@ -368,6 +368,9 @@ class ValInst:
         self.type = type
         self.data = data
 
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.type == value.type and self.data == value.data
+
     def __repr__(self) -> str:
         return f'{self.type} {self.into_auto()}'
 
