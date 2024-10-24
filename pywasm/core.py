@@ -1423,9 +1423,7 @@ class Machine:
                         self.evaluate_br(instr.args[0])
                 case pywasm.opcode.br_table:
                     a = self.stack.value.pop().into_i32()
-                    b = instr.args[1]
-                    if a < len(instr.args[0]):
-                        b = instr.args[0][a]
+                    b = instr.args[0][a] if a < len(instr.args[0]) else instr.args[1]
                     self.evaluate_br(b)
                 case pywasm.opcode.return_call:
                     assert len(self.stack.value) >= frame.value + frame.arity
