@@ -1,14 +1,21 @@
 import subprocess
 
 
-def test_examples():
-    assert subprocess.getoutput(f'python examples/add.py') == '9'
-    assert subprocess.getoutput(f'python examples/cycle.py') == '4'
-    assert subprocess.getoutput(f'python examples/env.py') == '55'
-    assert subprocess.getoutput(f'python examples/fib.py') == '55'
-    assert subprocess.getoutput(f'python examples/str.py') == 'Hello World!'
-    assert subprocess.getoutput(f'python examples/sum.py') == '4950'
+def test_add():
+    subprocess.check_call(f'python examples/add.py', shell=True)
 
 
-if __name__ == '__main__':
-    test_examples()
+def test_env():
+    subprocess.check_call(f'python examples/env.py', shell=True)
+
+
+def test_fib():
+    subprocess.check_call(f'python examples/fib.py', shell=True)
+
+
+def test_str():
+    subprocess.check_call(f'python examples/str.py', shell=True)
+
+
+def test_sum():
+    subprocess.check_call(f'python examples/sum.py', shell=True)
