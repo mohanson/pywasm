@@ -1446,12 +1446,17 @@ class Machine:
                     a = ValInst.from_i64(instr.args[0])
                     a.type = ValType.f64()
                     self.stack.value.append(a)
-                # case pywasm.opcode.i32_eqz: pass
+                case pywasm.opcode.i32_eqz:
+                    a = self.stack.value.pop().into_i32()
+                    self.stack.value.append(ValInst.from_i32(a == 0))
                 case pywasm.opcode.i32_eq:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
                     self.stack.value.append(ValInst.from_i32(a == b))
-                # case pywasm.opcode.i32_ne: pass
+                case pywasm.opcode.i32_ne:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    self.stack.value.append(ValInst.from_i32(a != b))
                 case pywasm.opcode.i32_lt_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
@@ -1490,7 +1495,15 @@ class Machine:
                 # case pywasm.opcode.f64_le: pass
                 # case pywasm.opcode.f64_ge: pass
                 # case pywasm.opcode.i32_clz: pass
-                # case pywasm.opcode.i32_ctz: pass
+                case pywasm.opcode.i32_ctz:
+                    a = self.stack.value.pop().into_u32()
+                    b = 0
+                    for _ in range(32):
+                        if a & 0x00000001 != 0:
+                            break
+                        b += 1
+                        a = a >> 1
+                    self.stack.value.append(ValInst.from_i32(b))
                 # case pywasm.opcode.i32_popcnt: pass
                 case pywasm.opcode.i32_add:
                     b = self.stack.value.pop()
@@ -1498,7 +1511,11 @@ class Machine:
                     c = ValInst.from_i32(a.into_i32() + b.into_i32())
                     self.stack.value.append(c)
                 # case pywasm.opcode.i32_sub: pass
-                # case pywasm.opcode.i32_mul: pass
+                case pywasm.opcode.i32_mul:
+                    b = self.stack.value.pop()
+                    a = self.stack.value.pop()
+                    c = ValInst.from_i32(a.into_i32() * b.into_i32())
+                    self.stack.value.append(c)
                 # case pywasm.opcode.i32_div_s: pass
                 # case pywasm.opcode.i32_div_u: pass
                 # case pywasm.opcode.i32_rem_s: pass
