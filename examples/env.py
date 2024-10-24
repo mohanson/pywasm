@@ -1,5 +1,5 @@
 import pywasm
-pywasm.on_debug()
+pywasm.log.lvl = 1
 
 
 def fib(m: pywasm.core.Machine, n: int):

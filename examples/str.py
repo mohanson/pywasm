@@ -1,5 +1,5 @@
 import pywasm
-pywasm.on_debug()
+pywasm.log.lvl = 1
 
 runtime = pywasm.core.Runtime()
 mod = runtime.instance_from_file('./examples/str.wasm', {})

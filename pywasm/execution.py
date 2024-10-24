@@ -88,7 +88,6 @@ class Configuration:
         self.stack = Stack()
         self.depth = 0
         self.pc = 0
-        self.opts: option.Option = option.Option()
 
     def get_label(self, i: int) -> Label:
         l = self.stack.len()
@@ -141,11 +140,6 @@ class Configuration:
         instruction_list_len = len(instruction_list)
         while self.pc < instruction_list_len:
             i = instruction_list[self.pc]
-            if self.opts.cycle_limit > 0:
-                c = self.opts.cycle + self.opts.instruction_cycle_func(i)
-                if c > self.opts.cycle_limit:
-                    raise Exception(f'pywasm: out of cycles')
-                self.opts.cycle = c
             ArithmeticLogicUnit.exec(self, i)
             self.pc += 1
         r = [self.stack.pop() for _ in range(self.frame.arity)][::-1]
