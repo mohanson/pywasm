@@ -1524,19 +1524,24 @@ class Machine:
                 case pywasm.opcode.i64_load32_u:
                     a = ValInst.from_i64(struct.unpack('<I', self.evaluate_mem_load(instr.args[1], 4))[0])
                     self.stack.value.append(a)
-                # case pywasm.opcode.i32_store: pass
-                # case pywasm.opcode.i64_store: pass
+                case pywasm.opcode.i32_store:
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.i64_store:
+                    self.evaluate_mem_save(instr.args[1], 8)
                 case pywasm.opcode.f32_store:
-                    assert self.stack.value[-1].type == ValType.f32()
                     self.evaluate_mem_save(instr.args[1], 4)
                 case pywasm.opcode.f64_store:
-                    assert self.stack.value[-1].type == ValType.f64()
                     self.evaluate_mem_save(instr.args[1], 8)
-                # case pywasm.opcode.i32_store8: pass
-                # case pywasm.opcode.i32_store16: pass
-                # case pywasm.opcode.i64_store8: pass
-                # case pywasm.opcode.i64_store16: pass
-                # case pywasm.opcode.i64_store32: pass
+                case pywasm.opcode.i32_store8:
+                    self.evaluate_mem_save(instr.args[1], 1)
+                case pywasm.opcode.i32_store16:
+                    self.evaluate_mem_save(instr.args[1], 2)
+                case pywasm.opcode.i64_store8:
+                    self.evaluate_mem_save(instr.args[1], 1)
+                case pywasm.opcode.i64_store16:
+                    self.evaluate_mem_save(instr.args[1], 2)
+                case pywasm.opcode.i64_store32:
+                    self.evaluate_mem_save(instr.args[1], 4)
                 # case pywasm.opcode.memory_size: pass
                 # case pywasm.opcode.memory_grow: pass
                 case pywasm.opcode.i32_const:
