@@ -1492,7 +1492,11 @@ class Machine:
                 # case pywasm.opcode.f32_eq: pass
                 # case pywasm.opcode.f32_ne: pass
                 # case pywasm.opcode.f32_lt: pass
-                # case pywasm.opcode.f32_gt: pass
+                case pywasm.opcode.f32_gt:
+                    b = self.stack.value.pop().into_f32()
+                    a = self.stack.value.pop().into_f32()
+                    c = ValInst.from_i32(a > b)
+                    self.stack.value.append(c)
                 # case pywasm.opcode.f32_le: pass
                 # case pywasm.opcode.f32_ge: pass
                 # case pywasm.opcode.f64_eq: pass
