@@ -1,1 +1,0 @@
-(func (result i64) (i64.const nan:arithmetic))

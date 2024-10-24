@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from __future__ import print_function
 import argparse
@@ -12,28 +12,20 @@ import sys
 
 ownDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 inputDir = ownDir
-interpDir = os.path.join(os.path.dirname(os.path.dirname(ownDir)), 'interpreter')
 outputDir = os.path.join(inputDir, "_output")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--wasm", metavar="<wasm-command>", default=os.path.join(interpDir, "wasm"))
+parser.add_argument("--wasm", metavar="<wasm-command>", default=os.path.join(os.getcwd(), "wasm"))
 parser.add_argument("--js", metavar="<js-command>")
-parser.add_argument("--generate-js-only", action='store_true')
-parser.add_argument("--failfast", action='store_true')
 parser.add_argument("--out", metavar="<out-dir>", default=outputDir)
 parser.add_argument("file", nargs='*')
 arguments = parser.parse_args()
 sys.argv = sys.argv[:1]
 
-main_test_files = glob.glob(os.path.join(inputDir, "*.wast"))
-# SIMD test files are in a subdirectory.
-simd_test_files = glob.glob(os.path.join(inputDir, "simd", "*.wast"))
-
 wasmCommand = arguments.wasm
 jsCommand = arguments.js
-generateJsOnly = arguments.generate_js_only
 outputDir = arguments.out
-inputFiles = arguments.file if arguments.file else main_test_files + simd_test_files
+inputFiles = arguments.file if arguments.file else glob.glob(os.path.join(inputDir, "*.wast"))
 
 if not os.path.exists(wasmCommand):
   sys.stderr.write("""\
@@ -68,14 +60,6 @@ class RunTests(unittest.TestCase):
     dir, inputFile = os.path.split(inputPath)
     outputPath = os.path.join(outputDir, inputFile)
 
-    # Generate JS first, then return early if we are only generating JS.
-    jsPath = self._auxFile(outputPath.replace(".wast", ".js"))
-    logPath = self._auxFile(jsPath + ".log")
-    self._runCommand(('%s -d "%s" -o "%s"') % (wasmCommand, inputPath, jsPath), logPath)
-
-    if generateJsOnly:
-      return
-
     # Run original file
     expectedExitCode = 1 if ".fail." in inputFile else 0
     logPath = self._auxFile(outputPath + ".log")
@@ -108,14 +92,18 @@ class RunTests(unittest.TestCase):
     self._runCommand(('%s -d "%s" -o "%s"') % (wasmCommand, wasm2Path, wast2Path), logPath)
     self._compareFile(wastPath, wast2Path)
 
+    # Convert to JavaScript
+    jsPath = self._auxFile(outputPath.replace(".wast", ".js"))
+    logPath = self._auxFile(jsPath + ".log")
+    self._runCommand(('%s -d "%s" -o "%s"') % (wasmCommand, inputPath, jsPath), logPath)
     if jsCommand != None:
       self._runCommand(('%s "%s"') % (jsCommand, jsPath), logPath)
 
 
 if __name__ == "__main__":
   if not os.path.exists(outputDir):
-    os.makedirs(outputDir, exist_ok=True)
+    os.makedirs(outputDir)
   for fileName in inputFiles:
     testName = 'test ' + os.path.basename(fileName)
     setattr(RunTests, testName, lambda self, file=fileName: self._runTestFile(file))
-  unittest.main(failfast=arguments.failfast)
+  unittest.main()

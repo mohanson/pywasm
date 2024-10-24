@@ -10,12 +10,11 @@ def call(cmd: str):
 
 call('cd res && rm -rf spec')
 call('cd res && rm -rf spectest')
-call('cd res && git clone https://github.com/WebAssembly/spec')
-call('cd res/spec && git checkout 85a7ccb0307fb1284ea22f74cd77bd833ec25440')
+call('cd res && git clone https://github.com/WebAssembly/spec --branch w3c-1.0 --depth=1')
 call('cd res && cp -R spec/test/core spectest')
 call('cd res && rm -rf spec')
 
 os.chdir('res/spectest')
 for e in sorted(glob.glob('*.wast')):
-    call(f'wast2json {e}')
+    call(f'wast2json --disable-bulk-memory {e}')
 os.chdir('../..')

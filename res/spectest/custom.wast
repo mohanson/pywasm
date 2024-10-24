@@ -86,7 +86,7 @@
     "\00asm" "\01\00\00\00"
     "\00\26\10" "a custom section" "this is the payload"
   )
-  "length out of bounds"
+  "unexpected end"
 )
 
 (assert_malformed
@@ -95,14 +95,14 @@
     "\00\25\10" "a custom section" "this is the payload"
     "\00\24\10" "a custom section" "this is the payload"
   )
-  "malformed section id"
+  "invalid section id"
 )
 
 (assert_malformed
   (module binary
     "\00asm" "\01\00\00\00"
     "\01\07\01\60\02\7f\7f\01\7f"                         ;; type section
-    "\00\25\10" "a custom section" "this is the payload"  ;; wrong length!
+    "\00\25\10" "a custom section" "this is the payload"  ;; invalid length!
     "\03\02\01\00"                                        ;; function section
     "\0a\09\01\07\00\20\00\20\01\6a\0b"                   ;; code section
     "\00\1b\07" "custom2" "this is the payload"           ;; custom section
@@ -117,14 +117,4 @@
     "\00asm\01\00\00\00"
   )
   "length out of bounds"
-)
-
-(assert_malformed
-  (module binary
-    "\00asm" "\01\00\00\00"
-    "\05\03\01\00\01"                         ;; memory section
-    "\0c\01\02"                               ;; data count section (2 segments)
-    "\0b\06\01\00\41\00\0b\00"                ;; data section (1 segment)
-  )
-  "data count and data section have inconsistent lengths"
 )

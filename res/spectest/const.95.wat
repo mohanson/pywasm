@@ -1,1 +1,1 @@
-(func (f64.const 0e+) drop)
+(func (f64.const 0x0.0p+) drop)
