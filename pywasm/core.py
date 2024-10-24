@@ -1522,7 +1522,11 @@ class Machine:
                     a = self.stack.value.pop().into_i32()
                     c = ValInst.from_i32(a + b)
                     self.stack.value.append(c)
-                # case pywasm.opcode.i32_sub: pass
+                case pywasm.opcode.i32_sub:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    c = ValInst.from_i32(a - b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_mul:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
