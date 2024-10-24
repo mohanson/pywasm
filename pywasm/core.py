@@ -1314,7 +1314,12 @@ class Machine:
                                     self.stack.value.extend(rets)
                 # case pywasm.opcode.call_indirect: pass
                 # case pywasm.opcode.drop: pass
-                # case pywasm.opcode.select: pass
+                case pywasm.opcode.select:
+                    c = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop()
+                    a = self.stack.value.pop()
+                    d = a if c != 0 else b
+                    self.stack.value.append(d)
                 case pywasm.opcode.local_get:
                     a = self.stack.frame[-1].locals.data[instr.args[0]]
                     self.stack.value.append(a)
