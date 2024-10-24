@@ -1218,12 +1218,15 @@ class Machine:
             label = self.stack.label[-1]
             frame = self.stack.frame[-1]
             if label.index == len(label.instr):
-                assert len(self.stack.value) == label.value + label.arity
-                self.stack.label.pop()
-                if label.carry == 0x00:
-                    continue
-                self.stack.frame.pop()
-                assert len(self.stack.value) == frame.value + frame.arity
+                match label.carry:
+                    case 0x00:
+                        assert len(self.stack.value) == label.value + label.arity
+                        self.stack.label.pop()
+                    case 0x01:
+                        assert len(self.stack.value) == label.value + label.arity
+                        self.stack.label.pop()
+                        assert len(self.stack.value) == frame.value + frame.arity
+                        self.stack.frame.pop()
                 continue
             instr = label.instr[label.index]
             label.index += 1
