@@ -1471,6 +1471,11 @@ class Runtime:
     def __init__(self) -> typing.Self:
         self.machine = Machine()
 
+    def exported_mem(self, module: ModuleInst, name: str) -> typing.Any:
+        midx = [e for e in module.exps if e.name == name][0].data.data
+        addr = module.mems[midx]
+        return self.machine.store.mems[addr]
+
     def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
         extern: typing.List[Extern] = []
         for e in module.imps:
@@ -1505,7 +1510,7 @@ class Runtime:
         for e in module.exps:
             if e.data.kind == 0x00 and e.name == func:
                 addr = module.func[e.data.data]
-        func = self.machine.store.func[addr]
-        args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
-        rets = self.machine.invocate(addr, args)
-        return [e.into_auto() for e in rets]
+                func = self.machine.store.func[addr]
+                args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
+                rets = self.machine.invocate(addr, args)
+                return [e.into_auto() for e in rets]
