@@ -177,8 +177,8 @@ for name in sorted(glob.glob('res/spectest/*.json')):
     for elem in suit['commands']:
         print(elem)
         match elem['type']:
-            case 'module':
-                imodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
+            case 'assert_malformed':
+                assert 1
             case 'assert_return':
                 match elem['action']['type']:
                     case 'invoke':
@@ -208,5 +208,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                             runtime.machine.stack.value.clear()
                     case _:
                         assert 0
+            case 'module':
+                imodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
             case _:
                 assert 0
