@@ -2,6 +2,7 @@ import json
 import math
 import os
 import typing
+import glob
 
 import pywasm
 
@@ -139,71 +140,48 @@ def case(path: str):
             raise NotImplementedError
 
 
-def test_spec():
-    pass
-    # case('./res/spectest/address')
-    # case('./res/spectest/align')
-    # case('./res/spectest/binary')
-    # case('./res/spectest/binary-leb128')
-    # case('./res/spectest/br_if')
-    # case('./res/spectest/br_table')
-    # case('./res/spectest/break-drop')
-    # case('./res/spectest/comments')
-    # case('./res/spectest/const')
-    # case('./res/spectest/custom')
-    # case('./res/spectest/data')
-    # case('./res/spectest/elem')
-    # case('./res/spectest/endianness')
-    # case('./res/spectest/exports')
-    # case('./res/spectest/f32')
-    # case('./res/spectest/f32_bitwise')
-    # case('./res/spectest/f32_cmp')
-    # case('./res/spectest/f64')
-    # case('./res/spectest/f64_bitwise')
-    # case('./res/spectest/f64_cmp')
-    # case('./res/spectest/float_exprs')
-    # case('./res/spectest/float_literals')
-    # case('./res/spectest/float_memory')
-    # case('./res/spectest/float_misc')
-    # case('./res/spectest/forward')
-    # case('./res/spectest/func_ptrs')
-    # case('./res/spectest/global')
-    # case('./res/spectest/globals')
-    # case('./res/spectest/imports')
-    # case('./res/spectest/inline-module')
-    # case('./res/spectest/int_exprs')
-    # case('./res/spectest/int_literals')
-    # case('./res/spectest/labels')
-    # case('./res/spectest/left-to-right')
-    # case('./res/spectest/linking')
-    # case('./res/spectest/load')
-    # case('./res/spectest/local_get')
-    # case('./res/spectest/local_set')
-    # case('./res/spectest/local_tee')
-    # case('./res/spectest/memory')
-    # case('./res/spectest/memory_grow')
-    # case('./res/spectest/memory_redundancy')
-    # case('./res/spectest/memory_size')
-    # case('./res/spectest/memory_trap')
-    # case('./res/spectest/names')
-    # case('./res/spectest/nop')
-    # case('./res/spectest/return')
-    # case('./res/spectest/select')
-    # case('./res/spectest/skip-stack-guard-page')
-    # case('./res/spectest/stack')
-    # case('./res/spectest/start')
-    # case('./res/spectest/store')
-    # case('./res/spectest/switch')
-    # case('./res/spectest/table')
-    # case('./res/spectest/token')
-    # case('./res/spectest/traps')
-    # case('./res/spectest/type')
-    # case('./res/spectest/typecheck')
-    # case('./res/spectest/unreachable')
-    # case('./res/spectest/unreached-invalid')
-    # case('./res/spectest/unwind')
-    # case('./res/spectest/utf8-custom-section-id')
-    # case('./res/spectest/utf8-import-field')
-    # case('./res/spectest/utf8-import-module')
-    # case('./res/spectest/utf8-invalid-encoding')
-    # case('./res/regression/rsh')
+pywasm.log.lvl = 1
+
+# See https://github.com/WebAssembly/spec/tree/main/interpreter#spectest-host-module
+imps = {
+    'spectest': {
+        'global_i32': 0,
+        'global_i64': 0,
+        'global_f32': 0.0,
+        'global_f64': 0.0,
+        'table': pywasm.core.TableInst(pywasm.core.TableType(pywasm.core.ElemType.funcref(), pywasm.core.Limits(10, 20))),
+        'memory': pywasm.core.MemInst(pywasm.core.MemType(pywasm.core.Limits(1, 2))),
+        'print_i32': lambda _, x: print(x),
+        'print_i64': lambda _, x: print(x),
+        'print_f32': lambda _, x: print(x),
+        'print_f64': lambda _, x: print(x),
+        'print_i32_f32': lambda _, x, y: print(x, y),
+        'print_i64_f64': lambda _, x, y: print(x, y),
+    }
+}
+
+for name in sorted(glob.glob('res/spectest/*.json')):
+    with open(name) as f:
+        suit = json.load(f)
+    runtime = pywasm.core.Runtime()
+    imodule: pywasm.core.ModuleInst
+    for elem in suit['commands']:
+        print(elem)
+        match elem['type']:
+            case 'module':
+                imodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
+            case 'assert_return':
+                match elem['action']['type']:
+                    case 'invoke':
+                        name = elem['action']['field']
+                        args = [parse_val(e) for e in elem['action']['args']]
+                        good = [parse_val(e) for e in elem['expected']]
+                        print(args)
+                        print(good)
+                        fidx = [e for e in imodule.exps if e.name == name][0].data.data
+                        addr = imodule.func[fidx]
+                        rets = runtime.machine.invocate(addr, args)
+                    case _:
+                        assert 0
+            case _:
+                assert 0

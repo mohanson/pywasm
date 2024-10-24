@@ -1191,6 +1191,12 @@ class Machine:
             case 0x02:
                 return self.stack.frame[-1].module.type[bype.data]
 
+    def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
+        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        addr = self.stack.value.pop().into_i32()
+        addr = addr + offset
+        return inst.data[addr:addr+size]
+
     def evaluate(self) -> None:
         for _ in range(1 << 32):
             if not self.stack.label:
@@ -1283,14 +1289,24 @@ class Machine:
                 # case opcode.local_tee: pass
                 # case opcode.global_get: pass
                 # case opcode.global_set: pass
-                # case opcode.i32_load: pass
+                case opcode.i32_load:
+                    a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[0], 4))[0])
+                    self.stack.value.append(a)
                 # case opcode.i64_load: pass
                 # case opcode.f32_load: pass
                 # case opcode.f64_load: pass
-                # case opcode.i32_load8_s: pass
-                # case opcode.i32_load8_u: pass
-                # case opcode.i32_load16_s: pass
-                # case opcode.i32_load16_u: pass
+                case opcode.i32_load8_s:
+                    a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[0], 1))[0])
+                    self.stack.value.append(a)
+                case opcode.i32_load8_u:
+                    a = ValInst.from_i32(struct.unpack('<B', self.evaluate_mem_load(instr.args[0], 1))[0])
+                    self.stack.value.append(a)
+                case opcode.i32_load16_s:
+                    a = ValInst.from_i32(struct.unpack('<h', self.evaluate_mem_load(instr.args[0], 2))[0])
+                    self.stack.value.append(a)
+                case opcode.i32_load16_u:
+                    a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[0], 2))[0])
+                    self.stack.value.append(a)
                 # case opcode.i64_load8_s: pass
                 # case opcode.i64_load8_u: pass
                 # case opcode.i64_load16_s: pass
@@ -1507,10 +1523,9 @@ class Runtime:
             return self.instance(ModuleDesc.from_reader(f), imps)
 
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
-        for e in module.exps:
-            if e.data.kind == 0x00 and e.name == func:
-                addr = module.func[e.data.data]
-                func = self.machine.store.func[addr]
-                args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
-                rets = self.machine.invocate(addr, args)
-                return [e.into_auto() for e in rets]
+        fidx = [e for e in module.exps if e.name == func][0].data.data
+        addr = module.func[fidx]
+        func = self.machine.store.func[addr]
+        args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
+        rets = self.machine.invocate(addr, args)
+        return [e.into_auto() for e in rets]
