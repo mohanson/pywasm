@@ -1296,7 +1296,9 @@ class Machine:
                 case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
                     self.stack.value.append(a)
-                # case pywasm.opcode.i64_load: pass
+                case pywasm.opcode.i64_load:
+                    a = ValInst.from_i64(struct.unpack('<q', self.evaluate_mem_load(instr.args[1], 8))[0])
+                    self.stack.value.append(a)
                 # case pywasm.opcode.f32_load: pass
                 # case pywasm.opcode.f64_load: pass
                 case pywasm.opcode.i32_load8_s:

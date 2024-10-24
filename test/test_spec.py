@@ -147,6 +147,8 @@ def parse_jval(j: typing.Dict[str, str]) -> pywasm.ValInst:
     match j['type']:
         case 'i32':
             return pywasm.ValInst.from_i32(int(j['value']))
+        case 'i64':
+            return pywasm.ValInst.from_i64(int(j['value']))
         case _:
             assert 0
 
