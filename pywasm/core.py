@@ -1292,22 +1292,22 @@ class Machine:
                 # case pywasm.opcode.global_get: pass
                 # case pywasm.opcode.global_set: pass
                 case pywasm.opcode.i32_load:
-                    a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[0], 4))[0])
+                    a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
                     self.stack.value.append(a)
                 # case pywasm.opcode.i64_load: pass
                 # case pywasm.opcode.f32_load: pass
                 # case pywasm.opcode.f64_load: pass
                 case pywasm.opcode.i32_load8_s:
-                    a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[0], 1))[0])
+                    a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[1], 1))[0])
                     self.stack.value.append(a)
                 case pywasm.opcode.i32_load8_u:
-                    a = ValInst.from_i32(struct.unpack('<B', self.evaluate_mem_load(instr.args[0], 1))[0])
+                    a = ValInst.from_i32(struct.unpack('<B', self.evaluate_mem_load(instr.args[1], 1))[0])
                     self.stack.value.append(a)
                 case pywasm.opcode.i32_load16_s:
-                    a = ValInst.from_i32(struct.unpack('<h', self.evaluate_mem_load(instr.args[0], 2))[0])
+                    a = ValInst.from_i32(struct.unpack('<h', self.evaluate_mem_load(instr.args[1], 2))[0])
                     self.stack.value.append(a)
                 case pywasm.opcode.i32_load16_u:
-                    a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[0], 2))[0])
+                    a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[1], 2))[0])
                     self.stack.value.append(a)
                 # case pywasm.opcode.i64_load8_s: pass
                 # case pywasm.opcode.i64_load8_u: pass
