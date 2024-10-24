@@ -1313,12 +1313,24 @@ class Machine:
                 case pywasm.opcode.i32_load16_u:
                     a = ValInst.from_i32(struct.unpack('<H', self.evaluate_mem_load(instr.args[1], 2))[0])
                     self.stack.value.append(a)
-                # case pywasm.opcode.i64_load8_s: pass
-                # case pywasm.opcode.i64_load8_u: pass
-                # case pywasm.opcode.i64_load16_s: pass
-                # case pywasm.opcode.i64_load16_u: pass
-                # case pywasm.opcode.i64_load32_s: pass
-                # case pywasm.opcode.i64_load32_u: pass
+                case pywasm.opcode.i64_load8_s:
+                    a = ValInst.from_i64(struct.unpack('<b', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load8_u:
+                    a = ValInst.from_i64(struct.unpack('<B', self.evaluate_mem_load(instr.args[1], 1))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load16_s:
+                    a = ValInst.from_i64(struct.unpack('<h', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load16_u:
+                    a = ValInst.from_i64(struct.unpack('<H', self.evaluate_mem_load(instr.args[1], 2))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load32_s:
+                    a = ValInst.from_i64(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i64_load32_u:
+                    a = ValInst.from_i64(struct.unpack('<I', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    self.stack.value.append(a)
                 # case pywasm.opcode.i32_store: pass
                 # case pywasm.opcode.i64_store: pass
                 # case pywasm.opcode.f32_store: pass
@@ -1529,8 +1541,7 @@ class Runtime:
             return self.instance(ModuleDesc.from_reader(f), imps)
 
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
-        fidx = [e for e in module.exps if e.name == func][0].data.data
-        addr = module.func[fidx]
+        addr = [e for e in module.exps if e.name == func][0].data.data
         func = self.machine.store.func[addr]
         args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
         rets = self.machine.invocate(addr, args)

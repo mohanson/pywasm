@@ -187,8 +187,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         name = elem['action']['field']
                         args = [parse_jval(e) for e in elem['action']['args']]
                         good = [parse_jval(e) for e in elem['expected']]
-                        fidx = [e for e in imodule.exps if e.name == name][0].data.data
-                        addr = imodule.func[fidx]
+                        addr = [e for e in imodule.exps if e.name == name][0].data.data
                         rets = runtime.machine.invocate(addr, args)
                         assert rets == good, f'{rets}, {good}'
                     case _:
@@ -199,8 +198,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         name = elem['action']['field']
                         args = [parse_jval(e) for e in elem['action']['args']]
                         good = elem['text']
-                        fidx = [e for e in imodule.exps if e.name == name][0].data.data
-                        addr = imodule.func[fidx]
+                        addr = [e for e in imodule.exps if e.name == name][0].data.data
                         try:
                             runtime.machine.invocate(addr, args)
                         except Exception as e:
