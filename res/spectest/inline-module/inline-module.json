@@ -1,3 +1,0 @@
-{"source_filename": "./res/testsuite/inline-module.wast",
- "commands": [
-  {"type": "module", "line": 1, "filename": "inline-module.0.wasm"}]}
