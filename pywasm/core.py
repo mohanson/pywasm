@@ -1151,7 +1151,7 @@ class Machine:
             assert len(self.stack.value) == 0
         return newmod
 
-    def invocate(self, addr: int, args: typing.List[ValInst]) -> None:
+    def invocate(self, addr: int, args: typing.List[ValInst]) -> typing.List[ValInst]:
         func = self.store.func[addr]
         assert func.kind == 0x00
         for a, b in zip(func.type.args.data, args):
@@ -1472,4 +1472,40 @@ class Runtime:
         self.machine = Machine()
 
     def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
-        pass
+        extern: typing.List[Extern] = []
+        for e in module.imps:
+            assert e.module in imps
+            assert e.name in imps[e.module]
+            match e.kind:
+                case 0x00:
+                    func = FuncHost(module.type[e.desc], imps[e.module][e.name])
+                    addr = self.machine.store.allocate_func_host(func)
+                    extern.append(Extern(0x00, addr))
+                case 0x01:
+                    addr = len(self.machine.store.tabl)
+                    tabl = imps[e.module][e.name]
+                    self.machine.store.tabl.append(tabl)
+                    extern.append(Extern(0x01, addr))
+                case 0x02:
+                    addr = len(self.machine.store.mems)
+                    mems = imps[e.module][e.name]
+                    self.machine.store.mems.append(mems)
+                    extern.append(Extern(0x02, addr))
+                case 0x03:
+                    glob = ValInst.from_auto(e.desc.type, imps[e.module][e.name])
+                    addr = self.machine.store.allocate_global(e.desc, glob)
+                    extern.append(Extern(0x03, addr))
+        return self.machine.instance(module, extern)
+
+    def instance_from_file(self, path: str, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+        with open(path, 'rb') as f:
+            return self.instance(ModuleDesc.from_reader(f), imps)
+
+    def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
+        for e in module.exps:
+            if e.data.kind == 0x00 and e.name == func:
+                addr = module.func[e.data.data]
+        func = self.machine.store.func[addr]
+        args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args.data, args)]
+        rets = self.machine.invocate(addr, args)
+        return [e.into_auto() for e in rets]
