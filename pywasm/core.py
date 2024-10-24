@@ -48,8 +48,11 @@ class Inst:
 
     def __repr__(self) -> str:
         seps = [pywasm.opcode.name[self.opcode]]
-        if self.args:
+        if self.opcode in [pywasm.opcode.block, pywasm.opcode.loop, pywasm.opcode.if_then]:
             seps.append(repr(self.args[0]))
+            return ' '.join(seps)
+        for e in self.args:
+            seps.append(repr(e))
         return ' '.join(seps)
 
     @classmethod
