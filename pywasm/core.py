@@ -1394,9 +1394,26 @@ class Machine:
                 case pywasm.opcode.block:
                     bype = self.evaluate_bype(instr.args[0])
                     assert len(self.stack.value) >= label.value + len(bype.args.data)
-                    self.stack.label.append(Label(len(bype.rets.data), 0, len(self.stack.value), instr.args[1], 0))
+                    self.stack.label.append(Label(
+                        len(bype.rets.data),
+                        0,
+                        len(self.stack.value) - len(bype.args.data),
+                        instr.args[1],
+                        0,
+                    ))
                 # case pywasm.opcode.loop: pass
-                # case pywasm.opcode.if: pass
+                case pywasm.opcode.if_then:
+                    bype = self.evaluate_bype(instr.args[0])
+                    cond = self.stack.value.pop().into_i32()
+                    assert len(self.stack.value) >= label.value + len(bype.args.data)
+                    aidx = 1 if cond != 0 else 2
+                    self.stack.label.append(Label(
+                        len(bype.rets.data),
+                        0,
+                        len(self.stack.value) - len(bype.args.data),
+                        instr.args[aidx],
+                        0,
+                    ))
                 # case pywasm.opcode.else: pass
                 # case pywasm.opcode.end: pass
                 case pywasm.opcode.br:
@@ -1452,7 +1469,7 @@ class Machine:
                                     rets = func.hostcode(self, *[e.into_auto() for e in args])
                                     self.stack.value.append(ValInst.from_auto(func.type.rets.data[0], rets))
                                 case _:
-                                    rets = func.hostcode(*[e.into_auto() for e in args])
+                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
                                     rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets.data, rets)]
                                     self.stack.value.extend(rets)
                 # case pywasm.opcode.call_indirect: pass
