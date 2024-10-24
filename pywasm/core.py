@@ -1360,6 +1360,15 @@ class Machine:
             raise Exception('pywasm: out of bounds memory access')
         return inst.data[addr:addr+size]
 
+    def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
+        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        data = self.stack.value.pop().data
+        addr = self.stack.value.pop().into_i32()
+        addr = addr + offset
+        if addr < 0 or addr + size > len(inst.data):
+            raise Exception('pywasm: out of bounds memory access')
+        inst.data[addr:addr+size] = data[:size]
+
     def evaluate(self) -> None:
         for _ in range(1 << 32):
             if not self.stack.label:
@@ -1395,7 +1404,12 @@ class Machine:
                 case pywasm.opcode.br_if:
                     if self.stack.value.pop().into_i32() != 0:
                         self.evaluate_br(instr.args[0])
-                # case pywasm.opcode.br_table: pass
+                case pywasm.opcode.br_table:
+                    a = self.stack.value.pop().into_i32()
+                    b = instr.args[1]
+                    if a < len(instr.args[0]):
+                        b = instr.args[0][a]
+                    self.evaluate_br(b)
                 case pywasm.opcode.return_call:
                     assert len(self.stack.value) >= frame.value + frame.arity
                     rets = [self.stack.value.pop() for _ in range(frame.arity)][::-1]
@@ -1497,8 +1511,12 @@ class Machine:
                     self.stack.value.append(a)
                 # case pywasm.opcode.i32_store: pass
                 # case pywasm.opcode.i64_store: pass
-                # case pywasm.opcode.f32_store: pass
-                # case pywasm.opcode.f64_store: pass
+                case pywasm.opcode.f32_store:
+                    assert self.stack.value[-1].type == ValType.f32()
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.f64_store:
+                    assert self.stack.value[-1].type == ValType.f64()
+                    self.evaluate_mem_save(instr.args[1], 8)
                 # case pywasm.opcode.i32_store8: pass
                 # case pywasm.opcode.i32_store16: pass
                 # case pywasm.opcode.i64_store8: pass
@@ -1519,7 +1537,10 @@ class Machine:
                     a.type = ValType.f64()
                     self.stack.value.append(a)
                 # case pywasm.opcode.i32_eqz: pass
-                # case pywasm.opcode.i32_eq: pass
+                case pywasm.opcode.i32_eq:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_i32()
+                    self.stack.value.append(ValInst.from_i32(a == b))
                 # case pywasm.opcode.i32_ne: pass
                 case pywasm.opcode.i32_lt_s:
                     b = self.stack.value.pop().into_i32()
