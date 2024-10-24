@@ -128,6 +128,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -136,6 +138,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 4:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -144,6 +148,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -152,6 +158,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 4:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -160,6 +168,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -168,6 +178,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -176,6 +188,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -184,6 +198,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -192,6 +208,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -200,6 +218,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -208,6 +228,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -216,6 +238,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -224,6 +248,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -232,6 +258,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -240,6 +268,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -248,6 +278,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 4:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -256,6 +288,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -264,6 +298,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 4:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -272,6 +308,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -280,6 +318,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -288,6 +328,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 0:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -296,6 +338,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 1:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o
@@ -304,6 +348,8 @@ class Inst:
         ]:
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            if o.args[0] >= 32:
+                raise Exception('pywasm: malformed memop flags')
             if o.args[0] > 3:
                 raise Exception('pywasm: alignment must not be larger than natural')
             return o

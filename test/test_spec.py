@@ -195,7 +195,16 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                     except Exception as e:
                         assert str(e) == 'pywasm: ' + good
             case 'assert_malformed':
-                assert 1
+                match elem['module_type']:
+                    case 'binary':
+                        good = elem['text']
+                        with open(f'res/spectest/{elem['filename']}', 'rb') as f:
+                            try:
+                                pywasm.ModuleDesc.from_reader(f)
+                            except Exception as e:
+                                assert str(e) == 'pywasm: ' + good
+                    case 'text':
+                        assert 1
             case 'assert_return':
                 match elem['action']['type']:
                     case 'invoke':
