@@ -1665,7 +1665,6 @@ class Machine:
     def __init__(self):
         self.module: core.ModuleInst = core.ModuleInst()
         self.store = core.Store()
-        self.opts: option.Option = option.Option()
 
     def instantiate(self, module: core.ModuleDesc, extern_value_list: typing.List[core.Extern]):
         self.module.type = module.type
