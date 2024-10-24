@@ -1446,9 +1446,10 @@ class Machine:
                 # case pywasm.opcode.select: pass
                 case pywasm.opcode.local_get:
                     a = self.stack.frame[-1].locals.data[instr.args[0]]
-                    b = ValInst(a.type, a.data.copy())
-                    self.stack.value.append(b)
-                # case pywasm.opcode.local_set: pass
+                    self.stack.value.append(a)
+                case pywasm.opcode.local_set:
+                    a = self.stack.value.pop()
+                    self.stack.frame[-1].locals.data[instr.args[0]] = a
                 # case pywasm.opcode.local_tee: pass
                 # case pywasm.opcode.global_get: pass
                 # case pywasm.opcode.global_set: pass
@@ -1509,8 +1510,14 @@ class Machine:
                     self.stack.value.append(ValInst.from_i32(instr.args[0]))
                 case pywasm.opcode.i64_const:
                     self.stack.value.append(ValInst.from_i64(instr.args[0]))
-                # case pywasm.opcode.f32_const: pass
-                # case pywasm.opcode.f64_const: pass
+                case pywasm.opcode.f32_const:
+                    a = ValInst.from_i32(instr.args[0])
+                    a.type = ValType.f32()
+                    self.stack.value.append(a)
+                case pywasm.opcode.f64_const:
+                    a = ValInst.from_i64(instr.args[0])
+                    a.type = ValType.f64()
+                    self.stack.value.append(a)
                 # case pywasm.opcode.i32_eqz: pass
                 # case pywasm.opcode.i32_eq: pass
                 # case pywasm.opcode.i32_ne: pass
