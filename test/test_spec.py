@@ -153,6 +153,10 @@ def parse_jval(j: typing.Dict[str, str]) -> pywasm.ValInst:
             v = pywasm.ValInst.from_i32(int(j['value']))
             v.type = pywasm.ValType.f32()
             return v
+        case 'f64':
+            v = pywasm.ValInst.from_i64(int(j['value']))
+            v.type = pywasm.ValType.f64()
+            return v
         case _:
             assert 0
 
