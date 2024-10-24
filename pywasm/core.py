@@ -988,7 +988,7 @@ class Label:
     # instruction sequence.
 
     def __init__(self, arity: int, carry: int, value: int, instr: typing.List[Inst], index: int) -> typing.Self:
-        assert carry in [0x00, 0x01]
+        assert carry in [0x00, 0x01, 0x02]
         self.arity = arity
         self.carry = carry
         self.value = value
@@ -1099,7 +1099,7 @@ class Machine:
         self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
         pywasm.log.debugln(f'init global')
         for i, e in enumerate(module.glob):
-            self.stack.label.append(Label(1, 0, 0, e.init.data, 0))
+            self.stack.label.append(Label(1, 1, 0, e.init.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1112,7 +1112,7 @@ class Machine:
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
         pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
-            self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
+            self.stack.label.append(Label(1, 1, 0, e.offset.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1126,7 +1126,7 @@ class Machine:
                 tabl.elem[offs + i] = newmod.func[e]
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
-            self.stack.label.append(Label(1, 0, 0, e.offset.data, 0))
+            self.stack.label.append(Label(1, 1, 0, e.offset.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1149,7 +1149,7 @@ class Machine:
             for e in func.code.locals:
                 locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
             self.stack.frame.append(Frame(func.module, locals, 0, 0, 0))
-            self.stack.label.append(Label(0, 1, 0, func.code.expr.data, 0))
+            self.stack.label.append(Label(0, 2, 0, func.code.expr.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 0
             assert len(self.stack.label) == 0
@@ -1167,7 +1167,7 @@ class Machine:
         for e in func.code.locals:
             locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
         self.stack.frame.append(Frame(func.module, locals, len(func.type.rets.data), 0, 0))
-        self.stack.label.append(Label(len(func.type.rets.data), 1, len(self.stack.value), func.code.expr.data, 0))
+        self.stack.label.append(Label(len(func.type.rets.data), 2, len(self.stack.value), func.code.expr.data, 0))
         self.evaluate()
         rets = [self.stack.value.pop() for _ in range(len(func.type.rets.data))][::-1]
         for a, b in zip(func.type.rets.data, rets):
@@ -1181,11 +1181,15 @@ class Machine:
     def evaluate_br(self, l: int) -> None:
         assert len(self.stack.label) >= l + 1
         label = self.stack.label[-1 - l]
-        assert len(self.stack.value) >= label.value + label.arity
-        rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
-        self.stack.label = self.stack.label[:-1 - l]
-        self.stack.value = self.stack.value[:label.value]
-        self.stack.value.extend(rets)
+        match label.carry:
+            case 0x00:
+                label.index = 0
+            case 0x01 | 0x02:
+                assert len(self.stack.value) >= label.value + label.arity
+                rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
+                self.stack.label = self.stack.label[:-1 - l]
+                self.stack.value = self.stack.value[:label.value]
+                self.stack.value.extend(rets)
 
     def evaluate_bype(self, bype: Bype) -> FuncType:
         match bype.kind:
@@ -1195,6 +1199,45 @@ class Machine:
                 return FuncType(ResultType([]), ResultType([ValType(bype.data)]))
             case 0x02:
                 return self.stack.frame[-1].module.type[bype.data]
+
+    def evaluate_call(self, addr: int) -> None:
+        label = self.stack.label[-1]
+        func = self.store.func[addr]
+        assert len(self.stack.value) >= label.value + len(func.type.args.data)
+        args = [self.stack.value.pop() for _ in range(len(func.type.args.data))][::-1]
+        nret = len(func.type.rets.data)
+        pywasm.log.debugln(f'call {func} {args}')
+        match func.kind:
+            case 0x00:
+                locals = LocalsInst(args)
+                for e in func.code.locals:
+                    locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+                self.stack.frame.append(Frame(
+                    func.module,
+                    locals,
+                    nret,
+                    len(self.stack.label),
+                    len(self.stack.value),
+                ))
+                self.stack.label.append(Label(
+                    nret,
+                    2,
+                    len(self.stack.value),
+                    func.code.expr.data,
+                    0,
+                ))
+            case 0x01:
+                match nret:
+                    case 0x00:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        assert rets is None
+                    case 0x01:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        self.stack.value.append(ValInst.from_auto(func.type.rets.data[0], rets))
+                    case _:
+                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets.data, rets)]
+                        self.stack.value.extend(rets)
 
     def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
         inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
@@ -1219,14 +1262,16 @@ class Machine:
             frame = self.stack.frame[-1]
             if label.index == len(label.instr):
                 match label.carry:
-                    case 0x00:
+                    case 0x00 | 0x01:
                         assert len(self.stack.value) == label.value + label.arity
                         self.stack.label.pop()
-                    case 0x01:
+                    case 0x02:
                         assert len(self.stack.value) == label.value + label.arity
                         self.stack.label.pop()
                         assert len(self.stack.value) == frame.value + frame.arity
                         self.stack.frame.pop()
+                    case _:
+                        assert 0
                 continue
             instr = label.instr[label.index]
             label.index += 1
@@ -1241,12 +1286,21 @@ class Machine:
                     assert len(self.stack.value) >= label.value + len(bype.args.data)
                     self.stack.label.append(Label(
                         len(bype.rets.data),
+                        1,
+                        len(self.stack.value) - len(bype.args.data),
+                        instr.args[1],
+                        0,
+                    ))
+                case pywasm.opcode.loop:
+                    bype = self.evaluate_bype(instr.args[0])
+                    assert len(self.stack.value) >= label.value + len(bype.args.data)
+                    self.stack.label.append(Label(
+                        len(bype.rets.data),
                         0,
                         len(self.stack.value) - len(bype.args.data),
                         instr.args[1],
                         0,
                     ))
-                # case pywasm.opcode.loop: pass
                 case pywasm.opcode.if_then:
                     bype = self.evaluate_bype(instr.args[0])
                     cond = self.stack.value.pop().into_i32()
@@ -1254,7 +1308,7 @@ class Machine:
                     aidx = 1 if cond != 0 else 2
                     self.stack.label.append(Label(
                         len(bype.rets.data),
-                        0,
+                        1,
                         len(self.stack.value) - len(bype.args.data),
                         instr.args[aidx],
                         0,
@@ -1279,44 +1333,15 @@ class Machine:
                     self.stack.value.extend(rets)
                 case pywasm.opcode.call:
                     addr = frame.module.func[instr.args[0]]
-                    func = self.store.func[addr]
-                    assert len(self.stack.value) >= label.value + len(func.type.args.data)
-                    args = [self.stack.value.pop() for _ in range(len(func.type.args.data))][::-1]
-                    nret = len(func.type.rets.data)
-                    pywasm.log.debugln(f'call {func} {args}')
-                    match func.kind:
-                        case 0x00:
-                            locals = LocalsInst(args)
-                            for e in func.code.locals:
-                                locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
-                            self.stack.frame.append(Frame(
-                                func.module,
-                                locals,
-                                nret,
-                                len(self.stack.label),
-                                len(self.stack.value),
-                            ))
-                            self.stack.label.append(Label(
-                                nret,
-                                1,
-                                len(self.stack.value),
-                                func.code.expr.data,
-                                0,
-                            ))
-                        case 0x01:
-                            match nret:
-                                case 0x00:
-                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
-                                    assert rets is None
-                                case 0x01:
-                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
-                                    self.stack.value.append(ValInst.from_auto(func.type.rets.data[0], rets))
-                                case _:
-                                    rets = func.hostcode(self, *[e.into_auto() for e in args])
-                                    rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets.data, rets)]
-                                    self.stack.value.extend(rets)
-                # case pywasm.opcode.call_indirect: pass
-                # case pywasm.opcode.drop: pass
+                    self.evaluate_call(addr)
+                case pywasm.opcode.call_indirect:
+                    tabl = self.store.tabl[frame.module.tabl[0]]
+                    type = frame.module.type[instr.args[0]]
+                    addr = tabl.elem[self.stack.value.pop().into_i32()]
+                    assert self.store.func[addr].type == type
+                    self.evaluate_call(addr)
+                case pywasm.opcode.drop:
+                    self.stack.value.pop()
                 case pywasm.opcode.select:
                     c = self.stack.value.pop().into_i32()
                     b = self.stack.value.pop()
@@ -1329,9 +1354,16 @@ class Machine:
                 case pywasm.opcode.local_set:
                     a = self.stack.value.pop()
                     self.stack.frame[-1].locals.data[instr.args[0]] = a
-                # case pywasm.opcode.local_tee: pass
-                # case pywasm.opcode.global_get: pass
-                # case pywasm.opcode.global_set: pass
+                case pywasm.opcode.local_tee:
+                    a = self.stack.value[-1]
+                    self.stack.frame[-1].locals.data[instr.args[0]] = a
+                case pywasm.opcode.global_get:
+                    glob = self.store.glob[frame.module.glob[instr.args[0]]]
+                    self.stack.value.append(glob.data)
+                case pywasm.opcode.global_set:
+                    glob = self.store.glob[frame.module.glob[instr.args[0]]]
+                    assert glob.mut == 0x01
+                    glob.data = self.stack.value.pop()
                 case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
                     self.stack.value.append(a)
@@ -1393,7 +1425,15 @@ class Machine:
                 case pywasm.opcode.i64_store32:
                     self.evaluate_mem_save(instr.args[1], 4)
                 # case pywasm.opcode.memory_size: pass
-                # case pywasm.opcode.memory_grow: pass
+                case pywasm.opcode.memory_grow:
+                    mems = self.store.mems[frame.module.mems[0]]
+                    size = mems.size
+                    incr = self.stack.value.pop().into_i32()
+                    rets = -1
+                    if mems.type.limits.m == 0 or size + incr <= mems.type.limits.m:
+                        rets = size
+                        mems.grow(incr)
+                    self.stack.value.append(ValInst.from_i32(rets))
                 case pywasm.opcode.i32_const:
                     self.stack.value.append(ValInst.from_i32(instr.args[0]))
                 case pywasm.opcode.i64_const:
