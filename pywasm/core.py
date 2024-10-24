@@ -1197,6 +1197,8 @@ class Machine:
         inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
         addr = self.stack.value.pop().into_i32()
         addr = addr + offset
+        if addr < 0 or addr + size > len(inst.data):
+            raise Exception('pywasm: out of bounds memory access')
         return inst.data[addr:addr+size]
 
     def evaluate(self) -> None:

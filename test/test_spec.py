@@ -191,5 +191,22 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         assert rets == good, f'{rets}, {good}'
                     case _:
                         assert 0
+            case 'assert_trap':
+                match elem['action']['type']:
+                    case 'invoke':
+                        name = elem['action']['field']
+                        args = [parse_jval(e) for e in elem['action']['args']]
+                        good = elem['text']
+                        fidx = [e for e in imodule.exps if e.name == name][0].data.data
+                        addr = imodule.func[fidx]
+                        try:
+                            runtime.machine.invocate(addr, args)
+                        except Exception as e:
+                            assert str(e) == 'pywasm: ' + good
+                            runtime.machine.stack.frame.clear()
+                            runtime.machine.stack.label.clear()
+                            runtime.machine.stack.value.clear()
+                    case _:
+                        assert 0
             case _:
                 assert 0
