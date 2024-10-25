@@ -1185,9 +1185,16 @@ class Machine:
         match label.carry:
             case 0x00:
                 label.index = 0
+                assert len(self.stack.value) >= label.value + label.arity
+                rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
+                self.stack.frame = self.stack.frame[:label.frame]
+                self.stack.label = self.stack.label[:-1 - l]
+                self.stack.value = self.stack.value[:label.value]
+                self.stack.value.extend(rets)
             case 0x01 | 0x02:
                 assert len(self.stack.value) >= label.value + label.arity
                 rets = [self.stack.value.pop() for _ in range(label.arity)][::-1]
+                self.stack.frame = self.stack.frame[:label.frame]
                 self.stack.label = self.stack.label[:-1 - l]
                 self.stack.value = self.stack.value[:label.value]
                 self.stack.value.extend(rets)
