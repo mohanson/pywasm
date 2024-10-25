@@ -987,10 +987,11 @@ class Label:
     # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
     # instruction sequence.
 
-    def __init__(self, arity: int, carry: int, value: int, instr: typing.List[Inst], index: int) -> typing.Self:
+    def __init__(self, arity: int, carry: int, frame: int, value: int, instr: typing.List[Inst], index: int) -> typing.Self:
         assert carry in [0x00, 0x01, 0x02]
         self.arity = arity
         self.carry = carry
+        self.frame = frame
         self.value = value
         self.instr = instr
         self.index = index
@@ -1099,7 +1100,7 @@ class Machine:
         self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
         pywasm.log.debugln(f'init global')
         for i, e in enumerate(module.glob):
-            self.stack.label.append(Label(1, 1, 0, e.init.data, 0))
+            self.stack.label.append(Label(1, 1, 1, 0, e.init.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1112,7 +1113,7 @@ class Machine:
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
         pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
-            self.stack.label.append(Label(1, 1, 0, e.offset.data, 0))
+            self.stack.label.append(Label(1, 1, 1, 0, e.offset.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1126,7 +1127,7 @@ class Machine:
                 tabl.elem[offs + i] = newmod.func[e]
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
-            self.stack.label.append(Label(1, 1, 0, e.offset.data, 0))
+            self.stack.label.append(Label(1, 1, 1, 0, e.offset.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
@@ -1149,7 +1150,7 @@ class Machine:
             for e in func.code.locals:
                 locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
             self.stack.frame.append(Frame(func.module, locals, 0, 0, 0))
-            self.stack.label.append(Label(0, 2, 0, func.code.expr.data, 0))
+            self.stack.label.append(Label(0, 2, 1, 0, func.code.expr.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 0
             assert len(self.stack.label) == 0
@@ -1167,7 +1168,7 @@ class Machine:
         for e in func.code.locals:
             locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
         self.stack.frame.append(Frame(func.module, locals, len(func.type.rets.data), 0, 0))
-        self.stack.label.append(Label(len(func.type.rets.data), 2, len(self.stack.value), func.code.expr.data, 0))
+        self.stack.label.append(Label(len(func.type.rets.data), 2, 1, 0, func.code.expr.data, 0))
         self.evaluate()
         rets = [self.stack.value.pop() for _ in range(len(func.type.rets.data))][::-1]
         for a, b in zip(func.type.rets.data, rets):
@@ -1222,6 +1223,7 @@ class Machine:
                 self.stack.label.append(Label(
                     nret,
                     2,
+                    len(self.stack.frame),
                     len(self.stack.value),
                     func.code.expr.data,
                     0,
@@ -1287,6 +1289,7 @@ class Machine:
                     self.stack.label.append(Label(
                         len(bype.rets.data),
                         1,
+                        len(self.stack.frame),
                         len(self.stack.value) - len(bype.args.data),
                         instr.args[1],
                         0,
@@ -1297,6 +1300,7 @@ class Machine:
                     self.stack.label.append(Label(
                         len(bype.rets.data),
                         0,
+                        len(self.stack.frame),
                         len(self.stack.value) - len(bype.args.data),
                         instr.args[1],
                         0,
@@ -1309,6 +1313,7 @@ class Machine:
                     self.stack.label.append(Label(
                         len(bype.rets.data),
                         1,
+                        len(self.stack.frame),
                         len(self.stack.value) - len(bype.args.data),
                         instr.args[aidx],
                         0,
