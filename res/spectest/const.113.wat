@@ -1,1 +1,1 @@
-(func (i64.const -9223372036854775809) drop)
+(func (i32.const -0x80000001) drop)

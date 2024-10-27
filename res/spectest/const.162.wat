@@ -1,1 +1,1 @@
-(func (f32.const nan:0x0) drop)
+(func (f64.const 1e309) drop)

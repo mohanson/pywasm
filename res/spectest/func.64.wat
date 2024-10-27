@@ -1,1 +1,1 @@
-(func (nop) (result i32))
+(func (nop) (local i32))

@@ -1,1 +1,1 @@
-(import "" "" (func $foo))(import "" "" (func $foo))
+(func $foo)(func $foo)
