@@ -34,7 +34,7 @@ class Bype:
             return cls(0x00, 0x40)
         if n in [0x7f, 0x7e, 0x7d, 0x7c]:
             return cls(0x01, n)
-        r.seek(1, -1)
+        r.seek(-1, 1)
         return cls(0x02, pywasm.leb128.i.decode_reader(r)[0])
 
 
