@@ -1,1 +1,1 @@
-(func (param $foo i32) (local $foo i32))
+(import "" "" (func $foo))(import "" "" (func $foo))

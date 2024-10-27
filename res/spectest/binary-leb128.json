@@ -80,4 +80,6 @@
   {"type": "assert_malformed", "line": 925, "filename": "binary-leb128.77.wasm", "text": "integer too large", "module_type": "binary"}, 
   {"type": "assert_malformed", "line": 935, "filename": "binary-leb128.78.wasm", "text": "integer too large", "module_type": "binary"}, 
   {"type": "assert_malformed", "line": 945, "filename": "binary-leb128.79.wasm", "text": "integer too large", "module_type": "binary"}, 
-  {"type": "assert_malformed", "line": 955, "filename": "binary-leb128.80.wasm", "text": "integer too large", "module_type": "binary"}]}
+  {"type": "assert_malformed", "line": 955, "filename": "binary-leb128.80.wasm", "text": "integer too large", "module_type": "binary"}, 
+  {"type": "module", "line": 966, "filename": "binary-leb128.81.wasm"}, 
+  {"type": "assert_malformed", "line": 987, "filename": "binary-leb128.82.wasm", "text": "integer representation too long", "module_type": "binary"}]}
