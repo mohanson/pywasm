@@ -2096,6 +2096,36 @@ class Machine:
                     a = self.stack.value.pop()
                     b = ValInst(ValType.f64(), a.data.copy())
                     self.stack.value.append(b)
+                case pywasm.opcode.i32_extend8_s:
+                    a = self.stack.value.pop().into_i32()
+                    b = a & 0xff
+                    c = b - ((b & 0x80) << 1)
+                    d = ValInst.from_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32_extend16_s:
+                    a = self.stack.value.pop().into_i32()
+                    b = a & 0xffff
+                    c = b - ((b & 0x8000) << 1)
+                    d = ValInst.from_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64_extend8_s:
+                    a = self.stack.value.pop().into_i64()
+                    b = a & 0xff
+                    c = b - ((b & 0x80) << 1)
+                    d = ValInst.from_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64_extend16_s:
+                    a = self.stack.value.pop().into_i64()
+                    b = a & 0xffff
+                    c = b - ((b & 0x8000) << 1)
+                    d = ValInst.from_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64_extend32_s:
+                    a = self.stack.value.pop().into_i64()
+                    b = a & 0xffffffff
+                    c = b - ((b & 0x80000000) << 1)
+                    d = ValInst.from_i64(c)
+                    self.stack.value.append(d)
                 case pywasm.opcode.i32_trunc_sat_f32_s:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
