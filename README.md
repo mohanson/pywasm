@@ -1,28 +1,31 @@
-# pywasm: A WebAssembly interpreter written in pure Python.
+# Pywasm: A WebAssembly interpreter written in pure Python.
 
-A WebAssembly interpreter written in pure Python.
+A WebAssembly interpreter written in pure Python, no third-party libraries are used.
 
-The wasm version currently in use is: [WebAssembly Core Specification, W3C Recommendation, 5 December 2019](https://www.w3.org/TR/wasm-core-1/). Just like Firefox or Chrome does.
+The wasm version currently in use is: [WebAssembly Core Specification, W3C Recommendation, 5 December 2019](https://www.w3.org/TR/wasm-core-1/).
+
+Also requires Python version >= 3.12.
 
 # Installation
 
 ```sh
-$ pip3 install pywasm
+$ pip install pywasm
 ```
 
 # Some simple examples
 
-1. First we need a wasm module! Grab our `./examples/fib.wasm` file and save a copy in a new directory on your local machine. Note: `fib.wasm` was compiled from `./examples/fib.c` by [WasmFiddle](https://wasdk.github.io/WasmFiddle/).
+1. First we need a wasm module! Grab our `./examples/fib.wasm` file and save a copy in a new directory on your local machine. Note: `fib.wasm` was compiled from `./examples/fib.c`.
 
-2. Now, compile and instantiate WebAssembly modules directly from underlying sources. This is achieved using the `pywasm.load` method.
+2. Now, instantiate WebAssembly modules directly from underlying sources. This is achieved using the `Runtime.instance_from_file` method.
 
 ```py
 import pywasm
-# pywasm.on_debug()
+pywasm.log.lvl = 1
 
-runtime = pywasm.load('./examples/fib.wasm')
-r = runtime.exec('fib', [10])
-print(r) # 55
+runtime = pywasm.core.Runtime()
+m = runtime.instance_from_file('./examples/fib.wasm', {})
+r = runtime.invocate(m, 'fib', [10])
+print(f'fib(10) = {r[0]}')
 ```
 
 A brief description for `./examples`
@@ -35,25 +38,17 @@ A brief description for `./examples`
 | ./examples/str.wasm | Export a function which returns string       |
 | ./examples/sum.wasm | Equal difference series summation            |
 
-Of course there are some more complicated examples!
-
-- Zstandard decompression algorithm: [https://github.com/dholth/zstdpy](https://github.com/dholth/zstdpy)
-- Run AssemblyScript on pywasm: [https://github.com/mohanson/pywasm_assemblyscript](https://github.com/mohanson/pywasm_assemblyscript)
-
 # Test
 
 ```sh
 $ python ./test/test_spec.py
 ```
 
-Tested in the following environments:
-
-- Python >= 3.6
-
 # Thanks
 
 - [wagon](https://github.com/go-interpreter/wagon)
 - [warpy](https://github.com/kanaka/warpy)
+- [zstdpy](https://github.com/dholth/zstdpy)
 
 # License
 

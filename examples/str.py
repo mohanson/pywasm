@@ -1,6 +1,8 @@
 import pywasm
-# pywasm.on_debug()
+pywasm.log.lvl = 1
 
-runtime = pywasm.load('./examples/str.wasm')
-r = runtime.exec('get', [])
-print(runtime.machine.store.memory_list[0].data[r:r + 12].decode())
+runtime = pywasm.core.Runtime()
+mod = runtime.instance_from_file('./examples/str.wasm', {})
+ptr = runtime.invocate(mod, 'get', [])[0]
+mem = runtime.exported_mem(mod, 'memory')
+print(mem.data[ptr:ptr+12].decode())

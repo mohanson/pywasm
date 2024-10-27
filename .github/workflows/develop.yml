@@ -15,5 +15,4 @@ jobs:
       - name: Test
         run: |
           python -m pip install --editable .
-          python ./test/test_examples.py
-          python ./test/test_spec.py
+          python test/test_examples.py

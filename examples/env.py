@@ -1,17 +1,14 @@
 import pywasm
-# pywasm.on_debug()
+pywasm.log.lvl = 1
 
 
-def _fib(n):
+def fib(m: pywasm.core.Machine, n: int):
     if n <= 1:
         return n
-    return _fib(n - 1) + _fib(n - 2)
+    return fib(m, n - 1) + fib(m, n - 2)
 
 
-def fib(_: pywasm.Store, n: int):
-    return _fib(n)
-
-
-runtime = pywasm.load('./examples/env.wasm', {'env': {'fib': fib}})
-r = runtime.exec('get', [10])
-print(r)  # 55
+runtime = pywasm.core.Runtime()
+m = runtime.instance_from_file('./examples/env.wasm', {'env': {'fib': fib}})
+r = runtime.invocate(m, 'get', [10])
+print(f'fib(10) = {r[0]}')

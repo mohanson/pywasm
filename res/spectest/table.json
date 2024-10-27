@@ -1,0 +1,5 @@
+{"source_filename": "table.wast",
+ "commands": [
+  {"type": "assert_malformed", "line": 3, "filename": "table.0.wat", "text": "duplicate table", "module_type": "text"}, 
+  {"type": "assert_malformed", "line": 7, "filename": "table.1.wat", "text": "duplicate table", "module_type": "text"}, 
+  {"type": "assert_malformed", "line": 11, "filename": "table.2.wat", "text": "duplicate table", "module_type": "text"}]}

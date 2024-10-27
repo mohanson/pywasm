@@ -29,10 +29,7 @@ class _U:
         # of bytes read.
         a = bytearray()
         while True:
-            b = r.read(1)
-            if len(b) != 1:
-                raise EOFError
-            b = ord(b)
+            b = ord(r.read(1))
             a.append(b)
             if (b & 0x80) == 0:
                 break
@@ -68,10 +65,7 @@ class _I:
         # of bytes read.
         a = bytearray()
         while True:
-            b = r.read(1)
-            if len(b) != 1:
-                raise EOFError
-            b = ord(b)
+            b = ord(r.read(1))
             a.append(b)
             if (b & 0x80) == 0:
                 break

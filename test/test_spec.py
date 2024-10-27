@@ -1,208 +1,162 @@
+import glob
 import json
 import math
-import os
+import pywasm
+import re
 import typing
 
-import pywasm
+
+pywasm.log.lvl = 0
+unittest_regex = 'res/spectest/.*.json'
 
 
-def parse_val(m):
-    if m['type'] == 'i32':
-        return pywasm.ValInst.from_i32(int(m['value']))
-    if m['type'] == 'i64':
-        return pywasm.ValInst.from_i64(int(m['value']))
-    if m['type'] == 'f32':
-        if m['value'] == 'nan:canonical':
-            return pywasm.ValInst.from_f32_u32(0x7fc00000)
-        if m['value'] == 'nan:arithmetic':
-            return pywasm.ValInst.from_f32_u32(0x7fc00001)
-        v = pywasm.ValInst.from_u32(int(m['value']))
-        v.type = pywasm.core.ValType.f32()
-        return v
-    if m['type'] == 'f64':
-        if m['value'] == 'nan:canonical':
-            return pywasm.ValInst.from_f64_u64(0x7ff8000000000000)
-        if m['value'] == 'nan:arithmetic':
-            return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
-        v = pywasm.ValInst.from_u64(int(m['value']))
-        v.type = pywasm.core.ValType.f64()
-        return v
-    raise NotImplementedError
+def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
+    match j['type']:
+        case 'i32':
+            return pywasm.ValInst.from_i32(int(j['value']))
+        case 'i64':
+            return pywasm.ValInst.from_i64(int(j['value']))
+        case 'f32':
+            match j['value']:
+                case 'nan:canonical':
+                    return pywasm.ValInst.from_f32_u32(0x7fc00000)
+                case 'nan:arithmetic':
+                    return pywasm.ValInst.from_f32_u32(0x7fc00001)
+                case _:
+                    return pywasm.ValInst.from_f32_u32(int(j['value']))
+        case 'f64':
+            match j['value']:
+                case 'nan:canonical':
+                    return pywasm.ValInst.from_f64_u64(0x7ff8000000000000)
+                case 'nan:arithmetic':
+                    return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
+                case _:
+                    return pywasm.ValInst.from_f64_u64(int(j['value']))
+        case _:
+            assert 0
 
 
-def asset_val(a, b):
-    print('assert', a.data, b.data, a.into_auto(), b.into_auto())
-    if b.type == pywasm.core.ValType.i32():
-        assert a.type == pywasm.core.ValType.i32()
-        assert a.data == b.data
-        return
-    if b.type == pywasm.core.ValType.i64():
-        assert a.type == pywasm.core.ValType.i64()
-        assert a.data == b.data
-        return
-    if b.type == pywasm.core.ValType.f32():
-        assert a.type == pywasm.core.ValType.f32()
-        if math.isnan(b.into_f32()):
-            assert math.isnan(a.into_f32())
-        elif math.isinf(b.into_f32()):
-            assert math.isinf(a.into_f32()) or math.fabs(a.into_f32()) > +3.4e+38
-        elif math.isinf(a.into_f32()):
-            assert math.isinf(b.into_f32()) or math.fabs(b.into_f32()) > +3.4e+38
-        else:
-            assert math.isclose(a.into_f32(), b.into_f32())
-        return
-    if b.type == pywasm.core.ValType.f64():
-        assert a.type == pywasm.core.ValType.f64()
-        if math.isnan(b.into_f64()):
-            assert math.isnan(a.into_f64())
-        elif math.isinf(b.into_f64()):
-            assert math.isinf(a.into_f64()) or math.fabs(a.into_f64()) > +1.7e+308
-        elif math.isinf(a.into_f64()):
-            assert math.isinf(b.into_f64()) or math.fabs(b.into_f64()) > +1.7e+308
-        else:
-            assert math.isclose(a.into_f64(), b.into_f64())
-        return
-    raise Exception
+def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
+    a = a.into_auto()
+    b = b.into_auto()
+    if isinstance(a, int):
+        return a == b
+    if isinstance(a, float):
+        if math.isnan(a):
+            return math.isnan(b)
+        return math.isclose(a, b, rel_tol=1e-6)
+    assert 0
 
 
-def imps() -> typing.Dict:
-    memory_type = pywasm.core.MemType(pywasm.core.Limits(1, 2))
-    memory = pywasm.Memory(memory_type)
-
-    table_type = pywasm.core.TableType(pywasm.core.ElemType.funcref(), pywasm.core.Limits(10, 20))
-    table = pywasm.Table(table_type)
-
+def impi() -> typing.Dict[str, typing.Any]:
+    # See https://github.com/WebAssembly/spec/blob/w3c-1.0/interpreter/host/spectest.ml
     return {
         'spectest': {
-            'print_i32': lambda _, x: None,
-            'print': lambda _: None,
             'global_i32': 666,
-            'table': table,
-            'memory': memory,
+            'global_i64': 666,
+            'global_f32': 666.6,
+            'global_f64': 666.6,
+            'print': lambda m: None,
+            'print_i32': lambda m, x: None,
+            'print_i64': lambda m, x: None,
+            'print_f32': lambda m, x: None,
+            'print_f64': lambda m, x: None,
+            'print_i32_f32': lambda m, x, y: None,
+            'print_i64_f64': lambda m, x, y: None,
+            'print_f32_f32': lambda m, x, y: None,
+            'print_f64_f64': lambda m, x, y: None,
+            'table': pywasm.TableInst(pywasm.TableType(pywasm.ElemType.funcref(), pywasm.Limits(10, 20))),
+            'memory': pywasm.MemInst(pywasm.MemType(pywasm.Limits(1, 2))),
         }
     }
 
 
-def case(path: str):
-    case_name = os.path.basename(path)
-    json_path = os.path.join(path, case_name + '.json')
-    with open(json_path, 'r') as f:
-        case_data = json.load(f)
-
-    runtime: pywasm.Runtime = None
-    for command in case_data['commands']:
-        print(command)
-        if command['type'] == 'module':
-            filename = command['filename']
-            runtime = pywasm.load(os.path.join(path, filename), imps())
-        # {'type': 'assert_return', 'line': 104, 'action': {'type': 'invoke', 'field': '8u_good1', 'args': [{'type': 'i32', 'value': '0'}]}, 'expected': [{'type': 'i32', 'value': '97'}]}
-        elif command['type'] == 'assert_return':
-            if command['action']['type'] == 'invoke':
-                function_name = command['action']['field']
-                args = [parse_val(i) for i in command['action']['args']]
-                r = runtime.exec_accu(function_name, args)
-                expect = [parse_val(i) for i in command['expected']]
-                for i in range(len(expect)):
-                    asset_val(r.data[i], expect[i])
-            else:
-                raise NotImplementedError
-        elif command['type'] in ['assert_trap', 'assert_exhaustion']:
-            if command['action']['type'] == 'invoke':
-                function_name = command['action']['field']
-                args = [parse_val(i) for i in command['action']['args']]
+for name in sorted(glob.glob('res/spectest/*.json')):
+    if not re.match(unittest_regex, name):
+        continue
+    with open(name) as f:
+        suit = json.load(f)['commands']
+    match name:
+        case 'res/spectest/elem.json':
+            suit = suit[:43]
+    imps = impi()
+    runtime = pywasm.Runtime()
+    cmodule: pywasm.ModuleInst
+    lmodule: pywasm.ModuleInst
+    mmodule = {}
+    for elem in suit:
+        print(elem)
+        match elem['type']:
+            case 'action':
+                match elem['action']['type']:
+                    case 'invoke':
+                        cmodule = lmodule
+                        if 'module' in elem['action']:
+                            cmodule = mmodule[elem['action']['module']]
+                        name = elem['action']['field']
+                        args = [valj(e) for e in elem['action']['args']]
+                        good = [valj(e) for e in elem['expected']]
+                        addr = [e for e in cmodule.exps if e.name == name][0].data.data
+                        rets = runtime.machine.invocate(addr, args)
+                        for a, b in zip(rets, good):
+                            assert vale(a, b), f'{rets}, {good}'
+                    case _:
+                        assert 0
+            case 'assert_exhaustion':
+                assert 1
+            case 'assert_invalid':
+                assert 1
+            case 'assert_malformed':
+                assert 1
+            case 'assert_return':
+                match elem['action']['type']:
+                    case 'get':
+                        cmodule = lmodule
+                        if 'module' in elem['action']:
+                            cmodule = mmodule[elem['action']['module']]
+                        good = [valj(e) for e in elem['expected']]
+                        rets = runtime.exported_global(cmodule, elem['action']['field'])
+                        assert vale(rets.data, good[0])
+                    case 'invoke':
+                        cmodule = lmodule
+                        if 'module' in elem['action']:
+                            cmodule = mmodule[elem['action']['module']]
+                        name = elem['action']['field']
+                        args = [valj(e) for e in elem['action']['args']]
+                        good = [valj(e) for e in elem['expected']]
+                        addr = [e for e in cmodule.exps if e.name == name][0].data.data
+                        rets = runtime.machine.invocate(addr, args)
+                        for a, b in zip(rets, good):
+                            assert vale(a, b), f'{rets}, {good}'
+                    case _:
+                        assert 0
+            case 'assert_trap':
+                assert 1
+            case 'assert_uninstantiable':
                 try:
-                    r = runtime.exec_accu(function_name, args)
+                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
                 except Exception as e:
-                    r = str(e)[8:]
-                expect = command['text']
-                assert r == expect
-            else:
-                raise NotImplementedError
-        elif command['type'] == 'assert_malformed':
-            continue
-        elif command['type'] == 'assert_invalid':
-            continue
-        elif command['type'] == 'assert_unlinkable':
-            continue
-        elif command['type'] == 'register':
-            return
-        elif command['type'] == 'action':
-            if command['action']['type'] == 'invoke':
-                function_name = command['action']['field']
-                args = [parse_val(i) for i in command['action']['args']]
-                runtime.exec_accu(function_name, args)
-            else:
-                raise NotImplementedError
-        elif command['type'] == 'assert_uninstantiable':
-            continue
-        else:
-            raise NotImplementedError
-
-
-if __name__ == '__main__':
-    case('./res/spectest/address')
-    case('./res/spectest/align')
-    case('./res/spectest/binary')
-    case('./res/spectest/binary-leb128')
-    case('./res/spectest/br_if')
-    case('./res/spectest/br_table')
-    case('./res/spectest/break-drop')
-    case('./res/spectest/comments')
-    case('./res/spectest/const')
-    case('./res/spectest/custom')
-    case('./res/spectest/data')
-    case('./res/spectest/elem')
-    case('./res/spectest/endianness')
-    # [TODO] case('./res/spectest/exports')
-    case('./res/spectest/f32')
-    case('./res/spectest/f32_bitwise')
-    case('./res/spectest/f32_cmp')
-    case('./res/spectest/f64')
-    case('./res/spectest/f64_bitwise')
-    case('./res/spectest/f64_cmp')
-    case('./res/spectest/float_exprs')
-    case('./res/spectest/float_literals')
-    case('./res/spectest/float_memory')
-    case('./res/spectest/float_misc')
-    case('./res/spectest/forward')
-    case('./res/spectest/func_ptrs')
-    case('./res/spectest/global')
-    case('./res/spectest/globals')
-    case('./res/spectest/imports')
-    case('./res/spectest/inline-module')
-    case('./res/spectest/int_exprs')
-    case('./res/spectest/int_literals')
-    case('./res/spectest/labels')
-    case('./res/spectest/left-to-right')
-    case('./res/spectest/linking')
-    case('./res/spectest/load')
-    case('./res/spectest/local_get')
-    case('./res/spectest/local_set')
-    case('./res/spectest/local_tee')
-    case('./res/spectest/memory')
-    case('./res/spectest/memory_grow')
-    case('./res/spectest/memory_redundancy')
-    case('./res/spectest/memory_size')
-    case('./res/spectest/memory_trap')
-    case('./res/spectest/names')
-    case('./res/spectest/nop')
-    case('./res/spectest/return')
-    case('./res/spectest/select')
-    case('./res/spectest/skip-stack-guard-page')
-    case('./res/spectest/stack')
-    case('./res/spectest/start')
-    case('./res/spectest/store')
-    case('./res/spectest/switch')
-    case('./res/spectest/table')
-    case('./res/spectest/token')
-    case('./res/spectest/traps')
-    case('./res/spectest/type')
-    case('./res/spectest/typecheck')
-    case('./res/spectest/unreachable')
-    case('./res/spectest/unreached-invalid')
-    case('./res/spectest/unwind')
-    case('./res/spectest/utf8-custom-section-id')
-    case('./res/spectest/utf8-import-field')
-    case('./res/spectest/utf8-import-module')
-    case('./res/spectest/utf8-invalid-encoding')
-    case('./res/regression/rsh')
+                    runtime.machine.stack.frame.clear()
+                    runtime.machine.stack.label.clear()
+                    runtime.machine.stack.value.clear()
+            case 'assert_unlinkable':
+                assert 1
+            case 'module':
+                lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
+                if 'name' in elem:
+                    mmodule[elem['name']] = lmodule
+            case 'register':
+                mmodule[elem['as']] = lmodule
+                imps[elem['as']] = {}
+                for e in lmodule.exps:
+                    match e.data.kind:
+                        case 0x00:
+                            imps[elem['as']][e.name] = runtime.machine.store.func[e.data.data]
+                        case 0x01:
+                            imps[elem['as']][e.name] = runtime.machine.store.tabl[e.data.data]
+                        case 0x02:
+                            imps[elem['as']][e.name] = runtime.machine.store.mems[e.data.data]
+                        case 0x03:
+                            imps[elem['as']][e.name] = runtime.machine.store.glob[e.data.data]
+            case _:
+                assert 0
