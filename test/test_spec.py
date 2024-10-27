@@ -76,9 +76,6 @@ for name in sorted(glob.glob('res/spectest/*.json')):
         continue
     with open(name) as f:
         suit = json.load(f)['commands']
-    match name:
-        case 'res/spectest/elem.json':
-            suit = suit[:43]
     imps = impi()
     runtime = pywasm.Runtime()
     cmodule: pywasm.ModuleInst
