@@ -11,7 +11,7 @@ def call(cmd: str):
 call('cd res && rm -rf spec')
 call('cd res && rm -rf spectest')
 call('cd res && git clone https://github.com/WebAssembly/spec')
-call('cd res/spec && git checkout 704d9d9e9c861fdb957c3d5e928f1d046a31497e') # Apr 4, 2020
+call('cd res/spec && git checkout c8fd933fa51eb0b511bce027b573aef7ee373726')
 call('cd res && cp -R spec/test/core spectest')
 call('cd res && rm -rf spec')
 

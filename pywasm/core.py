@@ -59,7 +59,6 @@ class Inst:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         o = Inst(ord(r.read(1)), [])
-        assert o.opcode in pywasm.opcode.name
         if o.opcode in [
             pywasm.opcode.block,
             pywasm.opcode.loop,
@@ -180,6 +179,11 @@ class Inst:
         ]:
             o.args.append(struct.unpack('<q', r.read(8))[0])
             return o
+        if o.opcode in [
+            0xfc,
+        ]:
+            for e in pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0]):
+                o.opcode = (o.opcode << 8) + e
         return o
 
 
@@ -2092,6 +2096,62 @@ class Machine:
                     a = self.stack.value.pop()
                     b = ValInst(ValType.f64(), a.data.copy())
                     self.stack.value.append(b)
+                case pywasm.opcode.i32_trunc_sat_f32_s:
+                    a = self.stack.value.pop().into_f32()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(-0x80000000, min(a, +0x7fffffff)))
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_trunc_sat_f32_u:
+                    a = self.stack.value.pop().into_f32()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(+0x00000000, min(a, +0xffffffff)))
+                    c = ValInst.from_u32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_trunc_sat_f64_s:
+                    a = self.stack.value.pop().into_f64()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(-0x80000000, min(a, +0x7fffffff)))
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32_trunc_sat_f64_u:
+                    a = self.stack.value.pop().into_f64()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(+0x00000000, min(a, +0xffffffff)))
+                    c = ValInst.from_u32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_trunc_sat_f32_s:
+                    a = self.stack.value.pop().into_f32()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(-0x8000000000000000, min(a, +0x7fffffffffffffff)))
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_trunc_sat_f32_u:
+                    a = self.stack.value.pop().into_f32()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(+0x0000000000000000, min(a, +0xffffffffffffffff)))
+                    c = ValInst.from_u64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_trunc_sat_f64_s:
+                    a = self.stack.value.pop().into_f64()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(-0x8000000000000000, min(a, +0x7fffffffffffffff)))
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64_trunc_sat_f64_u:
+                    a = self.stack.value.pop().into_f64()
+                    if math.isnan(a):
+                        a = 0.0
+                    b = int(max(+0x0000000000000000, min(a, +0xffffffffffffffff)))
+                    c = ValInst.from_u64(b)
+                    self.stack.value.append(c)
                 case _:
                     assert 0
 
