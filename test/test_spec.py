@@ -65,7 +65,7 @@ def impi() -> typing.Dict[str, typing.Any]:
             'print_i64_f64': lambda m, x, y: None,
             'print_f32_f32': lambda m, x, y: None,
             'print_f64_f64': lambda m, x, y: None,
-            'table': pywasm.TableInst(pywasm.TableType(pywasm.ElemType.funcref(), pywasm.Limits(10, 20))),
+            'table': pywasm.TableInst(pywasm.TableType(pywasm.ValType.ref_func(), pywasm.Limits(10, 20))),
             'memory': pywasm.MemInst(pywasm.MemType(pywasm.Limits(1, 2))),
         }
     }

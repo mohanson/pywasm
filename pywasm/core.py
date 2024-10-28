@@ -602,32 +602,6 @@ class MemInst:
         self.size += n
 
 
-class ElemType:
-    # The element type funcref is the infinite union of all function types. A table of that type thus contains
-    # references to functions of heterogeneous type.
-    # In future versions of WebAssembly, additional element types may be introduced.
-
-    def __init__(self, data: int) -> typing.Self:
-        assert data == 0x70
-        self.data = data
-
-    def __eq__(self, value: typing.Self) -> bool:
-        return self.data == value.data
-
-    def __repr__(self) -> str:
-        return {
-            0x70: 'funcref',
-        }[self.data]
-
-    @classmethod
-    def funcref(cls) -> typing.Self:
-        return cls(0x70)
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(ord(r.read(1)))
-
-
 class ElemDesc:
     # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
@@ -655,7 +629,8 @@ class TableType:
     # The element type funcref is the infinite union of all function types. A table of that type thus contains
     # references to functions of heterogeneous type.
 
-    def __init__(self, type: ElemType, limits: Limits) -> typing.Self:
+    def __init__(self, type: ValType, limits: Limits) -> typing.Self:
+        assert type in [ValType.ref_func(), ValType.ref_extern()]
         self.type = type
         self.limits = limits
 
@@ -664,7 +639,7 @@ class TableType:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(ElemType.from_reader(r), Limits.from_reader(r))
+        return cls(ValType.from_reader(r), Limits.from_reader(r))
 
 
 class TableInst:
