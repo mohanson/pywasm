@@ -1307,7 +1307,7 @@ class Machine:
                     addr = frame.module.func[instr.args[0]]
                     self.evaluate_call(addr)
                 case pywasm.opcode.call_indirect:
-                    tabl = self.store.tabl[frame.module.tabl[0]]
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     type = frame.module.type[instr.args[0]]
                     addr = tabl.elem[self.stack.value.pop().into_i32()]
                     assert self.store.func[addr].type == type
