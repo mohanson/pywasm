@@ -869,6 +869,9 @@ class ModuleDesc:
                         desc = Data.from_reader(section_reader)
                         data.append(desc)
                         pywasm.log.debugln(f'    {i:>3d} {desc}')
+                case 0x0c:
+                    n = pywasm.leb128.u.decode_reader(section_reader)[0]
+                    pywasm.log.debugln('section data count', n)
 
         return cls(type, func, tabl, mems, glob, elem, data, star, imps, exps)
 
