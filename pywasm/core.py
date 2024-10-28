@@ -330,7 +330,7 @@ class ValType:
     # Value types are encoded by a single byte.
 
     def __init__(self, data: int) -> typing.Self:
-        assert data in [0x7f, 0x7e, 0x7d, 0x7c]
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]
         self.data = data
 
     def __eq__(self, value: typing.Self) -> bool:
@@ -345,6 +345,9 @@ class ValType:
             0x7e: 'i64',
             0x7d: 'f32',
             0x7c: 'f64',
+            0x7b: 'v128',
+            0x70: 'ref.func',
+            0x6f: 'ref.extern',
         }[self.data]
 
     @classmethod
@@ -362,6 +365,18 @@ class ValType:
     @classmethod
     def f64(cls) -> typing.Self:
         return cls(0x7c)
+
+    @classmethod
+    def v128(cls) -> typing.Self:
+        return cls(0x7b)
+
+    @classmethod
+    def ref_func(cls) -> typing.Self:
+        return cls(0x70)
+
+    @classmethod
+    def ref_extern(cls) -> typing.Self:
+        return cls(0x6f)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
