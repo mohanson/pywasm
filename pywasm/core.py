@@ -8,6 +8,158 @@ import struct
 import typing
 
 
+class ValType:
+    # Value types are encoded by a single byte.
+
+    def __init__(self, data: int) -> typing.Self:
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]
+        self.data = data
+
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.data == value.data
+
+    def __hash__(self) -> int:
+        return hash(self.data)
+
+    def __repr__(self) -> str:
+        return {
+            0x7f: 'i32',
+            0x7e: 'i64',
+            0x7d: 'f32',
+            0x7c: 'f64',
+            0x7b: 'v128',
+            0x70: 'ref.func',
+            0x6f: 'ref.extern',
+        }[self.data]
+
+    @classmethod
+    def i32(cls) -> typing.Self:
+        return cls(0x7f)
+
+    @classmethod
+    def i64(cls) -> typing.Self:
+        return cls(0x7e)
+
+    @classmethod
+    def f32(cls) -> typing.Self:
+        return cls(0x7d)
+
+    @classmethod
+    def f64(cls) -> typing.Self:
+        return cls(0x7c)
+
+    @classmethod
+    def v128(cls) -> typing.Self:
+        return cls(0x7b)
+
+    @classmethod
+    def ref_func(cls) -> typing.Self:
+        return cls(0x70)
+
+    @classmethod
+    def ref_extern(cls) -> typing.Self:
+        return cls(0x6f)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        return cls(ord(r.read(1)))
+
+
+class ValInst:
+    # Values are represented by themselves.
+
+    def __init__(self, type: ValType, data: bytearray) -> typing.Self:
+        assert len(data) == 8
+        self.type = type
+        self.data = data
+
+    def __eq__(self, value: typing.Self) -> bool:
+        return self.type == value.type and self.data == value.data
+
+    def __repr__(self) -> str:
+        return f'{self.type} {self.into_auto()}'
+
+    @classmethod
+    def from_auto(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
+        return {
+            ValType.i32(): cls.from_i32,
+            ValType.i64(): cls.from_i64,
+            ValType.f32(): cls.from_f32,
+            ValType.f64(): cls.from_f64,
+        }[type](data)
+
+    @classmethod
+    def from_i32(cls, n: int) -> typing.Self:
+        n = n & 0xffffffff
+        n = n - ((n & 0x80000000) << 1)
+        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(4))
+
+    @classmethod
+    def from_i64(cls, n: int) -> typing.Self:
+        n = n & 0xffffffffffffffff
+        n = n - ((n & 0x8000000000000000) << 1)
+        return cls(ValType.i64(), bytearray(struct.pack('<q', n)))
+
+    @classmethod
+    def from_u32(cls, n: int) -> typing.Self:
+        n = n & 0xffffffff
+        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(4))
+
+    @classmethod
+    def from_u64(cls, n: int) -> typing.Self:
+        n = n & 0xffffffffffffffff
+        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)))
+
+    @classmethod
+    def from_f32(cls, n: float) -> typing.Self:
+        assert isinstance(n, float)
+        n = ctypes.c_float(n).value
+        return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
+
+    @classmethod
+    def from_f32_u32(cls, n: int) -> typing.Self:
+        o = cls.from_u32(n)
+        o.type = ValType.f32()
+        return o
+
+    @classmethod
+    def from_f64(cls, n: float) -> typing.Self:
+        assert isinstance(n, float)
+        return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
+
+    @classmethod
+    def from_f64_u64(cls, n: int) -> typing.Self:
+        o = cls.from_u64(n)
+        o.type = ValType.f64()
+        return o
+
+    def into_auto(self) -> typing.Union[int, float]:
+        return {
+            ValType.i32(): self.into_i32,
+            ValType.i64(): self.into_i64,
+            ValType.f32(): self.into_f32,
+            ValType.f64(): self.into_f64,
+        }[self.type]()
+
+    def into_i32(self) -> int:
+        return struct.unpack('<i', self.data[0:4])[0]
+
+    def into_i64(self) -> int:
+        return struct.unpack('<q', self.data[0:8])[0]
+
+    def into_u32(self) -> int:
+        return struct.unpack('<I', self.data[0:4])[0]
+
+    def into_u64(self) -> int:
+        return struct.unpack('<Q', self.data[0:8])[0]
+
+    def into_f32(self) -> float:
+        return struct.unpack('<f', self.data[0:4])[0]
+
+    def into_f64(self) -> float:
+        return struct.unpack('<d', self.data[0:8])[0]
+
+
 class Bype:
     # Block types are encoded in special compressed form, by either the byte 0x40 indicating the empty type, as a
     # single value type, or as a type index encoded as a positive signed integer.
@@ -208,297 +360,6 @@ class Expr:
         return cls(s)
 
 
-class Limits:
-    # Limits are encoded with a preceding flag indicating whether a maximum is present.
-
-    def __init__(self, n: int, m: int) -> typing.Self:
-        self.n = n
-        self.m = m
-
-    def __repr__(self) -> str:
-        m = 'inf' if self.m == 0 else repr(self.m)
-        return f'[{self.n}, {m}]'
-
-    def suit(self, value: typing.Self) -> bool:
-        c1 = self.n >= value.n
-        c2 = value.m == 0
-        c3 = self.m != 0 and value.m != 0 and self.m <= value.m
-        return c1 and (c2 or c3)
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        flag = ord(r.read(1))
-        return cls(pywasm.leb128.u.decode_reader(r)[0],  pywasm.leb128.u.decode_reader(r)[0] if flag else 0x00)
-
-
-class Custom:
-    # Custom sections have the id 0. They are intended to be used for debugging information or third-party extensions,
-    # and are ignored by the WebAssembly semantics. Their contents consist of a name further identifying the custom
-    # section, followed by an uninterpreted sequence of bytes for custom use.
-
-    def __init__(self, name: str, data: bytearray) -> typing.Self:
-        self.name = name
-        self.data = data
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = pywasm.leb128.u.decode_reader(r)[0]
-        return cls(r.read(n).decode(), bytearray(r.read(-1)))
-
-
-class Import:
-    # The imports component of a module defines a set of imports that are required for instantiation.
-    #
-    # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
-    # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
-    # descriptor with a respective type that a definition provided during instantiation is required to match. Every
-    # import defines an index in the respective index space. In each index space, the indices of imports go before the
-    # first index of any definition contained in the module itself.
-
-    def __init__(self, module: str, name: str, kind: int, desc: typing.Any) -> typing.Self:
-        self.module = module
-        self.name = name
-        self.kind = kind
-        self.desc = desc
-
-    def __repr__(self) -> str:
-        kind = {
-            0x00: 'func',
-            0x01: 'table',
-            0x02: 'mem',
-            0x03: 'global'
-        }[self.kind]
-        return f'{self.module}.{self.name} {kind} {self.desc}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        n = pywasm.leb128.u.decode_reader(r)[0]
-        module = r.read(n).decode()
-        n = pywasm.leb128.u.decode_reader(r)[0]
-        name = r.read(n).decode()
-        type = ord(r.read(1))
-        desc = {
-            0x00: lambda r: pywasm.leb128.u.decode_reader(r)[0],
-            0x01: TableType.from_reader,
-            0x02: MemType.from_reader,
-            0x03: GlobalType.from_reader,
-        }[type](r)
-        return cls(module, name, type, desc)
-
-
-class Elem:
-    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
-    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
-    # The offset is given by a constant expression.
-
-    def __init__(self, data: int, offset: Expr, init: typing.List[int]) -> typing.Self:
-        self.data = data
-        self.offset = offset
-        self.init = init
-
-    def __repr__(self) -> str:
-        return f'{self.data}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
-        return cls(data, offset, init)
-
-
-class Data:
-    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
-    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
-    # The offset is given by a constant expression.
-
-    def __init__(self, data: int, offset: Expr, init: bytearray) -> typing.Self:
-        self.data = data
-        self.offset = offset
-        self.init = init
-
-    def __repr__(self) -> str:
-        return f'{self.data}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
-        return cls(data, offset, init)
-
-
-class Extern:
-    # An external value is the runtime representation of an entity that can be imported or exported. It is an address
-    # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
-
-    def __init__(self, kind: int, data: int) -> typing.Self:
-        assert kind in [0x00, 0x01, 0x02, 0x03]
-        self.kind = kind
-        self.data = data
-
-    def __repr__(self) -> str:
-        prefix = {
-            0x00: 'func',
-            0x01: 'table',
-            0x02: 'mem',
-            0x03: 'global',
-        }[self.kind]
-        return f'{prefix} {self.data}'
-
-
-class ValType:
-    # Value types are encoded by a single byte.
-
-    def __init__(self, data: int) -> typing.Self:
-        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]
-        self.data = data
-
-    def __eq__(self, value: typing.Self) -> bool:
-        return self.data == value.data
-
-    def __hash__(self) -> int:
-        return hash(self.data)
-
-    def __repr__(self) -> str:
-        return {
-            0x7f: 'i32',
-            0x7e: 'i64',
-            0x7d: 'f32',
-            0x7c: 'f64',
-            0x7b: 'v128',
-            0x70: 'ref.func',
-            0x6f: 'ref.extern',
-        }[self.data]
-
-    @classmethod
-    def i32(cls) -> typing.Self:
-        return cls(0x7f)
-
-    @classmethod
-    def i64(cls) -> typing.Self:
-        return cls(0x7e)
-
-    @classmethod
-    def f32(cls) -> typing.Self:
-        return cls(0x7d)
-
-    @classmethod
-    def f64(cls) -> typing.Self:
-        return cls(0x7c)
-
-    @classmethod
-    def v128(cls) -> typing.Self:
-        return cls(0x7b)
-
-    @classmethod
-    def ref_func(cls) -> typing.Self:
-        return cls(0x70)
-
-    @classmethod
-    def ref_extern(cls) -> typing.Self:
-        return cls(0x6f)
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        return cls(ord(r.read(1)))
-
-
-class ValInst:
-    # Values are represented by themselves.
-
-    def __init__(self, type: ValType, data: bytearray) -> typing.Self:
-        assert len(data) == 8
-        self.type = type
-        self.data = data
-
-    def __eq__(self, value: typing.Self) -> bool:
-        return self.type == value.type and self.data == value.data
-
-    def __repr__(self) -> str:
-        return f'{self.type} {self.into_auto()}'
-
-    @classmethod
-    def from_auto(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
-        return {
-            ValType.i32(): cls.from_i32,
-            ValType.i64(): cls.from_i64,
-            ValType.f32(): cls.from_f32,
-            ValType.f64(): cls.from_f64,
-        }[type](data)
-
-    @classmethod
-    def from_i32(cls, n: int) -> typing.Self:
-        n = n & 0xffffffff
-        n = n - ((n & 0x80000000) << 1)
-        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(4))
-
-    @classmethod
-    def from_i64(cls, n: int) -> typing.Self:
-        n = n & 0xffffffffffffffff
-        n = n - ((n & 0x8000000000000000) << 1)
-        return cls(ValType.i64(), bytearray(struct.pack('<q', n)))
-
-    @classmethod
-    def from_u32(cls, n: int) -> typing.Self:
-        n = n & 0xffffffff
-        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(4))
-
-    @classmethod
-    def from_u64(cls, n: int) -> typing.Self:
-        n = n & 0xffffffffffffffff
-        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)))
-
-    @classmethod
-    def from_f32(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
-        n = ctypes.c_float(n).value
-        return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
-
-    @classmethod
-    def from_f32_u32(cls, n: int) -> typing.Self:
-        o = cls.from_u32(n)
-        o.type = ValType.f32()
-        return o
-
-    @classmethod
-    def from_f64(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
-        return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
-
-    @classmethod
-    def from_f64_u64(cls, n: int) -> typing.Self:
-        o = cls.from_u64(n)
-        o.type = ValType.f64()
-        return o
-
-    def into_auto(self) -> typing.Union[int, float]:
-        return {
-            ValType.i32(): self.into_i32,
-            ValType.i64(): self.into_i64,
-            ValType.f32(): self.into_f32,
-            ValType.f64(): self.into_f64,
-        }[self.type]()
-
-    def into_i32(self) -> int:
-        return struct.unpack('<i', self.data[0:4])[0]
-
-    def into_i64(self) -> int:
-        return struct.unpack('<q', self.data[0:8])[0]
-
-    def into_u32(self) -> int:
-        return struct.unpack('<I', self.data[0:4])[0]
-
-    def into_u64(self) -> int:
-        return struct.unpack('<Q', self.data[0:8])[0]
-
-    def into_f32(self) -> float:
-        return struct.unpack('<f', self.data[0:4])[0]
-
-    def into_f64(self) -> float:
-        return struct.unpack('<d', self.data[0:8])[0]
-
-
 class LocalsDesc:
     # The locals declare a vector of mutable local variables and their types. These variables are referenced through
     # local indices in the function’s body. The index of the first local is the smallest index not referencing a
@@ -578,6 +439,29 @@ class FuncDesc:
     @classmethod
     def from_reader_code(cls, r: typing.BinaryIO) -> typing.Self:
         return cls(0, [LocalsDesc.from_reader(r) for _ in range(pywasm.leb128.u.decode_reader(r)[0])], Expr.from_reader(r))
+
+
+class Limits:
+    # Limits are encoded with a preceding flag indicating whether a maximum is present.
+
+    def __init__(self, n: int, m: int) -> typing.Self:
+        self.n = n
+        self.m = m
+
+    def __repr__(self) -> str:
+        m = 'inf' if self.m == 0 else repr(self.m)
+        return f'[{self.n}, {m}]'
+
+    def suit(self, value: typing.Self) -> bool:
+        c1 = self.n >= value.n
+        c2 = value.m == 0
+        c3 = self.m != 0 and value.m != 0 and self.m <= value.m
+        return c1 and (c2 or c3)
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        flag = ord(r.read(1))
+        return cls(pywasm.leb128.u.decode_reader(r)[0],  pywasm.leb128.u.decode_reader(r)[0] if flag else 0x00)
 
 
 class MemType:
@@ -700,6 +584,122 @@ class GlobalInst:
 
     def __repr__(self) -> str:
         return f'{self.data}'
+
+
+class Custom:
+    # Custom sections have the id 0. They are intended to be used for debugging information or third-party extensions,
+    # and are ignored by the WebAssembly semantics. Their contents consist of a name further identifying the custom
+    # section, followed by an uninterpreted sequence of bytes for custom use.
+
+    def __init__(self, name: str, data: bytearray) -> typing.Self:
+        self.name = name
+        self.data = data
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        n = pywasm.leb128.u.decode_reader(r)[0]
+        return cls(r.read(n).decode(), bytearray(r.read(-1)))
+
+
+class Import:
+    # The imports component of a module defines a set of imports that are required for instantiation.
+    #
+    # Each import is labeled by a two-level name space, consisting of a module name and a name for an entity within
+    # that module. Importable definitions are functions, tables, memories, and globals. Each import is specified by a
+    # descriptor with a respective type that a definition provided during instantiation is required to match. Every
+    # import defines an index in the respective index space. In each index space, the indices of imports go before the
+    # first index of any definition contained in the module itself.
+
+    def __init__(self, module: str, name: str, kind: int, desc: typing.Any) -> typing.Self:
+        self.module = module
+        self.name = name
+        self.kind = kind
+        self.desc = desc
+
+    def __repr__(self) -> str:
+        kind = {
+            0x00: 'func',
+            0x01: 'table',
+            0x02: 'mem',
+            0x03: 'global'
+        }[self.kind]
+        return f'{self.module}.{self.name} {kind} {self.desc}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        n = pywasm.leb128.u.decode_reader(r)[0]
+        module = r.read(n).decode()
+        n = pywasm.leb128.u.decode_reader(r)[0]
+        name = r.read(n).decode()
+        type = ord(r.read(1))
+        desc = {
+            0x00: lambda r: pywasm.leb128.u.decode_reader(r)[0],
+            0x01: TableType.from_reader,
+            0x02: MemType.from_reader,
+            0x03: GlobalType.from_reader,
+        }[type](r)
+        return cls(module, name, type, desc)
+
+
+class Elem:
+    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+    # The offset is given by a constant expression.
+
+    def __init__(self, data: int, offset: Expr, init: typing.List[int]) -> typing.Self:
+        self.data = data
+        self.offset = offset
+        self.init = init
+
+    def __repr__(self) -> str:
+        return f'{self.data}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        data = pywasm.leb128.u.decode_reader(r)[0]
+        offset = Expr.from_reader(r)
+        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
+        return cls(data, offset, init)
+
+
+class Data:
+    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
+    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
+    # The offset is given by a constant expression.
+
+    def __init__(self, data: int, offset: Expr, init: bytearray) -> typing.Self:
+        self.data = data
+        self.offset = offset
+        self.init = init
+
+    def __repr__(self) -> str:
+        return f'{self.data}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        data = pywasm.leb128.u.decode_reader(r)[0]
+        offset = Expr.from_reader(r)
+        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
+        return cls(data, offset, init)
+
+
+class Extern:
+    # An external value is the runtime representation of an entity that can be imported or exported. It is an address
+    # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
+
+    def __init__(self, kind: int, data: int) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02, 0x03]
+        self.kind = kind
+        self.data = data
+
+    def __repr__(self) -> str:
+        prefix = {
+            0x00: 'func',
+            0x01: 'table',
+            0x02: 'mem',
+            0x03: 'global',
+        }[self.kind]
+        return f'{prefix} {self.data}'
 
 
 class ExportDesc:
