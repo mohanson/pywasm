@@ -656,48 +656,6 @@ class Import:
         return cls(module, name, type, desc)
 
 
-class Elem:
-    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
-    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
-    # The offset is given by a constant expression.
-
-    def __init__(self, data: int, offset: Expr, init: typing.List[int]) -> typing.Self:
-        self.data = data
-        self.offset = offset
-        self.init = init
-
-    def __repr__(self) -> str:
-        return f'{self.data}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
-        return cls(data, offset, init)
-
-
-class Data:
-    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
-    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
-    # The offset is given by a constant expression.
-
-    def __init__(self, data: int, offset: Expr, init: bytearray) -> typing.Self:
-        self.data = data
-        self.offset = offset
-        self.init = init
-
-    def __repr__(self) -> str:
-        return f'{self.data}'
-
-    @classmethod
-    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
-        return cls(data, offset, init)
-
-
 class Extern:
     # An external value is the runtime representation of an entity that can be imported or exported. It is an address
     # denoting either a function instance, table instance, memory instance, or global instances in the shared store.
@@ -757,6 +715,48 @@ class ExportInst:
 
     def __repr__(self):
         return f'{self.name} {self.data}'
+
+
+class Elem:
+    # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
+    # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
+    # The offset is given by a constant expression.
+
+    def __init__(self, data: int, offset: Expr, init: typing.List[int]) -> typing.Self:
+        self.data = data
+        self.offset = offset
+        self.init = init
+
+    def __repr__(self) -> str:
+        return f'{self.data}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        data = pywasm.leb128.u.decode_reader(r)[0]
+        offset = Expr.from_reader(r)
+        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
+        return cls(data, offset, init)
+
+
+class Data:
+    # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
+    # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
+    # The offset is given by a constant expression.
+
+    def __init__(self, data: int, offset: Expr, init: bytearray) -> typing.Self:
+        self.data = data
+        self.offset = offset
+        self.init = init
+
+    def __repr__(self) -> str:
+        return f'{self.data}'
+
+    @classmethod
+    def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
+        data = pywasm.leb128.u.decode_reader(r)[0]
+        offset = Expr.from_reader(r)
+        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
+        return cls(data, offset, init)
 
 
 class ModuleDesc:
