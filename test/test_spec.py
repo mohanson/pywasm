@@ -37,8 +37,8 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
 
 
 def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
-    a = a.into_auto()
-    b = b.into_auto()
+    a = a.into_num()
+    b = b.into_num()
     if isinstance(a, int):
         return a == b
     if isinstance(a, float):

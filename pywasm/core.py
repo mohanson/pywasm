@@ -77,16 +77,7 @@ class ValInst:
         return self.type == value.type and self.data == value.data
 
     def __repr__(self) -> str:
-        return f'{self.type} {self.into_auto()}'
-
-    @classmethod
-    def from_auto(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
-        return {
-            ValType.i32(): cls.from_i32,
-            ValType.i64(): cls.from_i64,
-            ValType.f32(): cls.from_f32,
-            ValType.f64(): cls.from_f64,
-        }[type](data)
+        return f'{self.type} {self.into_num()}'
 
     @classmethod
     def from_i32(cls, n: int) -> typing.Self:
@@ -133,13 +124,14 @@ class ValInst:
         o.type = ValType.f64()
         return o
 
-    def into_auto(self) -> typing.Union[int, float]:
+    @classmethod
+    def from_num(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
         return {
-            ValType.i32(): self.into_i32,
-            ValType.i64(): self.into_i64,
-            ValType.f32(): self.into_f32,
-            ValType.f64(): self.into_f64,
-        }[self.type]()
+            ValType.i32(): cls.from_i32,
+            ValType.i64(): cls.from_i64,
+            ValType.f32(): cls.from_f32,
+            ValType.f64(): cls.from_f64,
+        }[type](data)
 
     def into_i32(self) -> int:
         return struct.unpack('<i', self.data[0:4])[0]
@@ -158,6 +150,14 @@ class ValInst:
 
     def into_f64(self) -> float:
         return struct.unpack('<d', self.data[0:8])[0]
+
+    def into_num(self) -> typing.Union[int, float]:
+        return {
+            ValType.i32(): self.into_i32,
+            ValType.i64(): self.into_i64,
+            ValType.f32(): self.into_f32,
+            ValType.f64(): self.into_f64,
+        }[self.type]()
 
 
 class Bype:
@@ -1327,14 +1327,14 @@ class Machine:
             case 0x01:
                 match nret:
                     case 0x00:
-                        rets = func.hostcode(self, *[e.into_auto() for e in args])
+                        rets = func.hostcode(self, *[e.into_num() for e in args])
                         assert rets is None
                     case 0x01:
-                        rets = func.hostcode(self, *[e.into_auto() for e in args])
-                        self.stack.value.append(ValInst.from_auto(func.type.rets[0], rets))
+                        rets = func.hostcode(self, *[e.into_num() for e in args])
+                        self.stack.value.append(ValInst.from_num(func.type.rets[0], rets))
                     case _:
-                        rets = func.hostcode(self, *[e.into_auto() for e in args])
-                        rets = [ValInst.from_auto(a, b) for a, b in zip(func.type.rets, rets)]
+                        rets = func.hostcode(self, *[e.into_num() for e in args])
+                        rets = [ValInst.from_num(a, b) for a, b in zip(func.type.rets, rets)]
                         self.stack.value.extend(rets)
             case _:
                 assert 0
@@ -2393,7 +2393,7 @@ class Runtime:
                 case 0x03:
                     match imps[e.module][e.name]:
                         case x if isinstance(x, (int, float)):
-                            glob = ValInst.from_auto(e.desc.type, imps[e.module][e.name])
+                            glob = ValInst.from_num(e.desc.type, imps[e.module][e.name])
                             addr = self.machine.store.allocate_global(e.desc, glob)
                             extern.append(Extern(0x03, addr))
                         case _:
@@ -2410,6 +2410,6 @@ class Runtime:
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
         addr = [e for e in module.exps if e.name == func][0].data.data
         func = self.machine.store.func[addr]
-        args = [ValInst.from_auto(a, b) for a, b in zip(func.type.args, args)]
+        args = [ValInst.from_num(a, b) for a, b in zip(func.type.args, args)]
         rets = self.machine.invocate(addr, args)
-        return [e.into_auto() for e in rets]
+        return [e.into_num() for e in rets]
