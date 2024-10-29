@@ -265,6 +265,10 @@ class Inst:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             case pywasm.opcode.global_set:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_get:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_set:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             case pywasm.opcode.i32_load:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
@@ -1364,6 +1368,10 @@ class Machine:
                     glob = self.store.glob[frame.module.glob[instr.args[0]]]
                     assert glob.mut == 0x01
                     glob.data = self.stack.value.pop()
+                case pywasm.opcode.table_get:
+                    assert 0
+                case pywasm.opcode.table_set:
+                    assert 0
                 case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
                     self.stack.value.append(a)
