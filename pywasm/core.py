@@ -82,9 +82,11 @@ class ValInst:
             case 0x7c:
                 return f'{self.type} {self.into_f64()}'
             case 0x70:
-                return f'{self.type} {self.into_ref()}'
+                body = repr(self.into_ref()) if self.data[4] != 0x00 else 'null'
+                return f'{self.type} {body}'
             case 0x6f:
-                return f'{self.type} {self.into_ref()}'
+                body = repr(self.into_ref()) if self.data[4] != 0x00 else 'null'
+                return f'{self.type} {body}'
 
     @classmethod
     def from_i32(cls, n: int) -> typing.Self:

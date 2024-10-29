@@ -1,1 +1,1 @@
-(memory 0) (import "" "" (memory 1 2))
+(global i64 (i64.const 0)) (import "" "" (table 0 funcref))
