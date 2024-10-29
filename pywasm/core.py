@@ -829,6 +829,14 @@ class Elem:
         return cls(kind, type, tidx, offset, init)
 
 
+class ElemInst:
+    # An element instance is the runtime representation of an element segment. It holds a vector of references and
+    # their common type.
+
+    def __init__(self) -> typing.Self:
+        pass
+
+
 class Data:
     # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
     # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
@@ -866,6 +874,13 @@ class Data:
                 offset = Expr.from_reader(r)
                 init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
         return cls(kind, midx, offset, init)
+
+
+class DataInst:
+    # An data instance is the runtime representation of a data segment. It holds a vector of bytes.
+
+    def __init__(self) -> typing.Self:
+        pass
 
 
 class ModuleDesc:
@@ -1010,6 +1025,8 @@ class ModuleInst:
         self.tabl: typing.List[int] = []
         self.mems: typing.List[int] = []
         self.glob: typing.List[int] = []
+        self.elem: typing.List[int] = []
+        self.data: typing.List[int] = []
         self.exps: typing.List[ExportInst] = []
 
 
@@ -1051,6 +1068,8 @@ class Store:
         self.tabl: typing.List[TableInst] = []
         self.mems: typing.List[MemInst] = []
         self.glob: typing.List[GlobalInst] = []
+        self.elem: typing.List[ElemInst] = []
+        self.data: typing.List[DataInst] = []
 
     def allocate_func_wasm(self, module: ModuleInst, func: FuncDesc) -> int:
         addr = len(self.func)
