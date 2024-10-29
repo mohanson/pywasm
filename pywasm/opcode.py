@@ -193,6 +193,8 @@ i64_trunc_sat_f64_s = 0xfc06
 i64_trunc_sat_f64_u = 0xfc07
 memory_init = 0xfc08
 data_drop = 0xfc09
+memory_copy = 0xfc0a
+memory_fill = 0xfc0b
 
 name: typing.Dict[int, str] = {}
 name[unreachable] = 'unreachable'
@@ -388,3 +390,5 @@ name[i64_trunc_sat_f64_s] = 'i64.trunc_sat_f64_s'
 name[i64_trunc_sat_f64_u] = 'i64.trunc_sat_f64_u'
 name[memory_init] = 'memory.init'
 name[data_drop] = 'data.drop'
+name[memory_copy] = 'memory.copy'
+name[memory_fill] = 'memory.fill'

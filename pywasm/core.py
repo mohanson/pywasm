@@ -2232,6 +2232,10 @@ class Machine:
                     assert 0
                 case pywasm.opcode.data_drop:
                     assert 0
+                case pywasm.opcode.memory_copy:
+                    assert 0
+                case pywasm.opcode.memory_fill:
+                    assert 0
                 case _:
                     assert 0
 
