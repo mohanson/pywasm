@@ -1305,7 +1305,7 @@ class Machine:
             expr.extend(e.offset.data)
             expr.append(Inst(pywasm.opcode.i32_const, [0]))
             expr.append(Inst(pywasm.opcode.i32_const, [len(e.init)]))
-            expr.append(Inst(pywasm.opcode.table_init, [e.tidx, i]))
+            expr.append(Inst(pywasm.opcode.table_init, [i, e.tidx]))
             expr.append(Inst(pywasm.opcode.elem_drop, [i]))
             self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
             self.evaluate()
@@ -2446,8 +2446,8 @@ class Machine:
                     for i in range(n):
                         mems.data[d+i] = s
                 case pywasm.opcode.table_init:
-                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    elem = self.store.elem[frame.module.elem[instr.args[1]]]
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
+                    elem = self.store.elem[frame.module.elem[instr.args[0]]]
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().into_i32()
                     d = self.stack.value.pop().into_i32()
