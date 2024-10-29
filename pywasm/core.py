@@ -2418,7 +2418,8 @@ class Machine:
                     # The instruction prevents further use of a passive element segment. This instruction is intended
                     # to be used as an optimization hint. After an element segment is dropped its elements can no
                     # longer be retrieved, so the memory used by this segment may be freed.
-                    assert 1
+                    elem = self.store.elem[frame.module.elem[instr.args[0]]]
+                    elem.data.clear()
                 case pywasm.opcode.table_copy:
                     assert 0
                 case pywasm.opcode.table_grow:
