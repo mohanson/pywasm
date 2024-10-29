@@ -595,7 +595,7 @@ class TableInst:
 
     def __init__(self, type: TableType) -> typing.Self:
         self.type = type
-        self.elem = [0 for _ in range(type.limits.n)]
+        self.elem: typing.List[ValInst] = [ValInst(type.type, bytearray(8)) for _ in range(type.limits.n)]
 
 
 class GlobalType:
@@ -840,7 +840,7 @@ class ElemInst:
     # An element instance is the runtime representation of an element segment. It holds a vector of references and
     # their common type.
 
-    def __init__(self, type: ValType, data: typing.List[ValType]) -> typing.Self:
+    def __init__(self, type: ValType, data: typing.List[ValInst]) -> typing.Self:
         assert type in [ValType.ref_func(), ValType.ref_extern()]
         self.type = type
         self.data = data
@@ -1289,25 +1289,19 @@ class Machine:
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
         pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
-            self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
+            if e.kind & 0x01 != 0x00:
+                continue
+            expr = []
+            expr.extend(e.offset.data)
+            expr.append(Inst(pywasm.opcode.i32_const, [0]))
+            expr.append(Inst(pywasm.opcode.i32_const, [len(e.init)]))
+            expr.append(Inst(pywasm.opcode.table_init, [e.tidx, i]))
+            expr.append(Inst(pywasm.opcode.elem_drop, [i]))
+            self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
-            assert len(self.stack.value) == 1
-            rets = self.stack.value.pop()
-            assert rets.type == ValType.i32()
-            pywasm.log.debugln(f'    {i:>3d} {rets}')
-            tabl = self.store.tabl[newmod.tabl[e.tidx]]
-            offs = rets.into_i32()
-            for i, e in enumerate(e.init):
-                self.stack.label.append(Label(1, 1, 0, 1, e.data, 0))
-                self.evaluate()
-                assert len(self.stack.frame) == 1
-                assert len(self.stack.label) == 0
-                assert len(self.stack.value) == 1
-                rets = self.stack.value.pop()
-                assert rets.type == ValType.ref_func()
-                tabl.elem[offs + i] = rets.into_i32()
+            assert len(self.stack.value) == 0
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
             self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
@@ -1519,7 +1513,7 @@ class Machine:
                 case pywasm.opcode.call_indirect:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     type = frame.module.type[instr.args[0]]
-                    addr = tabl.elem[self.stack.value.pop().into_i32()]
+                    addr = tabl.elem[self.stack.value.pop().into_i32()].into_ref()
                     assert self.store.func[addr].type == type
                     self.evaluate_call(addr)
                 case pywasm.opcode.drop:
@@ -2414,9 +2408,17 @@ class Machine:
                 case pywasm.opcode.memory_fill:
                     assert 0
                 case pywasm.opcode.table_init:
-                    assert 0
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
+                    elem = self.store.elem[frame.module.elem[instr.args[1]]]
+                    n = self.stack.value.pop().into_i32()
+                    s = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_i32()
+                    tabl.elem[d:d+n] = elem.data[s:s+n]
                 case pywasm.opcode.elem_drop:
-                    assert 0
+                    # The instruction prevents further use of a passive element segment. This instruction is intended
+                    # to be used as an optimization hint. After an element segment is dropped its elements can no
+                    # longer be retrieved, so the memory used by this segment may be freed.
+                    assert 1
                 case pywasm.opcode.table_copy:
                     assert 0
                 case pywasm.opcode.table_grow:
