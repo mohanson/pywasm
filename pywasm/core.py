@@ -2459,7 +2459,12 @@ class Machine:
                     elem = self.store.elem[frame.module.elem[instr.args[0]]]
                     elem.data.clear()
                 case pywasm.opcode.table_copy:
-                    assert 0
+                    tabx = self.store.tabl[frame.module.tabl[instr.args[0]]]
+                    taby = self.store.tabl[frame.module.tabl[instr.args[1]]]
+                    n = self.stack.value.pop().into_i32()
+                    s = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_i32()
+                    tabx.elem[d:d+n] = taby.elem[s:s+n]
                 case pywasm.opcode.table_grow:
                     assert 0
                 case pywasm.opcode.table_size:
