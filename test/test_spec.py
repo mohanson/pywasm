@@ -41,14 +41,24 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
 
 
 def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
-    a = a.into_num()
-    b = b.into_num()
-    if isinstance(a, int):
-        return a == b
-    if isinstance(a, float):
-        if math.isnan(a):
-            return math.isnan(b)
-        return math.isclose(a, b, rel_tol=1e-6)
+    if a.type != b.type:
+        return False
+    if a.type == pywasm.core.ValType.i32():
+        return a.into_i32() == b.into_i32()
+    if a.type == pywasm.core.ValType.i64():
+        return a.into_i64() == b.into_i64()
+    if a.type == pywasm.core.ValType.f32():
+        if math.isnan(a.into_f32()):
+            return math.isnan(b.into_f32())
+        return math.isclose(a.into_f32(), b.into_f32(), rel_tol=1e-6)
+    if a.type == pywasm.core.ValType.f64():
+        if math.isnan(a.into_f64()):
+            return math.isnan(b.into_f64())
+        return math.isclose(a.into_f64(), b.into_f64(), rel_tol=1e-6)
+    if a.type == pywasm.core.ValType.ref_func():
+        return a.into_i64() == b.into_i64()
+    if a.type == pywasm.core.ValType.ref_extern():
+        return a.into_i64() == b.into_i64()
     assert 0
 
 
