@@ -833,8 +833,13 @@ class ElemInst:
     # An element instance is the runtime representation of an element segment. It holds a vector of references and
     # their common type.
 
-    def __init__(self) -> typing.Self:
-        pass
+    def __init__(self, type: ValType, data: typing.List[ValType]) -> typing.Self:
+        assert type in [ValType.ref_func(), ValType.ref_extern()]
+        self.type = type
+        self.data = data
+
+    def __repr__(self) -> str:
+        return f'{self.type}'
 
 
 class DataDesc:
@@ -879,8 +884,11 @@ class DataDesc:
 class DataInst:
     # An data instance is the runtime representation of a data segment. It holds a vector of bytes.
 
-    def __init__(self) -> typing.Self:
-        pass
+    def __init__(self, data: bytearray) -> typing.Self:
+        self.data = data
+
+    def __repr__(self) -> str:
+        return f'data'
 
 
 class ModuleDesc:
