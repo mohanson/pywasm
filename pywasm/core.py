@@ -263,6 +263,11 @@ class Inst:
             o.args.append(ord(r.read(1)))
             return o
         if o.opcode in [
+            pywasm.opcode.select_type
+        ]:
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            return o
+        if o.opcode in [
             pywasm.opcode.local_get,
             pywasm.opcode.local_set,
             pywasm.opcode.local_tee,
@@ -330,6 +335,16 @@ class Inst:
             pywasm.opcode.f64_const,
         ]:
             o.args.append(struct.unpack('<q', r.read(8))[0])
+            return o
+        if o.opcode in [
+            pywasm.opcode.ref_null,
+        ]:
+            o.args.append(ord(r.read(1)))
+            return o
+        if o.opcode in [
+            pywasm.opcode.ref_func,
+        ]:
+            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             return o
         if o.opcode in [
             0xfc,
@@ -1323,6 +1338,12 @@ class Machine:
                     a = self.stack.value.pop()
                     d = a if c != 0 else b
                     self.stack.value.append(d)
+                case pywasm.opcode.select_type:
+                    c = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop()
+                    a = self.stack.value.pop()
+                    d = a if c != 0 else b
+                    self.stack.value.append(d)
                 case pywasm.opcode.local_get:
                     a = self.stack.frame[-1].locals.data[instr.args[0]]
                     self.stack.value.append(a)
@@ -2119,6 +2140,21 @@ class Machine:
                     c = b - ((b & 0x80000000) << 1)
                     d = ValInst.from_i64(c)
                     self.stack.value.append(d)
+                case pywasm.opcode.ref_null:
+                    a = ValInst.from_i32(-1)
+                    a.type == ValType(instr.args[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.ref_is_null:
+                    a = self.stack.value.pop()
+                    assert a.type in [ValType.ref_func(), ValType.ref_extern()]
+                    b = 1 if a.into_i32() == -1 else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.ref_func:
+                    a = frame.module.func[instr.args[0]]
+                    b = ValInst.from_i32(a)
+                    b.type = ValType.ref_func()
+                    self.stack.value.append(b)
                 case pywasm.opcode.i32_trunc_sat_f32_s:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
