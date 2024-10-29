@@ -364,6 +364,20 @@ class Inst:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                     case pywasm.opcode.data_drop:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.table_init:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.elem_drop:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.table_copy:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.table_grow:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.table_size:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.table_fill:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
         return o
 
 
@@ -2235,6 +2249,18 @@ class Machine:
                 case pywasm.opcode.memory_copy:
                     assert 0
                 case pywasm.opcode.memory_fill:
+                    assert 0
+                case pywasm.opcode.table_init:
+                    assert 0
+                case pywasm.opcode.elem_drop:
+                    assert 0
+                case pywasm.opcode.table_copy:
+                    assert 0
+                case pywasm.opcode.table_grow:
+                    assert 0
+                case pywasm.opcode.table_size:
+                    assert 0
+                case pywasm.opcode.table_fill:
                     assert 0
                 case _:
                     assert 0
