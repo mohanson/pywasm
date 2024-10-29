@@ -1433,19 +1433,19 @@ class Machine:
                 assert 0
 
     def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
-        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         addr = self.stack.value.pop().into_i32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(inst.data)
-        return inst.data[addr:addr+size]
+        assert addr >= 0 and addr + size <= len(mems.data)
+        return mems.data[addr:addr+size]
 
     def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
-        inst = self.store.mems[self.stack.frame[-1].module.mems[0]]
+        mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         data = self.stack.value.pop().data
         addr = self.stack.value.pop().into_i32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(inst.data)
-        inst.data[addr:addr+size] = data[:size]
+        assert addr >= 0 and addr + size <= len(mems.data)
+        mems.data[addr:addr+size] = data[:size]
 
     def evaluate(self) -> None:
         for _ in range(1 << 32):
@@ -2431,11 +2431,10 @@ class Machine:
                 case pywasm.opcode.memory_fill:
                     mems = self.store.mems[frame.module.mems[0]]
                     n = self.stack.value.pop().into_i32()
+                    s = self.stack.value.pop().data[0]
+                    d = self.stack.value.pop().into_i32()
                     for i in range(n):
-                        self.evaluate_mem_save(i, 1)
-                    # s = self.stack.value.pop().into_i32()
-                    # d = self.stack.value.pop().into_i32()
-                    # mems.data[d:d+n] = s
+                        mems.data[d+i] = s
                 case pywasm.opcode.table_init:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     elem = self.store.elem[frame.module.elem[instr.args[1]]]
