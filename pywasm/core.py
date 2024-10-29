@@ -749,20 +749,76 @@ class Elem:
     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
     # The offset is given by a constant expression.
 
-    def __init__(self, data: int, offset: Expr, init: typing.List[int]) -> typing.Self:
-        self.data = data
+    def __init__(self, kind: int, type: ValType, tidx: int, offset: Expr, init: typing.List[Expr]) -> typing.Self:
+        assert kind >= 0x00
+        assert kind <= 0x07
+        assert type == ValType.ref_func()
+        self.kind = kind
+        self.type = type
+        self.tidx = tidx
         self.offset = offset
         self.init = init
 
     def __repr__(self) -> str:
-        return f'{self.data}'
+        return f'{self.tidx}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = [pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])]
-        return cls(data, offset, init)
+        kind = pywasm.leb128.u.decode_reader(r)[0]
+        type = ValType.ref_func()
+        tidx = 0
+        offset = Expr([])
+        init = []
+        match kind:
+            case 0x00:
+                offset = Expr.from_reader(r)
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    fidx = pywasm.leb128.u.decode_reader(r)[0]
+                    expr = Expr([Inst(pywasm.opcode.ref_func, [fidx])])
+                    init.append(expr)
+            case 0x01:
+                assert ord(r.read(1)) == 0x00
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    fidx = pywasm.leb128.u.decode_reader(r)[0]
+                    expr = Expr([Inst(pywasm.opcode.ref_func, [fidx])])
+                    init.append(expr)
+            case 0x02:
+                tidx = pywasm.leb128.u.decode_reader(r)[0]
+                offset = Expr.from_reader(r)
+                assert ord(r.read(1)) == 0x00
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    fidx = pywasm.leb128.u.decode_reader(r)[0]
+                    expr = Expr([Inst(pywasm.opcode.ref_func, [fidx])])
+                    init.append(expr)
+            case 0x03:
+                assert ord(r.read(1)) == 0x00
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    fidx = pywasm.leb128.u.decode_reader(r)[0]
+                    expr = Expr([Inst(pywasm.opcode.ref_func, [fidx])])
+                    init.append(expr)
+            case 0x04:
+                offset = Expr.from_reader(r)
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    expr = Expr.from_reader(r)
+                    init.append(expr)
+            case 0x05:
+                type = ValType.from_reader(r)
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    expr = Expr.from_reader(r)
+                    init.append(expr)
+            case 0x06:
+                tidx = pywasm.leb128.u.decode_reader(r)[0]
+                offset = Expr.from_reader(r)
+                type = ValType.from_reader(r)
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    expr = Expr.from_reader(r)
+                    init.append(expr)
+            case 0x07:
+                type = ValType.from_reader(r)
+                for _ in range(pywasm.leb128.u.decode_reader(r)[0]):
+                    expr = Expr.from_reader(r)
+                    init.append(expr)
+        return cls(kind, type, tidx, offset, init)
 
 
 class Data:
@@ -1157,10 +1213,19 @@ class Machine:
             rets = self.stack.value.pop()
             assert rets.type == ValType.i32()
             pywasm.log.debugln(f'    {i:>3d} {rets}')
-            tabl = self.store.tabl[newmod.tabl[e.data]]
+            tabl = self.store.tabl[newmod.tabl[e.tidx]]
             offs = rets.into_i32()
             for i, e in enumerate(e.init):
-                tabl.elem[offs + i] = newmod.func[e]
+                print(e)
+                self.stack.label.append(Label(1, 1, 0, 1, e.data, 0))
+                self.evaluate()
+                assert len(self.stack.frame) == 1
+                assert len(self.stack.label) == 0
+                assert len(self.stack.value) == 1
+                rets = self.stack.value.pop()
+                assert rets.type == ValType.ref_func()
+                print(newmod.func, rets.into_i32())
+                tabl.elem[offs + i] = rets.into_i32()
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
             self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
