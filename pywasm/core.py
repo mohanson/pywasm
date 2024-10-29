@@ -1116,6 +1116,18 @@ class Store:
         self.glob.append(inst)
         return addr
 
+    def allocate_elem(self, type: ValType, data: typing.List[ValInst]) -> int:
+        addr = len(self.elem)
+        inst = ElemInst(type, data)
+        self.elem.append(inst)
+        return addr
+
+    def allocate_data(self, data: bytearray) -> int:
+        addr = len(self.data)
+        inst = DataInst(data)
+        self.data.append(inst)
+        return addr
+
 
 class Label:
     # Labels carry an argument arity n and their associated branch target, which is expressed syntactically as an
@@ -1205,6 +1217,12 @@ class Machine:
         for i, e in enumerate(module.glob):
             addr = self.store.allocate_global(e.type, globin[i])
             inst.glob.append(addr)
+        for i, e in enumerate(module.elem):
+            addr = self.store.allocate_elem(e.type, elemin[i])
+            inst.elem.append(addr)
+        for i, e in enumerate(module.data):
+            addr = self.store.allocate_data(e.init)
+            inst.data.append(addr)
         for _, e in enumerate(module.exps):
             expi = ExportInst(e.name, Extern(e.kind, 0))
             match e.kind:
