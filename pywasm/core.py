@@ -1174,7 +1174,13 @@ class Machine:
         self.store = Store()
         self.stack = Stack()
 
-    def allocate(self, module: ModuleDesc, extern: typing.List[Extern], globin: typing.List[ValInst]) -> ModuleInst:
+    def allocate(
+        self,
+        module: ModuleDesc,
+        extern: typing.List[Extern],
+        globin: typing.List[ValInst],
+        elemin: typing.List[typing.List[ValInst]]
+    ) -> ModuleInst:
         inst = ModuleInst()
         inst.type = module.type
         for e in extern:
@@ -1260,7 +1266,7 @@ class Machine:
                 l.append(rets)
             elemin.append(l)
         self.stack.frame.pop()
-        newmod = self.allocate(module, extern, globin)
+        newmod = self.allocate(module, extern, globin, elemin)
         assert newmod.func == auxmod.func
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
         pywasm.log.debugln('init elem')
