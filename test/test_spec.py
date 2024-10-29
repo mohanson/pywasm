@@ -32,6 +32,10 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
                     return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
                 case _:
                     return pywasm.ValInst.from_f64_u64(int(j['value']))
+        case 'funcref':
+            assert 0
+        case 'externref':
+            return pywasm.ValInst.from_ref(pywasm.core.ValType.ref_extern(), int(j['value']))
         case _:
             assert 0
 

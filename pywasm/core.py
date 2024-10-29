@@ -12,7 +12,7 @@ class ValType:
     # Value types are encoded by a single byte.
 
     def __init__(self, data: int) -> typing.Self:
-        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x70, 0x6f]
         self.data = data
 
     def __eq__(self, value: typing.Self) -> bool:
@@ -201,7 +201,7 @@ class Bype:
         n = ord(r.read(1))
         if n == 0x40:
             return cls(0x00, 0x40)
-        if n in [0x7f, 0x7e, 0x7d, 0x7c]:
+        if n in [0x7f, 0x7e, 0x7d, 0x7c, 0x70, 0x6f]:
             return cls(0x01, n)
         r.seek(-1, 1)
         return cls(0x02, pywasm.leb128.i.decode_reader(r)[0])
