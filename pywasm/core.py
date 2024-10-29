@@ -125,13 +125,17 @@ class ValInst:
         return o
 
     @classmethod
-    def from_num(cls, type: ValType, data: typing.Union[int, float]) -> typing.Self:
+    def from_num(cls, type: ValType, n: typing.Union[int, float]) -> typing.Self:
         return {
             ValType.i32(): cls.from_i32,
             ValType.i64(): cls.from_i64,
             ValType.f32(): cls.from_f32,
             ValType.f64(): cls.from_f64,
-        }[type](data)
+        }[type](n)
+
+    @classmethod
+    def from_ref(cls, type: ValType, n: int) -> typing.Self:
+        return cls(type, bytearray(struct.pack('<i', n)) + bytearray([0x01, 0x00, 0x00, 0x00]))
 
     def into_i32(self) -> int:
         return struct.unpack('<i', self.data[0:4])[0]
@@ -158,6 +162,10 @@ class ValInst:
             ValType.f32(): self.into_f32,
             ValType.f64(): self.into_f64,
         }[self.type]()
+
+    def into_ref(self) -> int:
+        assert self.data[4] == 0x01
+        return self.into_i32()
 
 
 class Bype:
@@ -2255,19 +2263,17 @@ class Machine:
                     d = ValInst.from_i64(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.ref_null:
-                    a = ValInst.from_i32(-1)
-                    a.type == ValType(instr.args[0])
+                    a = ValInst(ValType(instr.args[0]), bytearray(8))
                     self.stack.value.append(a)
                 case pywasm.opcode.ref_is_null:
                     a = self.stack.value.pop()
                     assert a.type in [ValType.ref_func(), ValType.ref_extern()]
-                    b = 1 if a.into_i32() == -1 else 0
+                    b = 0x01 if a.data[4] == 0x00 else 0x00
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.ref_func:
                     a = frame.module.func[instr.args[0]]
-                    b = ValInst.from_i32(a)
-                    b.type = ValType.ref_func()
+                    b = ValInst.from_ref(ValType.ref_func(), a)
                     self.stack.value.append(b)
                 case pywasm.opcode.i32_trunc_sat_f32_s:
                     a = self.stack.value.pop().into_f32()
