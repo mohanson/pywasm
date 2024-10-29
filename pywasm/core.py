@@ -752,7 +752,7 @@ class ExportInst:
         return f'{self.name} {self.data}'
 
 
-class Elem:
+class ElemDesc:
     # The initial contents of a table is uninitialized. The elem component of a module defines a vector of element
     # segments that initialize a subrange of a table, at a given offset, from a static vector of elements.
     # The offset is given by a constant expression.
@@ -837,7 +837,7 @@ class ElemInst:
         pass
 
 
-class Data:
+class DataDesc:
     # The initial contents of a memory are zero-valued bytes. The data component of a module defines a vector of data
     # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
     # The offset is given by a constant expression.
@@ -895,8 +895,8 @@ class ModuleDesc:
         tabl: typing.List[TableType],
         mems: typing.List[MemType],
         glob: typing.List[GlobalDesc],
-        elem: typing.List[Elem],
-        data: typing.List[Data],
+        elem: typing.List[ElemDesc],
+        data: typing.List[DataDesc],
         star: int,
         imps: typing.List[Import],
         exps: typing.List[ExportDesc]
@@ -922,8 +922,8 @@ class ModuleDesc:
         tabl: typing.List[TableType] = []
         mems: typing.List[MemType] = []
         glob: typing.List[GlobalDesc] = []
-        elem: typing.List[Elem] = []
-        data: typing.List[Data] = []
+        elem: typing.List[ElemDesc] = []
+        data: typing.List[DataDesc] = []
         star: int = -1
         imps: typing.List[Import] = []
         exps: typing.List[ExportDesc] = []
@@ -991,7 +991,7 @@ class ModuleDesc:
                 case 0x09:
                     pywasm.log.debugln('section elem')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
-                        desc = Elem.from_reader(section_reader)
+                        desc = ElemDesc.from_reader(section_reader)
                         elem.append(desc)
                         pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0a:
@@ -1005,7 +1005,7 @@ class ModuleDesc:
                 case 0x0b:
                     pywasm.log.debugln('section data')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
-                        desc = Data.from_reader(section_reader)
+                        desc = DataDesc.from_reader(section_reader)
                         data.append(desc)
                         pywasm.log.debugln(f'    {i:>3d} {desc}')
                 case 0x0c:
