@@ -2429,7 +2429,13 @@ class Machine:
                 case pywasm.opcode.memory_copy:
                     assert 0
                 case pywasm.opcode.memory_fill:
-                    assert 0
+                    mems = self.store.mems[frame.module.mems[0]]
+                    n = self.stack.value.pop().into_i32()
+                    for i in range(n):
+                        self.evaluate_mem_save(i, 1)
+                    # s = self.stack.value.pop().into_i32()
+                    # d = self.stack.value.pop().into_i32()
+                    # mems.data[d:d+n] = s
                 case pywasm.opcode.table_init:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     elem = self.store.elem[frame.module.elem[instr.args[1]]]
