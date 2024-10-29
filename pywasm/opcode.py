@@ -191,6 +191,7 @@ i64_trunc_sat_f32_s = 0xfc04
 i64_trunc_sat_f32_u = 0xfc05
 i64_trunc_sat_f64_s = 0xfc06
 i64_trunc_sat_f64_u = 0xfc07
+memory_init = 0xfc08
 
 name: typing.Dict[int, str] = {}
 name[unreachable] = 'unreachable'
@@ -384,3 +385,4 @@ name[i64_trunc_sat_f32_s] = 'i64.trunc_sat_f32_s'
 name[i64_trunc_sat_f32_u] = 'i64.trunc_sat_f32_u'
 name[i64_trunc_sat_f64_s] = 'i64.trunc_sat_f64_s'
 name[i64_trunc_sat_f64_u] = 'i64.trunc_sat_f64_u'
+name[memory_init] = 'memory.init'

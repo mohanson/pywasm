@@ -359,6 +359,9 @@ class Inst:
             case 0xfc:
                 for e in pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0]):
                     o.opcode = (o.opcode << 8) + e
+                match o.opcode:
+                    case pywasm.opcode.memory_init:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
         return o
 
 
@@ -2223,6 +2226,8 @@ class Machine:
                     b = int(max(+0x0000000000000000, min(a, +0xffffffffffffffff)))
                     c = ValInst.from_u64(b)
                     self.stack.value.append(c)
+                case pywasm.opcode.memory_init:
+                    assert 0
                 case _:
                     assert 0
 
