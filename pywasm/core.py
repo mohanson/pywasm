@@ -379,8 +379,14 @@ class Inst:
                 match o.opcode:
                     case pywasm.opcode.memory_init:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                        assert ord(r.read(1)) == 0x00
                     case pywasm.opcode.data_drop:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.memory_copy:
+                        assert ord(r.read(1)) == 0x00
+                        assert ord(r.read(1)) == 0x00
+                    case pywasm.opcode.memory_fill:
+                        assert ord(r.read(1)) == 0x00
                     case pywasm.opcode.table_init:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
