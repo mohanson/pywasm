@@ -770,20 +770,33 @@ class Data:
     # segments that initialize a range of memory, at a given offset, with a static vector of bytes.
     # The offset is given by a constant expression.
 
-    def __init__(self, data: int, offset: Expr, init: bytearray) -> typing.Self:
-        self.data = data
+    def __init__(self, kind: int, midx: int, offset: Expr, init: bytearray) -> typing.Self:
+        assert kind in [0x00, 0x01, 0x02]
+        self.kind = kind
+        self.midx = midx
         self.offset = offset
         self.init = init
 
     def __repr__(self) -> str:
-        return f'{self.data}'
+        return f'{self.midx}'
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        data = pywasm.leb128.u.decode_reader(r)[0]
-        offset = Expr.from_reader(r)
-        init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
-        return cls(data, offset, init)
+        kind = pywasm.leb128.u.decode_reader(r)[0]
+        match kind:
+            case 0x00:
+                midx = 0
+                offset = Expr.from_reader(r)
+                init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
+            case 0x01:
+                midx = 0
+                offset = Expr([])
+                init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
+            case 0x02:
+                midx = pywasm.leb128.u.decode_reader(r)[0]
+                offset = Expr.from_reader(r)
+                init = bytearray(r.read(pywasm.leb128.u.decode_reader(r)[0]))
+        return cls(kind, midx, offset, init)
 
 
 class ModuleDesc:
@@ -1153,7 +1166,7 @@ class Machine:
             rets = self.stack.value.pop()
             assert rets.type == ValType.i32()
             pywasm.log.debugln(f'    {i:>3d} {rets}')
-            mems = self.store.mems[newmod.mems[e.data]]
+            mems = self.store.mems[newmod.mems[e.midx]]
             offs = rets.into_i32()
             for i, e in enumerate(e.init):
                 mems.data[offs + i] = e
