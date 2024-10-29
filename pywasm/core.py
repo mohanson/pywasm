@@ -27,7 +27,6 @@ class ValType:
             0x7e: 'i64',
             0x7d: 'f32',
             0x7c: 'f64',
-            0x7b: 'v128',
             0x70: 'ref.func',
             0x6f: 'ref.extern',
         }[self.data]
@@ -47,10 +46,6 @@ class ValType:
     @classmethod
     def f64(cls) -> typing.Self:
         return cls(0x7c)
-
-    @classmethod
-    def v128(cls) -> typing.Self:
-        return cls(0x7b)
 
     @classmethod
     def ref_func(cls) -> typing.Self:
@@ -77,7 +72,19 @@ class ValInst:
         return self.type == value.type and self.data == value.data
 
     def __repr__(self) -> str:
-        return f'{self.type} {self.into_num()}'
+        match self.type.data:
+            case 0x7f:
+                return f'{self.type} {self.into_i32()}'
+            case 0x7e:
+                return f'{self.type} {self.into_i64()}'
+            case 0x7d:
+                return f'{self.type} {self.into_f32()}'
+            case 0x7c:
+                return f'{self.type} {self.into_f64()}'
+            case 0x70:
+                return f'{self.type} {self.into_ref()}'
+            case 0x6f:
+                return f'{self.type} {self.into_ref()}'
 
     @classmethod
     def from_i32(cls, n: int) -> typing.Self:
@@ -1222,6 +1229,7 @@ class Machine:
                     assert self.store.glob[b.data].data.type == a.desc.type
                     assert self.store.glob[b.data].mut == a.desc.mut
         globin: typing.List[ValInst] = []
+        elemin: typing.List[typing.List[ValInst]] = []
         auxmod = ModuleInst()
         auxmod.func.extend([e.data for e in extern if e.kind == 0x00])
         auxmod.func.extend([len(self.store.func) + i for i in range(len(module.func))])
@@ -1237,6 +1245,20 @@ class Machine:
             rets = self.stack.value.pop()
             pywasm.log.debugln(f'    {i:>3d} {rets}')
             globin.append(rets)
+        pywasm.log.debugln('init elem')
+        for i, e in enumerate(module.elem):
+            l: typing.List[ValInst] = []
+            for j, f in enumerate(e.init):
+                self.stack.label.append(Label(1, 1, 0, 1, f.data, 0))
+                self.evaluate()
+                assert len(self.stack.frame) == 1
+                assert len(self.stack.label) == 0
+                assert len(self.stack.value) == 1
+                rets = self.stack.value.pop()
+                assert rets.type == ValType.ref_func()
+                pywasm.log.debugln(f'    {i:>3d} {j:>3d} {rets}')
+                l.append(rets)
+            elemin.append(l)
         self.stack.frame.pop()
         newmod = self.allocate(module, extern, globin)
         assert newmod.func == auxmod.func
@@ -1254,7 +1276,6 @@ class Machine:
             tabl = self.store.tabl[newmod.tabl[e.tidx]]
             offs = rets.into_i32()
             for i, e in enumerate(e.init):
-                print(e)
                 self.stack.label.append(Label(1, 1, 0, 1, e.data, 0))
                 self.evaluate()
                 assert len(self.stack.frame) == 1
@@ -1262,7 +1283,6 @@ class Machine:
                 assert len(self.stack.value) == 1
                 rets = self.stack.value.pop()
                 assert rets.type == ValType.ref_func()
-                print(newmod.func, rets.into_i32())
                 tabl.elem[offs + i] = rets.into_i32()
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
