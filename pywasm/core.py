@@ -1287,7 +1287,7 @@ class Machine:
         newmod = self.allocate(module, extern, globin, elemin)
         assert newmod.func == auxmod.func
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
-        pywasm.log.debugln('init elem')
+        pywasm.log.debugln('init table')
         for i, e in enumerate(module.elem):
             if e.kind & 0x01 != 0x00:
                 continue
@@ -1296,6 +1296,17 @@ class Machine:
             expr.append(Inst(pywasm.opcode.i32_const, [0]))
             expr.append(Inst(pywasm.opcode.i32_const, [len(e.init)]))
             expr.append(Inst(pywasm.opcode.table_init, [e.tidx, i]))
+            expr.append(Inst(pywasm.opcode.elem_drop, [i]))
+            self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
+            self.evaluate()
+            assert len(self.stack.frame) == 1
+            assert len(self.stack.label) == 0
+            assert len(self.stack.value) == 0
+        pywasm.log.debugln('drop elem')
+        for i, e in enumerate(module.elem):
+            if e.kind & 0x03 != 0x03:
+                continue
+            expr = []
             expr.append(Inst(pywasm.opcode.elem_drop, [i]))
             self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
             self.evaluate()
