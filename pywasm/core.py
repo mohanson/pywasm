@@ -362,6 +362,8 @@ class Inst:
                 match o.opcode:
                     case pywasm.opcode.memory_init:
                         o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                    case pywasm.opcode.data_drop:
+                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
         return o
 
 
@@ -2227,6 +2229,8 @@ class Machine:
                     c = ValInst.from_u64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.memory_init:
+                    assert 0
+                case pywasm.opcode.data_drop:
                     assert 0
                 case _:
                     assert 0
