@@ -1315,29 +1315,28 @@ class Machine:
             assert len(self.stack.value) == 0
         pywasm.log.debugln('init data')
         for i, e in enumerate(module.data):
-            self.stack.label.append(Label(1, 1, 0, 1, e.offset.data, 0))
+            if e.kind & 0x01 != 0x00:
+                continue
+            expr = []
+            expr.extend(e.offset.data)
+            expr.append(Inst(pywasm.opcode.i32_const, [0]))
+            expr.append(Inst(pywasm.opcode.i32_const, [len(e.init)]))
+            expr.append(Inst(pywasm.opcode.memory_init, [i]))
+            expr.append(Inst(pywasm.opcode.data_drop, [i]))
+            self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
-            assert len(self.stack.value) == 1
-            rets = self.stack.value.pop()
-            assert rets.type == ValType.i32()
-            pywasm.log.debugln(f'    {i:>3d} {rets}')
-            mems = self.store.mems[newmod.mems[e.midx]]
-            offs = rets.into_i32()
-            for i, e in enumerate(e.init):
-                mems.data[offs + i] = e
-        self.stack.frame.pop()
+            assert len(self.stack.value) == 0
         if module.star >= 0:
-            addr = newmod.func[module.star]
-            func = self.store.func[addr]
-            assert len(func.type.args) == 0
-            assert len(func.type.rets) == 0
-            self.evaluate_call(addr)
+            expr = []
+            expr.append(Inst(pywasm.opcode.call, [module.star]))
+            self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
             self.evaluate()
-            assert len(self.stack.frame) == 0
+            assert len(self.stack.frame) == 1
             assert len(self.stack.label) == 0
             assert len(self.stack.value) == 0
+        self.stack.frame.pop()
         return newmod
 
     def invocate(self, addr: int, args: typing.List[ValInst]) -> typing.List[ValInst]:
@@ -2411,9 +2410,15 @@ class Machine:
                     c = ValInst.from_u64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.memory_init:
-                    assert 0
+                    mems = self.store.mems[frame.module.mems[0]]
+                    data = self.store.data[frame.module.data[instr.args[0]]]
+                    n = self.stack.value.pop().into_i32()
+                    s = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_i32()
+                    mems.data[d:d+n] = data.data[s:s+n]
                 case pywasm.opcode.data_drop:
-                    assert 0
+                    data = self.store.data[frame.module.data[instr.args[0]]]
+                    data.data.clear()
                 case pywasm.opcode.memory_copy:
                     assert 0
                 case pywasm.opcode.memory_fill:
