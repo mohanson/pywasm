@@ -211,146 +211,150 @@ class Inst:
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
         o = Inst(ord(r.read(1)), [])
-        if o.opcode in [
-            pywasm.opcode.block,
-            pywasm.opcode.loop,
-        ]:
-            o.args.append(Bype.from_reader(r))
-            o.args.append([])
-            for _ in range(1 << 32):
-                i = Inst.from_reader(r)
-                if i.opcode == pywasm.opcode.end:
-                    break
-                o.args[1].append(i)
-            return o
-        if o.opcode in [
-            pywasm.opcode.if_then,
-        ]:
-            o.args.append(Bype.from_reader(r))
-            o.args.append([])
-            o.args.append([])
-            argidx = 1
-            for _ in range(1 << 32):
-                i = Inst.from_reader(r)
-                if i.opcode == pywasm.opcode.end:
-                    break
-                if i.opcode == pywasm.opcode.else_fi:
-                    argidx = 2
-                    continue
-                o.args[argidx].append(i)
-            return o
-        if o.opcode in [
-            pywasm.opcode.br,
-            pywasm.opcode.br_if,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.br_table,
-        ]:
-            o.args.append([pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])])
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.call,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.call_indirect,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            o.args.append(ord(r.read(1)))
-            return o
-        if o.opcode in [
-            pywasm.opcode.select_type
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.local_get,
-            pywasm.opcode.local_set,
-            pywasm.opcode.local_tee,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.global_get,
-            pywasm.opcode.global_set,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.i32_load,
-            pywasm.opcode.i64_load,
-            pywasm.opcode.f32_load,
-            pywasm.opcode.f64_load,
-            pywasm.opcode.i32_load8_s,
-            pywasm.opcode.i32_load8_u,
-            pywasm.opcode.i32_load16_s,
-            pywasm.opcode.i32_load16_u,
-            pywasm.opcode.i64_load8_s,
-            pywasm.opcode.i64_load8_u,
-            pywasm.opcode.i64_load16_s,
-            pywasm.opcode.i64_load16_u,
-            pywasm.opcode.i64_load32_s,
-            pywasm.opcode.i64_load32_u,
-            pywasm.opcode.i32_store,
-            pywasm.opcode.i64_store,
-            pywasm.opcode.f32_store,
-            pywasm.opcode.f64_store,
-            pywasm.opcode.i32_store8,
-            pywasm.opcode.i32_store16,
-            pywasm.opcode.i64_store8,
-            pywasm.opcode.i64_store16,
-            pywasm.opcode.i64_store32,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.memory_size,
-            pywasm.opcode.memory_grow
-        ]:
-            o.args.append(ord(r.read(1)))
-            return o
-        if o.opcode in [
-            pywasm.opcode.i32_const,
-        ]:
-            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.i64_const,
-        ]:
-            o.args.append(pywasm.leb128.i.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.f32_const,
-        ]:
-            # Python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
-            # See: https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
-            o.args.append(struct.unpack('<i', r.read(4))[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.f64_const,
-        ]:
-            o.args.append(struct.unpack('<q', r.read(8))[0])
-            return o
-        if o.opcode in [
-            pywasm.opcode.ref_null,
-        ]:
-            o.args.append(ord(r.read(1)))
-            return o
-        if o.opcode in [
-            pywasm.opcode.ref_func,
-        ]:
-            o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            return o
-        if o.opcode in [
-            0xfc,
-        ]:
-            for e in pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0]):
-                o.opcode = (o.opcode << 8) + e
+        match o.opcode:
+            case pywasm.opcode.block:
+                o.args.append(Bype.from_reader(r))
+                o.args.append([])
+                for _ in range(1 << 32):
+                    i = Inst.from_reader(r)
+                    if i.opcode == pywasm.opcode.end:
+                        break
+                    o.args[1].append(i)
+            case pywasm.opcode.loop:
+                o.args.append(Bype.from_reader(r))
+                o.args.append([])
+                for _ in range(1 << 32):
+                    i = Inst.from_reader(r)
+                    if i.opcode == pywasm.opcode.end:
+                        break
+                    o.args[1].append(i)
+            case pywasm.opcode.if_then:
+                o.args.append(Bype.from_reader(r))
+                o.args.append([])
+                o.args.append([])
+                argidx = 1
+                for _ in range(1 << 32):
+                    i = Inst.from_reader(r)
+                    if i.opcode == pywasm.opcode.end:
+                        break
+                    if i.opcode == pywasm.opcode.else_fi:
+                        argidx = 2
+                        continue
+                    o.args[argidx].append(i)
+            case pywasm.opcode.br:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.br_if:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.br_table:
+                o.args.append([pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.call:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.call_indirect:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(ord(r.read(1)))
+            case pywasm.opcode.select_type:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.local_get:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.local_set:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.local_tee:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.global_get:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.global_set:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_load:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.f32_load:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.f64_load:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_load8_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_load8_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_load16_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_load16_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load8_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load8_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load16_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load16_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load32_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_load32_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_store:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_store:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.f32_store:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.f64_store:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_store8:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i32_store16:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_store8:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_store16:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.i64_store32:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.memory_size:
+                o.args.append(ord(r.read(1)))
+            case pywasm.opcode.memory_grow:
+                o.args.append(ord(r.read(1)))
+            case pywasm.opcode.i32_const:
+                o.args.append(pywasm.leb128.i.decode_reader(r)[0])
+            case pywasm.opcode.i64_const:
+                o.args.append(pywasm.leb128.i.decode_reader(r)[0])
+            case pywasm.opcode.f32_const:
+                # Python misinterpret 0x7fa00000 as 0x7fe00000, when encapsulate as built-in float type.
+                # See: https://stackoverflow.com/questions/47961537/webassembly-f32-const-nan0x200000-means-0x7fa00000-or-0x7fe00000
+                o.args.append(struct.unpack('<i', r.read(4))[0])
+            case pywasm.opcode.f64_const:
+                o.args.append(struct.unpack('<q', r.read(8))[0])
+            case pywasm.opcode.ref_null:
+                o.args.append(ord(r.read(1)))
+            case pywasm.opcode.ref_func:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case 0xfc:
+                for e in pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0]):
+                    o.opcode = (o.opcode << 8) + e
         return o
 
 
