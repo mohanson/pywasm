@@ -1223,7 +1223,9 @@ class Machine:
                     assert self.store.glob[b.data].mut == a.desc.mut
         globin: typing.List[ValInst] = []
         auxmod = ModuleInst()
-        auxmod.glob = [e.data for e in extern if e.kind == 0x03]
+        auxmod.func.extend([e.data for e in extern if e.kind == 0x00])
+        auxmod.func.extend([len(self.store.func) + i for i in range(len(module.func))])
+        auxmod.glob.extend([e.data for e in extern if e.kind == 0x03])
         self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
         pywasm.log.debugln(f'init global')
         for i, e in enumerate(module.glob):
@@ -1237,6 +1239,7 @@ class Machine:
             globin.append(rets)
         self.stack.frame.pop()
         newmod = self.allocate(module, extern, globin)
+        assert newmod.func == auxmod.func
         self.stack.frame.append(Frame(newmod, LocalsInst([]), 0, 0, 0))
         pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
