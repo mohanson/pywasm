@@ -771,7 +771,12 @@ class Data:
     # The offset is given by a constant expression.
 
     def __init__(self, kind: int, midx: int, offset: Expr, init: bytearray) -> typing.Self:
+        # The initial integer can be interpreted as a bitfield. Bit 0 indicates a passive segment, bit 1 indicates the
+        # presence of an explicit memory index for an active segment.
+        # In the current version of WebAssembly, at most one memory may be defined or imported in a single module, so
+        # all valid active data segments have a memory value of 0.
         assert kind in [0x00, 0x01, 0x02]
+        assert midx == 0x00
         self.kind = kind
         self.midx = midx
         self.offset = offset
