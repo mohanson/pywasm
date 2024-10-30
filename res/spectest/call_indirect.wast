@@ -990,6 +990,15 @@
   "type mismatch"
 )
 
+;; call_indirect expects funcref type but receives externref
+(assert_invalid
+  (module
+  (type (func))
+  (table 10 externref)
+  (func $call-indirect (call_indirect (type 0) (i32.const 0)))
+  )
+  "type mismatch"
+)
 
 ;; Unbound type
 
@@ -1008,10 +1017,44 @@
   "unknown type"
 )
 
+;; pass very large number to call_indirect
+(assert_invalid
+  (module
+    (type (func (param i32)))
+    (table 1 funcref)
+    (func $conditional-dangling-type
+      (if (i32.const 1)
+        (then (call_indirect (type 0xffffffff) (i32.const 0)))
+      )
+    )
+  )
+  "unknown type"
+)
+
 
 ;; Unbound function in table
 
 (assert_invalid
   (module (table funcref (elem 0 0)))
   "unknown function"
+)
+
+
+
+
+;; Flat syntax
+
+(module
+  (table 1 funcref)
+  (func unreachable call_indirect)
+  (func unreachable call_indirect nop)
+  (func unreachable call_indirect call_indirect)
+  (func unreachable call_indirect (call_indirect))
+  (func unreachable call_indirect call_indirect call_indirect)
+  (func unreachable call_indirect (result))
+  (func unreachable call_indirect (result) (result))
+  (func unreachable call_indirect (result) (result) call_indirect)
+  (func unreachable call_indirect (result) (result) call_indirect (result))
+  (func (result i32) unreachable call_indirect select)
+  (func (result i32) unreachable call_indirect select call_indirect)
 )
