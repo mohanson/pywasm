@@ -33,7 +33,11 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
                 case _:
                     return pywasm.ValInst.from_f64_u64(int(j['value']))
         case 'funcref':
-            assert 0
+            match j['value']:
+                case 'null':
+                    return pywasm.ValInst(pywasm.core.ValType.ref_func(), bytearray(8))
+                case _:
+                    return pywasm.ValInst.from_ref(pywasm.core.ValType.ref_extern(), int(j['value']))
         case 'externref':
             match j['value']:
                 case 'null':
