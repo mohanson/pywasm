@@ -1565,14 +1565,14 @@ class Machine:
                     assert glob.mut == 0x01
                     glob.data = self.stack.value.pop()
                 case pywasm.opcode.table_get:
-                    tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     a = self.stack.value.pop().into_i32()
                     b = tabl.elem[a]
                     self.stack.value.append(b)
                 case pywasm.opcode.table_set:
-                    tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     a = self.stack.value.pop()
-                    assert a.type == tabl.type
+                    assert a.type == tabl.type.type
                     b = self.stack.value.pop().into_i32()
                     tabl.elem[b] = a
                 case pywasm.opcode.i32_load:
