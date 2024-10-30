@@ -2423,6 +2423,8 @@ class Machine:
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().into_i32()
                     d = self.stack.value.pop().into_i32()
+                    assert s + n <= len(data.data)
+                    assert d + n <= len(mems.data)
                     mems.data[d:d+n] = data.data[s:s+n]
                 case pywasm.opcode.data_drop:
                     data = self.store.data[frame.module.data[instr.args[0]]]
@@ -2432,12 +2434,15 @@ class Machine:
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().into_i32()
                     d = self.stack.value.pop().into_i32()
+                    assert s + n <= len(mems.data)
+                    assert d + n <= len(mems.data)
                     mems.data[d:d+n] = mems.data[s:s+n]
                 case pywasm.opcode.memory_fill:
                     mems = self.store.mems[frame.module.mems[0]]
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().data[0]
                     d = self.stack.value.pop().into_i32()
+                    assert d + n <= len(mems.data)
                     for i in range(n):
                         mems.data[d+i] = s
                 case pywasm.opcode.table_init:
@@ -2446,6 +2451,8 @@ class Machine:
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().into_i32()
                     d = self.stack.value.pop().into_i32()
+                    assert s + n <= len(elem.data)
+                    assert d + n <= len(tabl.elem)
                     tabl.elem[d:d+n] = elem.data[s:s+n]
                 case pywasm.opcode.elem_drop:
                     # The instruction prevents further use of a passive element segment. This instruction is intended
@@ -2459,6 +2466,8 @@ class Machine:
                     n = self.stack.value.pop().into_i32()
                     s = self.stack.value.pop().into_i32()
                     d = self.stack.value.pop().into_i32()
+                    assert s + n <= len(taby.elem)
+                    assert d + n <= len(tabx.elem)
                     tabx.elem[d:d+n] = taby.elem[s:s+n]
                 case pywasm.opcode.table_grow:
                     assert 0
