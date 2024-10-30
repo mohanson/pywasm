@@ -271,7 +271,7 @@ class Inst:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(ord(r.read(1)))
             case pywasm.opcode.select_type:
-                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append([pywasm.leb128.u.decode_reader(r)[0] for _ in range(pywasm.leb128.u.decode_reader(r)[0])])
             case pywasm.opcode.local_get:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             case pywasm.opcode.local_set:
