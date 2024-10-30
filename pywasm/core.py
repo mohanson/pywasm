@@ -1546,6 +1546,8 @@ class Machine:
                     c = self.stack.value.pop().into_i32()
                     b = self.stack.value.pop()
                     a = self.stack.value.pop()
+                    assert a.type.data == instr.args[0][0]
+                    assert b.type.data == instr.args[0][0]
                     d = a if c != 0 else b
                     self.stack.value.append(d)
                 case pywasm.opcode.local_get:
