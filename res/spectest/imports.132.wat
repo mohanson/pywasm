@@ -1,1 +1,1 @@
-(table 0 funcref) (import "" "" (func))
+(global i64 (i64.const 0)) (import "" "" (global f32))

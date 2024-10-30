@@ -571,6 +571,9 @@ class MemInst:
         self.data.extend([0x00 for _ in range(n * 64 * 1024)])
         self.size += n
 
+    def suit(self, l: Limits) -> bool:
+        return Limits(self.size, self.type.limits.m).suit(l)
+
 
 class TableType:
     # Table types classify tables over elements of element types within a size range. Like memories, tables are
@@ -613,6 +616,9 @@ class TableInst:
         assert v.type == self.type.type
         self.elem.extend([v for _ in range(n)])
         self.size += n
+
+    def suit(self, l: Limits) -> bool:
+        return Limits(self.size, self.type.limits.m).suit(l)
 
 
 class GlobalType:
@@ -1263,9 +1269,9 @@ class Machine:
                     assert self.store.func[b.data].type == module.type[a.desc]
                 case 0x01:
                     assert self.store.tabl[b.data].type.type == a.desc.type
-                    assert self.store.tabl[b.data].type.limits.suit(a.desc.limits)
+                    assert self.store.tabl[b.data].suit(a.desc.limits)
                 case 0x02:
-                    assert self.store.mems[b.data].type.limits.suit(a.desc.limits)
+                    assert self.store.mems[b.data].suit(a.desc.limits)
                 case 0x03:
                     assert self.store.glob[b.data].data.type == a.desc.type
                     assert self.store.glob[b.data].mut == a.desc.mut
