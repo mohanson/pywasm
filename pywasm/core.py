@@ -1270,7 +1270,6 @@ class Machine:
         if module.glob:
             pywasm.log.debugln(f'init global')
         for i, e in enumerate(module.glob):
-            pywasm.log.debugln(f'    eval {i:>3d}')
             self.stack.label.append(Label(1, 1, 0, 1, e.init.data, 0))
             self.evaluate()
             assert len(self.stack.frame) == 1
@@ -1283,7 +1282,6 @@ class Machine:
         for i, e in enumerate(module.elem):
             l: typing.List[ValInst] = []
             for j, f in enumerate(e.init):
-                pywasm.log.debugln(f'    eval {i:>3d} {j:>3d}')
                 self.stack.label.append(Label(1, 1, 0, 1, f.data, 0))
                 self.evaluate()
                 assert len(self.stack.frame) == 1
@@ -1300,7 +1298,6 @@ class Machine:
         for i, e in enumerate(module.elem):
             if e.kind & 0x01 != 0x00:
                 continue
-            pywasm.log.debugln(f'    eval {i:>3d}')
             expr = []
             expr.extend(e.offset.data)
             expr.append(Inst(pywasm.opcode.i32_const, [0]))
@@ -1315,7 +1312,6 @@ class Machine:
         for i, e in enumerate(module.elem):
             if e.kind & 0x03 != 0x03:
                 continue
-            pywasm.log.debugln(f'    eval {i:>3d}')
             expr = []
             expr.append(Inst(pywasm.opcode.elem_drop, [i]))
             self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
@@ -1328,7 +1324,6 @@ class Machine:
         for i, e in enumerate(module.data):
             if e.kind & 0x01 != 0x00:
                 continue
-            pywasm.log.debugln(f'    eval {i:>3d}')
             expr = []
             expr.extend(e.offset.data)
             expr.append(Inst(pywasm.opcode.i32_const, [0]))
@@ -1341,7 +1336,6 @@ class Machine:
             assert len(self.stack.label) == 0
             assert len(self.stack.value) == 0
         if module.star >= 0:
-            pywasm.log.debugln(f'    main')
             expr = []
             expr.append(Inst(pywasm.opcode.call, [module.star]))
             self.stack.label.append(Label(1, 1, 0, 1, expr, 0))
@@ -1454,6 +1448,7 @@ class Machine:
         mems.data[addr:addr+size] = data[:size]
 
     def evaluate(self) -> None:
+        pywasm.log.debugln(f'eval {len(self.stack.frame)} {len(self.stack.label)} {len(self.stack.value)}')
         for _ in range(1 << 32):
             if not self.stack.label:
                 break
