@@ -603,7 +603,15 @@ class TableInst:
 
     def __init__(self, type: TableType) -> typing.Self:
         self.type = type
-        self.elem: typing.List[ValInst] = [ValInst(type.type, bytearray(8)) for _ in range(type.limits.n)]
+        self.elem: typing.List[ValInst] = []
+        self.size = 0
+        self.grow(type.limits.n)
+
+    def grow(self, n: int) -> None:
+        if self.type.limits.m:
+            assert self.size + n <= self.type.limits.m
+        self.elem.extend([ValInst(self.type.type, bytearray(8)) for _ in range(n)])
+        self.size += n
 
 
 class GlobalType:
@@ -2479,12 +2487,18 @@ class Machine:
                     assert d + n <= len(tabx.elem)
                     tabx.elem[d:d+n] = taby.elem[s:s+n]
                 case pywasm.opcode.table_grow:
-                    assert 0
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
+                    size = tabl.size
+                    incr = self.stack.value.pop().into_i32()
+                    rets = -1
+                    if tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m:
+                        rets = size
+                        tabl.grow(incr)
+                    self.stack.value.append(ValInst.from_i32(rets))
                 case pywasm.opcode.table_size:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    a = len(tabl.elem)
-                    b = ValInst.from_i32(a)
-                    self.stack.value.append(b)
+                    size = tabl.size
+                    self.stack.value.append(ValInst.from_i32(size))
                 case pywasm.opcode.table_fill:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     n = self.stack.value.pop().into_i32()
