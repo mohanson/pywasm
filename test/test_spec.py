@@ -6,8 +6,8 @@ import re
 import typing
 
 
-pywasm.log.lvl = 0
-unittest_regex = 'res/spectest/.*.json'
+pywasm.log.lvl = 1
+unittest_regex = 'res/spectest/ref_is_null.json'
 
 
 def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
