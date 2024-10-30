@@ -605,12 +605,13 @@ class TableInst:
         self.type = type
         self.elem: typing.List[ValInst] = []
         self.size = 0
-        self.grow(type.limits.n)
+        self.grow(type.limits.n, ValInst(self.type.type, bytearray(8)))
 
-    def grow(self, n: int) -> None:
+    def grow(self, n: int, v: ValInst) -> None:
         if self.type.limits.m:
             assert self.size + n <= self.type.limits.m
-        self.elem.extend([ValInst(self.type.type, bytearray(8)) for _ in range(n)])
+        assert v.type == self.type.type
+        self.elem.extend([v for _ in range(n)])
         self.size += n
 
 
@@ -2490,10 +2491,14 @@ class Machine:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     size = tabl.size
                     incr = self.stack.value.pop().into_i32()
+                    init = self.stack.value.pop()
                     rets = -1
-                    if tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m:
+                    # Reject growing to size outside i32 value range
+                    cnda = incr >= 0
+                    cndb = tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m
+                    if cnda and cndb:
                         rets = size
-                        tabl.grow(incr)
+                        tabl.grow(incr, init)
                     self.stack.value.append(ValInst.from_i32(rets))
                 case pywasm.opcode.table_size:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
