@@ -32,19 +32,41 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
                     return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
                 case _:
                     return pywasm.ValInst.from_f64_u64(int(j['value']))
+        case 'funcref':
+            match j['value']:
+                case 'null':
+                    return pywasm.ValInst(pywasm.core.ValType.ref_func(), bytearray(8))
+                case _:
+                    return pywasm.ValInst.from_ref(pywasm.core.ValType.ref_extern(), int(j['value']))
+        case 'externref':
+            match j['value']:
+                case 'null':
+                    return pywasm.ValInst(pywasm.core.ValType.ref_extern(), bytearray(8))
+                case _:
+                    return pywasm.ValInst.from_ref(pywasm.core.ValType.ref_extern(), int(j['value']))
         case _:
             assert 0
 
 
 def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
-    a = a.into_auto()
-    b = b.into_auto()
-    if isinstance(a, int):
-        return a == b
-    if isinstance(a, float):
-        if math.isnan(a):
-            return math.isnan(b)
-        return math.isclose(a, b, rel_tol=1e-6)
+    if a.type != b.type:
+        return False
+    if a.type == pywasm.core.ValType.i32():
+        return a.into_i32() == b.into_i32()
+    if a.type == pywasm.core.ValType.i64():
+        return a.into_i64() == b.into_i64()
+    if a.type == pywasm.core.ValType.f32():
+        if math.isnan(a.into_f32()):
+            return math.isnan(b.into_f32())
+        return math.isclose(a.into_f32(), b.into_f32(), rel_tol=1e-6)
+    if a.type == pywasm.core.ValType.f64():
+        if math.isnan(a.into_f64()):
+            return math.isnan(b.into_f64())
+        return math.isclose(a.into_f64(), b.into_f64(), rel_tol=1e-6)
+    if a.type == pywasm.core.ValType.ref_func():
+        return a.into_i64() == b.into_i64()
+    if a.type == pywasm.core.ValType.ref_extern():
+        return a.into_i64() == b.into_i64()
     assert 0
 
 
@@ -65,7 +87,7 @@ def impi() -> typing.Dict[str, typing.Any]:
             'print_i64_f64': lambda m, x, y: None,
             'print_f32_f32': lambda m, x, y: None,
             'print_f64_f64': lambda m, x, y: None,
-            'table': pywasm.TableInst(pywasm.TableType(pywasm.ElemType.funcref(), pywasm.Limits(10, 20))),
+            'table': pywasm.TableInst(pywasm.TableType(pywasm.ValType.ref_func(), pywasm.Limits(10, 20))),
             'memory': pywasm.MemInst(pywasm.MemType(pywasm.Limits(1, 2))),
         }
     }
