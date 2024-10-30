@@ -1,1 +1,1 @@
-(global i64 (i64.const 0)) (import "" "" (memory 0))
+(global i64 (i64.const 0)) (import "" "" (func))

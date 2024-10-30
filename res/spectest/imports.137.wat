@@ -1,1 +1,1 @@
-(memory 0) (import "" "" (global i32))
+(table 0 funcref) (import "" "" (table 0 funcref))
