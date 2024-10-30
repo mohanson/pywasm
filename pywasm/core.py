@@ -2481,9 +2481,18 @@ class Machine:
                 case pywasm.opcode.table_grow:
                     assert 0
                 case pywasm.opcode.table_size:
-                    assert 0
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
+                    a = len(tabl.elem)
+                    b = ValInst.from_i32(a)
+                    self.stack.value.append(b)
                 case pywasm.opcode.table_fill:
-                    assert 0
+                    tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
+                    n = self.stack.value.pop().into_i32()
+                    s = self.stack.value.pop()
+                    d = self.stack.value.pop().into_i32()
+                    assert d + n <= len(tabl.elem)
+                    for i in range(n):
+                        tabl.elem[d+i] = s
                 case _:
                     assert 0
 

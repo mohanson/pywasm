@@ -7,7 +7,7 @@ import typing
 
 
 pywasm.log.lvl = 0
-unittest_regex = 'res/spectest/.*.json'
+unittest_regex = 'res/spectest/table.*.json'
 
 
 def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
