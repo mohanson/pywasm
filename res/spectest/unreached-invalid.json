@@ -109,4 +109,12 @@
   {"type": "assert_invalid", "line": 662, "filename": "unreached-invalid.106.wasm", "text": "type mismatch", "module_type": "binary"}, 
   {"type": "assert_invalid", "line": 669, "filename": "unreached-invalid.107.wasm", "text": "type mismatch", "module_type": "binary"}, 
   {"type": "assert_invalid", "line": 676, "filename": "unreached-invalid.108.wasm", "text": "type mismatch", "module_type": "binary"}, 
-  {"type": "assert_invalid", "line": 687, "filename": "unreached-invalid.109.wasm", "text": "type mismatch", "module_type": "binary"}]}
+  {"type": "assert_invalid", "line": 687, "filename": "unreached-invalid.109.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 699, "filename": "unreached-invalid.110.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 704, "filename": "unreached-invalid.111.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 710, "filename": "unreached-invalid.112.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 715, "filename": "unreached-invalid.113.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 720, "filename": "unreached-invalid.114.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 726, "filename": "unreached-invalid.115.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 733, "filename": "unreached-invalid.116.wasm", "text": "type mismatch", "module_type": "binary"}, 
+  {"type": "assert_invalid", "line": 738, "filename": "unreached-invalid.117.wasm", "text": "type mismatch", "module_type": "binary"}]}

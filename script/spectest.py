@@ -12,8 +12,8 @@ call('cd res && rm -rf spectest')
 if not os.path.exists('res/spec'):
     call('cd res && git clone https://github.com/WebAssembly/spec')
 # When update spectest, we can increase the commit id in small steps.
-# Use: git log --reverse 36d993c.. -- test/core
-call('cd res/spec && git checkout b9668b996c3beec45ca76022a829224f5c077bbe')
+# Use: git log --reverse commit.. -- test/core
+call('cd res/spec && git checkout f2b7c60c6726d0857f137d9243107a74f8538668')
 call('cd res && cp -R spec/test/core spectest')
 
 os.chdir('res/spectest')

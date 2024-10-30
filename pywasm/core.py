@@ -790,7 +790,6 @@ class ElemDesc:
     def __init__(self, kind: int, type: ValType, tidx: int, offset: Expr, init: typing.List[Expr]) -> typing.Self:
         assert kind >= 0x00
         assert kind <= 0x07
-        assert type == ValType.ref_func()
         self.kind = kind
         self.type = type
         self.tidx = tidx
@@ -1296,14 +1295,13 @@ class Machine:
             pywasm.log.debugln('init elem')
         for i, e in enumerate(module.elem):
             l: typing.List[ValInst] = []
-            for j, f in enumerate(e.init):
+            for f in e.init:
                 self.stack.label.append(Label(1, 1, 0, 1, f.data, 0))
                 self.evaluate()
                 assert len(self.stack.frame) == 1
                 assert len(self.stack.label) == 0
                 assert len(self.stack.value) == 1
                 rets = self.stack.value.pop()
-                assert rets.type == ValType.ref_func()
                 l.append(rets)
             elemin.append(l)
         self.stack.frame.pop()
