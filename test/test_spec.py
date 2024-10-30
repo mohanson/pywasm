@@ -70,27 +70,49 @@ def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
     assert 0
 
 
-def impi() -> typing.Dict[str, typing.Any]:
+def impi(runtime: pywasm.core.Runtime) -> typing.Dict[str, typing.Dict[str, pywasm.core.Extern]]:
     # See https://github.com/WebAssembly/spec/blob/w3c-1.0/interpreter/host/spectest.ml
-    return {
-        'spectest': {
-            'global_i32': 666,
-            'global_i64': 666,
-            'global_f32': 666.6,
-            'global_f64': 666.6,
-            'print': lambda m: None,
-            'print_i32': lambda m, x: None,
-            'print_i64': lambda m, x: None,
-            'print_f32': lambda m, x: None,
-            'print_f64': lambda m, x: None,
-            'print_i32_f32': lambda m, x, y: None,
-            'print_i64_f64': lambda m, x, y: None,
-            'print_f32_f32': lambda m, x, y: None,
-            'print_f64_f64': lambda m, x, y: None,
-            'table': pywasm.TableInst(pywasm.TableType(pywasm.ValType.ref_func(), pywasm.Limits(10, 20))),
-            'memory': pywasm.MemInst(pywasm.MemType(pywasm.Limits(1, 2))),
-        }
-    }
+    imps = {'spectest': {}}
+    imps['spectest']['global_i32'] = runtime.allocate_global(
+        pywasm.core.GlobalType(pywasm.core.ValType.i32(), 0), pywasm.core.ValInst.from_i32(666)
+    )
+    imps['spectest']['global_i64'] = runtime.allocate_global(
+        pywasm.core.GlobalType(pywasm.core.ValType.i64(), 0), pywasm.core.ValInst.from_i64(666)
+    )
+    imps['spectest']['global_f32'] = runtime.allocate_global(
+        pywasm.core.GlobalType(pywasm.core.ValType.f32(), 0), pywasm.core.ValInst.from_f32(666.6)
+    )
+    imps['spectest']['global_f64'] = runtime.allocate_global(
+        pywasm.core.GlobalType(pywasm.core.ValType.f64(), 0), pywasm.core.ValInst.from_f64(666.6)
+    )
+    imps['spectest']['table'] = runtime.allocate_table(
+        pywasm.core.TableType(pywasm.core.ValType.ref_func(), pywasm.core.Limits(10, 20))
+    )
+    imps['spectest']['memory'] = runtime.allocate_memory(
+        pywasm.core.MemType(pywasm.core.Limits(1, 2))
+    )
+    imps['spectest']['print'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([], []), lambda m, a: []
+    ))
+    imps['spectest']['print_i32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.i32()], []), lambda m, a: []
+    ))
+    imps['spectest']['print_i64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.i64()], []), lambda m, a: []
+    ))
+    imps['spectest']['print_f32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.f32()], []), lambda m, a: []
+    ))
+    imps['spectest']['print_f64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.f64()], []), lambda m, a: []
+    ))
+    imps['spectest']['print_i32_f32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.i32(), pywasm.core.ValType.f32()], []), lambda m, a: []
+    ))
+    imps['spectest']['print_f64_f64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+        pywasm.core.FuncType([pywasm.core.ValType.f64(), pywasm.core.ValType.f64()], []), lambda m, a: []
+    ))
+    return imps
 
 
 for name in sorted(glob.glob('res/spectest/*.json')):
@@ -98,8 +120,8 @@ for name in sorted(glob.glob('res/spectest/*.json')):
         continue
     with open(name) as f:
         suit = json.load(f)['commands']
-    imps = impi()
     runtime = pywasm.Runtime()
+    imports = impi(runtime)
     cmodule: pywasm.ModuleInst
     lmodule: pywasm.ModuleInst
     mmodule = {}
@@ -153,7 +175,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                 assert 1
             case 'assert_uninstantiable':
                 try:
-                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
+                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imports)
                 except Exception as e:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
@@ -161,21 +183,13 @@ for name in sorted(glob.glob('res/spectest/*.json')):
             case 'assert_unlinkable':
                 assert 1
             case 'module':
-                lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imps)
+                lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}', imports)
                 if 'name' in elem:
                     mmodule[elem['name']] = lmodule
             case 'register':
                 mmodule[elem['as']] = lmodule
-                imps[elem['as']] = {}
+                imports[elem['as']] = {}
                 for e in lmodule.exps:
-                    match e.data.kind:
-                        case 0x00:
-                            imps[elem['as']][e.name] = runtime.machine.store.func[e.data.data]
-                        case 0x01:
-                            imps[elem['as']][e.name] = runtime.machine.store.tabl[e.data.data]
-                        case 0x02:
-                            imps[elem['as']][e.name] = runtime.machine.store.mems[e.data.data]
-                        case 0x03:
-                            imps[elem['as']][e.name] = runtime.machine.store.glob[e.data.data]
+                    imports[elem['as']][e.name] = e.data
             case _:
                 assert 0

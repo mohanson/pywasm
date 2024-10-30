@@ -134,17 +134,26 @@ class ValInst:
         return o
 
     @classmethod
-    def from_num(cls, type: ValType, n: typing.Union[int, float]) -> typing.Self:
-        return {
-            ValType.i32(): cls.from_i32,
-            ValType.i64(): cls.from_i64,
-            ValType.f32(): cls.from_f32,
-            ValType.f64(): cls.from_f64,
-        }[type](n)
-
-    @classmethod
     def from_ref(cls, type: ValType, n: int) -> typing.Self:
         return cls(type, bytearray(struct.pack('<i', n)) + bytearray([0x01, 0x00, 0x00, 0x00]))
+
+    @classmethod
+    def from_all(cls, type: ValType, n: typing.Union[int, float]) -> typing.Self:
+        match type.data:
+            case 0x7f:
+                return cls.from_i32(n)
+            case 0x7e:
+                return cls.from_i64(n)
+            case 0x7d:
+                return cls.from_f32(n)
+            case 0x7c:
+                return cls.from_f64(n)
+            case 0x70:
+                return cls.from_ref(type, n)
+            case 0x6f:
+                return cls.from_ref(type, n)
+            case _:
+                assert 0
 
     def into_i32(self) -> int:
         return struct.unpack('<i', self.data[0:4])[0]
@@ -164,17 +173,26 @@ class ValInst:
     def into_f64(self) -> float:
         return struct.unpack('<d', self.data[0:8])[0]
 
-    def into_num(self) -> typing.Union[int, float]:
-        return {
-            ValType.i32(): self.into_i32,
-            ValType.i64(): self.into_i64,
-            ValType.f32(): self.into_f32,
-            ValType.f64(): self.into_f64,
-        }[self.type]()
-
     def into_ref(self) -> int:
         assert self.data[4] == 0x01
         return self.into_i32()
+
+    def into_all(self) -> typing.Union[int, float]:
+        match self.type.data:
+            case 0x7f:
+                return self.into_i32()
+            case 0x7e:
+                return self.into_i64()
+            case 0x7d:
+                return self.into_f32()
+            case 0x7c:
+                return self.into_f64()
+            case 0x70:
+                return self.into_ref()
+            case 0x6f:
+                return self.into_ref()
+            case _:
+                assert 0
 
 
 class Bype:
@@ -1431,17 +1449,9 @@ class Machine:
                     0,
                 ))
             case 0x01:
-                match nret:
-                    case 0x00:
-                        rets = func.hostcode(self, *[e.into_num() for e in args])
-                        assert rets is None
-                    case 0x01:
-                        rets = func.hostcode(self, *[e.into_num() for e in args])
-                        self.stack.value.append(ValInst.from_num(func.type.rets[0], rets))
-                    case _:
-                        rets = func.hostcode(self, *[e.into_num() for e in args])
-                        rets = [ValInst.from_num(a, b) for a, b in zip(func.type.rets, rets)]
-                        self.stack.value.extend(rets)
+                rets = func.hostcode(self, [e.into_all() for e in args])
+                rets = [ValInst.from_all(a, b) for a, b in zip(func.type.rets, rets)]
+                self.stack.value.extend(rets)
             case _:
                 assert 0
 
@@ -2526,52 +2536,34 @@ class Runtime:
     def __init__(self) -> typing.Self:
         self.machine = Machine()
 
-    def exported_mem(self, module: ModuleInst, name: str) -> MemInst:
-        addr = [e for e in module.exps if e.name == name][0].data.data
+    def allocate_func_host(self, func: FuncHost) -> Extern:
+        return Extern(0x00, self.machine.store.allocate_func_host(func))
+
+    def allocate_table(self, type: TableType) -> Extern:
+        return Extern(0x01, self.machine.store.allocate_table(type))
+
+    def allocate_memory(self, type: MemType) -> Extern:
+        return Extern(0x02, self.machine.store.allocate_memory(type))
+
+    def allocate_global(self, type: GlobalType, data: ValInst) -> Extern:
+        return Extern(0x03, self.machine.store.allocate_global(type, data))
+
+    def exported_memory(self, module: ModuleInst, name: str) -> MemInst:
+        inst = [e for e in module.exps if e.name == name][0].data
+        assert inst.kind == 0x02
+        addr = inst.data
         return self.machine.store.mems[addr]
 
     def exported_global(self, module: ModuleInst, name: str) -> GlobalInst:
-        addr = [e for e in module.exps if e.name == name][0].data.data
+        inst = [e for e in module.exps if e.name == name][0].data
+        assert inst.kind == 0x03
+        addr = inst.data
         return self.machine.store.glob[addr]
 
     def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
         extern: typing.List[Extern] = []
         for e in module.imps:
-            assert e.module in imps
-            assert e.name in imps[e.module]
-            match e.kind:
-                case 0x00:
-                    match imps[e.module][e.name]:
-                        case x if callable(x):
-                            func = FuncHost(module.type[e.desc], imps[e.module][e.name])
-                            addr = self.machine.store.allocate_func_host(func)
-                            extern.append(Extern(0x00, addr))
-                        case _:
-                            addr = len(self.machine.store.func)
-                            func = imps[e.module][e.name]
-                            self.machine.store.func.append(func)
-                            extern.append(Extern(0x00, addr))
-                case 0x01:
-                    addr = len(self.machine.store.tabl)
-                    tabl = imps[e.module][e.name]
-                    self.machine.store.tabl.append(tabl)
-                    extern.append(Extern(0x01, addr))
-                case 0x02:
-                    addr = len(self.machine.store.mems)
-                    mems = imps[e.module][e.name]
-                    self.machine.store.mems.append(mems)
-                    extern.append(Extern(0x02, addr))
-                case 0x03:
-                    match imps[e.module][e.name]:
-                        case x if isinstance(x, (int, float)):
-                            glob = ValInst.from_num(e.desc.type, imps[e.module][e.name])
-                            addr = self.machine.store.allocate_global(e.desc, glob)
-                            extern.append(Extern(0x03, addr))
-                        case _:
-                            addr = len(self.machine.store.glob)
-                            glob = imps[e.module][e.name]
-                            self.machine.store.glob.append(glob)
-                            extern.append(Extern(0x03, addr))
+            extern.append(imps[e.module][e.name])
         return self.machine.instance(module, extern)
 
     def instance_from_file(self, path: str, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
@@ -2581,6 +2573,6 @@ class Runtime:
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
         addr = [e for e in module.exps if e.name == func][0].data.data
         func = self.machine.store.func[addr]
-        args = [ValInst.from_num(a, b) for a, b in zip(func.type.args, args)]
+        args = [ValInst.from_all(a, b) for a, b in zip(func.type.args, args)]
         rets = self.machine.invocate(addr, args)
-        return [e.into_num() for e in rets]
+        return [e.into_all() for e in rets]
