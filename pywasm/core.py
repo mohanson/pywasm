@@ -1002,43 +1002,43 @@ class ModuleDesc:
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncType.from_reader(section_reader)
                         type.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x02:
                     pywasm.log.debugln('section import')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = Import.from_reader(section_reader)
                         imps.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x03:
                     pywasm.log.debugln('section func')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = FuncDesc.from_reader_type(section_reader)
                         func.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc.type}')
+                        pywasm.log.debugln('   ', i, desc.type)
                 case 0x04:
                     pywasm.log.debugln('section table')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = TableType.from_reader(section_reader)
                         tabl.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x05:
                     pywasm.log.debugln('section mem')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = MemType.from_reader(section_reader)
                         mems.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x06:
                     pywasm.log.debugln('section global')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = GlobalDesc.from_reader(section_reader)
                         glob.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x07:
                     pywasm.log.debugln('section export')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ExportDesc.from_reader(section_reader)
                         exps.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x08:
                     desc = pywasm.leb128.u.decode_reader(section_reader)[0]
                     star = desc
@@ -1048,7 +1048,7 @@ class ModuleDesc:
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = ElemDesc.from_reader(section_reader)
                         elem.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x0a:
                     pywasm.log.debugln('section code')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
@@ -1056,13 +1056,13 @@ class ModuleDesc:
                         desc = FuncDesc.from_reader_code(io.BytesIO(section_reader.read(size)))
                         func[i].locals = desc.locals
                         func[i].expr = desc.expr
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x0b:
                     pywasm.log.debugln('section data')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
                         desc = DataDesc.from_reader(section_reader)
                         data.append(desc)
-                        pywasm.log.debugln(f'    {i:>3d} {desc}')
+                        pywasm.log.debugln('   ', i, desc)
                 case 0x0c:
                     n = pywasm.leb128.u.decode_reader(section_reader)[0]
                     pywasm.log.debugln('section data count', n)
@@ -1300,7 +1300,7 @@ class Machine:
         auxmod.glob.extend([e.data for e in extern if e.kind == 0x03])
         self.stack.frame.append(Frame(auxmod, LocalsInst([]), 1, 0, 0))
         if module.glob:
-            pywasm.log.debugln(f'init global')
+            pywasm.log.debugln('init global')
         for i, e in enumerate(module.glob):
             self.stack.label.append(Label(1, 1, 0, 1, e.init.data, 0))
             self.evaluate()
@@ -1383,7 +1383,7 @@ class Machine:
         for a, b in zip(func.type.args, args):
             assert a == b.type
         self.stack.frame.append(Frame(ModuleInst(), LocalsInst([]), 0, 0, 0))
-        pywasm.log.debugln(f'call {func} {args}')
+        pywasm.log.debugln('call', func, args)
         locals = LocalsInst(args)
         for e in func.code.locals:
             locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
@@ -1427,7 +1427,7 @@ class Machine:
         func = self.store.func[addr]
         args = [self.stack.value.pop() for _ in range(len(func.type.args))][::-1]
         nret = len(func.type.rets)
-        pywasm.log.debugln(f'call {func} {args}')
+        pywasm.log.debugln('call', func, args)
         match func.kind:
             case 0x00:
                 locals = LocalsInst(args)
@@ -1471,7 +1471,7 @@ class Machine:
         mems.data[addr:addr+size] = data[:size]
 
     def evaluate(self) -> None:
-        pywasm.log.debugln(f'eval {len(self.stack.frame)} {len(self.stack.label)} {len(self.stack.value)}')
+        pywasm.log.debugln('eval', len(self.stack.frame), len(self.stack.label), len(self.stack.value))
         for _ in range(1 << 32):
             if not self.stack.label:
                 break
@@ -1485,7 +1485,7 @@ class Machine:
                 continue
             instr = label.instr[label.index]
             label.index += 1
-            pywasm.log.debugln(f'    {instr}')
+            pywasm.log.debugln('   ', instr)
             match instr.opcode:
                 case pywasm.opcode.unreachable:
                     assert 0
