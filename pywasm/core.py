@@ -2538,40 +2538,55 @@ class Runtime:
         self.imports: typing.Dict[str, typing.Dict[str, Extern]] = {}
 
     def allocate_func_host(self, type: FuncType, func: typing.Callable) -> Extern:
+        # Allocate new instances of host functions.
+        # Host functions are never allocated by the webassembly semantics itself, but may be allocated by the embedder.
         return Extern(0x00, self.machine.store.allocate_func_host(FuncHost(type, func)))
 
     def allocate_table(self, type: TableType) -> Extern:
+        # Allocate new instances of tables.
         return Extern(0x01, self.machine.store.allocate_table(type))
 
     def allocate_memory(self, type: MemType) -> Extern:
+        # Allocate new instances of memory.
         return Extern(0x02, self.machine.store.allocate_memory(type))
 
     def allocate_global(self, type: GlobalType, data: ValInst) -> Extern:
+        # Allocate new instances of global.
         return Extern(0x03, self.machine.store.allocate_global(type, data))
 
     def exported_memory(self, module: ModuleInst, name: str) -> MemInst:
+        # Get an exportable memory instance.
         inst = [e for e in module.exps if e.name == name][0].data
         assert inst.kind == 0x02
         addr = inst.data
         return self.machine.store.mems[addr]
 
     def exported_global(self, module: ModuleInst, name: str) -> GlobalInst:
+        # Get an exportable global instance.
         inst = [e for e in module.exps if e.name == name][0].data
         assert inst.kind == 0x03
         addr = inst.data
         return self.machine.store.glob[addr]
 
     def instance(self, module: ModuleDesc) -> ModuleInst:
+        # A module is instantiated with a list of external values supplying the required imports. Instantiation checks
+        # that the module is valid and the provided imports match the declared types, and may fail with an error
+        # otherwise. Instantiation can also result in a trap from initializing a table or memory from an active
+        # segment or from executing the start function. It is up to the embedder to define how such conditions are
+        # reported.
         extern: typing.List[Extern] = []
         for e in module.imps:
             extern.append(self.imports[e.module][e.name])
         return self.machine.instance(module, extern)
 
     def instance_from_file(self, path: str) -> ModuleInst:
+        # Instantiated a module from a local file.
         with open(path, 'rb') as f:
             return self.instance(ModuleDesc.from_reader(f))
 
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
+        # Once a module has been instantiated, any exported function can be invoked externally via its function address
+        # in the store and an appropriate list of argument values.
         addr = [e for e in module.exps if e.name == func][0].data.data
         func = self.machine.store.func[addr]
         args = [ValInst.from_all(a, b) for a, b in zip(func.type.args, args)]
