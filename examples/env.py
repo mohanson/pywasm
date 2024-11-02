@@ -15,10 +15,10 @@ def fib_wasm(_: pywasm.core.ModuleInst, args: typing.List[int]) -> typing.List[i
 
 runtime = pywasm.core.Runtime()
 imports = {'env': {}}
-imports['env']['fib'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+imports['env']['fib'] = runtime.allocate_func_host(
     pywasm.core.FuncType([pywasm.core.ValType.i32()], [pywasm.core.ValType.i32()]),
     fib_wasm,
-))
+)
 m = runtime.instance_from_file('./examples/env.wasm', imports)
 r = runtime.invocate(m, 'get', [10])
 print(f'fib(10) = {r[0]}')

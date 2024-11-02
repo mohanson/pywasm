@@ -2536,8 +2536,8 @@ class Runtime:
     def __init__(self) -> typing.Self:
         self.machine = Machine()
 
-    def allocate_func_host(self, func: FuncHost) -> Extern:
-        return Extern(0x00, self.machine.store.allocate_func_host(func))
+    def allocate_func_host(self, type: FuncType, func: typing.Callable) -> Extern:
+        return Extern(0x00, self.machine.store.allocate_func_host(FuncHost(type, func)))
 
     def allocate_table(self, type: TableType) -> Extern:
         return Extern(0x01, self.machine.store.allocate_table(type))

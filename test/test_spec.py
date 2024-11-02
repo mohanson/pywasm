@@ -91,27 +91,27 @@ def impi(runtime: pywasm.core.Runtime) -> typing.Dict[str, typing.Dict[str, pywa
     imps['spectest']['memory'] = runtime.allocate_memory(
         pywasm.core.MemType(pywasm.core.Limits(1, 2))
     )
-    imps['spectest']['print'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    imps['spectest']['print'] = runtime.allocate_func_host(
         pywasm.core.FuncType([], []), lambda m, a: []
-    ))
-    imps['spectest']['print_i32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_i32'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.i32()], []), lambda m, a: []
-    ))
-    imps['spectest']['print_i64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_i64'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.i64()], []), lambda m, a: []
-    ))
-    imps['spectest']['print_f32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_f32'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.f32()], []), lambda m, a: []
-    ))
-    imps['spectest']['print_f64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_f64'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.f64()], []), lambda m, a: []
-    ))
-    imps['spectest']['print_i32_f32'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_i32_f32'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.i32(), pywasm.core.ValType.f32()], []), lambda m, a: []
-    ))
-    imps['spectest']['print_f64_f64'] = runtime.allocate_func_host(pywasm.core.FuncHost(
+    )
+    imps['spectest']['print_f64_f64'] = runtime.allocate_func_host(
         pywasm.core.FuncType([pywasm.core.ValType.f64(), pywasm.core.ValType.f64()], []), lambda m, a: []
-    ))
+    )
     return imps
 
 
