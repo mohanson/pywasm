@@ -2535,6 +2535,7 @@ class Runtime:
 
     def __init__(self) -> typing.Self:
         self.machine = Machine()
+        self.imports: typing.Dict[str, typing.Dict[str, Extern]] = {}
 
     def allocate_func_host(self, type: FuncType, func: typing.Callable) -> Extern:
         return Extern(0x00, self.machine.store.allocate_func_host(FuncHost(type, func)))
@@ -2560,15 +2561,15 @@ class Runtime:
         addr = inst.data
         return self.machine.store.glob[addr]
 
-    def instance(self, module: ModuleDesc, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+    def instance(self, module: ModuleDesc) -> ModuleInst:
         extern: typing.List[Extern] = []
         for e in module.imps:
-            extern.append(imps[e.module][e.name])
+            extern.append(self.imports[e.module][e.name])
         return self.machine.instance(module, extern)
 
-    def instance_from_file(self, path: str, imps: typing.Dict[str, typing.Any]) -> ModuleInst:
+    def instance_from_file(self, path: str) -> ModuleInst:
         with open(path, 'rb') as f:
-            return self.instance(ModuleDesc.from_reader(f), imps)
+            return self.instance(ModuleDesc.from_reader(f))
 
     def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
         addr = [e for e in module.exps if e.name == func][0].data.data
