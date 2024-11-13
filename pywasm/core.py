@@ -2507,7 +2507,8 @@ class Machine:
                     incr = self.stack.value.pop().into_i32()
                     init = self.stack.value.pop()
                     rets = -1
-                    cnda = size + incr <= 1024
+                    # Reject growing to size outside i32 value range
+                    cnda = incr >= 0
                     cndb = tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m
                     if cnda and cndb:
                         rets = size
