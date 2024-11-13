@@ -2468,9 +2468,9 @@ class Machine:
                 case pywasm.opcode.memory_init:
                     mems = self.store.mems[frame.module.mems[0]]
                     data = self.store.data[frame.module.data[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(data.data)
                     assert d + n <= len(mems.data)
                     mems.data[d:d+n] = data.data[s:s+n]
@@ -2479,26 +2479,26 @@ class Machine:
                     data.data.clear()
                 case pywasm.opcode.memory_copy:
                     mems = self.store.mems[frame.module.mems[0]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(mems.data)
                     assert d + n <= len(mems.data)
                     mems.data[d:d+n] = mems.data[s:s+n]
                 case pywasm.opcode.memory_fill:
                     mems = self.store.mems[frame.module.mems[0]]
-                    n = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
                     s = self.stack.value.pop().data[0]
-                    d = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_u32()
                     assert d + n <= len(mems.data)
                     for i in range(n):
                         mems.data[d+i] = s
                 case pywasm.opcode.table_init:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     elem = self.store.elem[frame.module.elem[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(elem.data)
                     assert d + n <= len(tabl.elem)
                     tabl.elem[d:d+n] = elem.data[s:s+n]
@@ -2511,9 +2511,9 @@ class Machine:
                 case pywasm.opcode.table_copy:
                     tabx = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     taby = self.store.tabl[frame.module.tabl[instr.args[1]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(taby.elem)
                     assert d + n <= len(tabx.elem)
                     tabx.elem[d:d+n] = taby.elem[s:s+n]
