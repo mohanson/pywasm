@@ -1665,7 +1665,7 @@ class Machine:
                 case pywasm.opcode.memory_grow:
                     mems = self.store.mems[frame.module.mems[0]]
                     size = mems.size
-                    incr = self.stack.value.pop().into_i32()
+                    incr = self.stack.value.pop().into_u32()
                     rets = -1
                     # Limit memory size to 64m.
                     cnda = size + incr <= 1024
@@ -2520,11 +2520,10 @@ class Machine:
                 case pywasm.opcode.table_grow:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     size = tabl.size
-                    incr = self.stack.value.pop().into_i32()
+                    incr = self.stack.value.pop().into_u32()
                     init = self.stack.value.pop()
                     rets = -1
-                    # Reject growing to size outside i32 value range
-                    cnda = incr >= 0
+                    cnda = size + incr <= 1024
                     cndb = tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m
                     if cnda and cndb:
                         rets = size
