@@ -1457,7 +1457,7 @@ class Machine:
 
     def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
-        addr = self.stack.value.pop().into_i32()
+        addr = self.stack.value.pop().into_u32()
         addr = addr + offset
         assert addr >= 0 and addr + size <= len(mems.data)
         return mems.data[addr:addr+size]
@@ -1465,7 +1465,7 @@ class Machine:
     def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         data = self.stack.value.pop().data
-        addr = self.stack.value.pop().into_i32()
+        addr = self.stack.value.pop().into_u32()
         addr = addr + offset
         assert addr >= 0 and addr + size <= len(mems.data)
         mems.data[addr:addr+size] = data[:size]
@@ -1591,14 +1591,14 @@ class Machine:
                     glob.data = self.stack.value.pop()
                 case pywasm.opcode.table_get:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    a = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_u32()
                     b = tabl.elem[a]
                     self.stack.value.append(b)
                 case pywasm.opcode.table_set:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     a = self.stack.value.pop()
                     assert a.type == tabl.type.type
-                    b = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop().into_u32()
                     tabl.elem[b] = a
                 case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
@@ -2507,8 +2507,7 @@ class Machine:
                     incr = self.stack.value.pop().into_i32()
                     init = self.stack.value.pop()
                     rets = -1
-                    # Reject growing to size outside i32 value range
-                    cnda = incr >= 0
+                    cnda = size + incr <= 1024
                     cndb = tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m
                     if cnda and cndb:
                         rets = size
