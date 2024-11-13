@@ -1457,7 +1457,7 @@ class Machine:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         addr = self.stack.value.pop().into_u32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(mems.data)
+        assert addr + size <= len(mems.data)
         return mems.data[addr:addr+size]
 
     def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
@@ -1465,7 +1465,7 @@ class Machine:
         data = self.stack.value.pop().data
         addr = self.stack.value.pop().into_u32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(mems.data)
+        assert addr + size <= len(mems.data)
         mems.data[addr:addr+size] = data[:size]
 
     def evaluate(self) -> None:
@@ -1552,7 +1552,7 @@ class Machine:
                 case pywasm.opcode.call_indirect:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     type = frame.module.type[instr.args[0]]
-                    addr = tabl.elem[self.stack.value.pop().into_i32()].into_ref()
+                    addr = tabl.elem[self.stack.value.pop().into_u32()].into_ref()
                     assert self.store.func[addr].type == type
                     self.evaluate_call(addr)
                 case pywasm.opcode.drop:
