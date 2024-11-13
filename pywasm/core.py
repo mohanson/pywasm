@@ -112,7 +112,6 @@ class ValInst:
 
     @classmethod
     def from_f32(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
         n = ctypes.c_float(n).value
         return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
 
@@ -124,7 +123,6 @@ class ValInst:
 
     @classmethod
     def from_f64(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
         return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
 
     @classmethod
@@ -2256,20 +2254,28 @@ class Machine:
                     self.stack.value.append(b)
                 case pywasm.opcode.i32_trunc_f32_s:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_i32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i32(b)
+                    assert c.into_i32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f32_u:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_u32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u32(b)
+                    assert c.into_u32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f64_s:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_i32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i32(b)
+                    assert c.into_i32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f64_u:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_u32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u32(b)
+                    assert c.into_u32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_extend_i32_s:
                     a = self.stack.value.pop().into_i32()
                     b = ValInst.from_i64(a)
@@ -2280,20 +2286,28 @@ class Machine:
                     self.stack.value.append(b)
                 case pywasm.opcode.i64_trunc_f32_s:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_i64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i64(b)
+                    assert c.into_i64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f32_u:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_u64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u64(b)
+                    assert c.into_u64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f64_s:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_i64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i64(b)
+                    assert c.into_i64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f64_u:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_u64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u64(b)
+                    assert c.into_u64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.f32_convert_i32_s:
                     a = self.stack.value.pop().into_i32()
                     b = ValInst.from_f32(float(a))
