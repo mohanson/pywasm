@@ -112,7 +112,6 @@ class ValInst:
 
     @classmethod
     def from_f32(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
         n = ctypes.c_float(n).value
         return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
 
@@ -124,7 +123,6 @@ class ValInst:
 
     @classmethod
     def from_f64(cls, n: float) -> typing.Self:
-        assert isinstance(n, float)
         return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
 
     @classmethod
@@ -1457,17 +1455,17 @@ class Machine:
 
     def evaluate_mem_load(self, offset: int, size: int) -> bytearray:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
-        addr = self.stack.value.pop().into_i32()
+        addr = self.stack.value.pop().into_u32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(mems.data)
+        assert addr + size <= len(mems.data)
         return mems.data[addr:addr+size]
 
     def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         data = self.stack.value.pop().data
-        addr = self.stack.value.pop().into_i32()
+        addr = self.stack.value.pop().into_u32()
         addr = addr + offset
-        assert addr >= 0 and addr + size <= len(mems.data)
+        assert addr + size <= len(mems.data)
         mems.data[addr:addr+size] = data[:size]
 
     def evaluate(self) -> None:
@@ -1554,7 +1552,7 @@ class Machine:
                 case pywasm.opcode.call_indirect:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     type = frame.module.type[instr.args[0]]
-                    addr = tabl.elem[self.stack.value.pop().into_i32()].into_ref()
+                    addr = tabl.elem[self.stack.value.pop().into_u32()].into_ref()
                     assert self.store.func[addr].type == type
                     self.evaluate_call(addr)
                 case pywasm.opcode.drop:
@@ -1591,14 +1589,14 @@ class Machine:
                     glob.data = self.stack.value.pop()
                 case pywasm.opcode.table_get:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    a = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_u32()
                     b = tabl.elem[a]
                     self.stack.value.append(b)
                 case pywasm.opcode.table_set:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     a = self.stack.value.pop()
                     assert a.type == tabl.type.type
-                    b = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop().into_u32()
                     tabl.elem[b] = a
                 case pywasm.opcode.i32_load:
                     a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
@@ -1667,7 +1665,7 @@ class Machine:
                 case pywasm.opcode.memory_grow:
                     mems = self.store.mems[frame.module.mems[0]]
                     size = mems.size
-                    incr = self.stack.value.pop().into_i32()
+                    incr = self.stack.value.pop().into_u32()
                     rets = -1
                     # Limit memory size to 64m.
                     cnda = size + incr <= 1024
@@ -1905,6 +1903,7 @@ class Machine:
                 case pywasm.opcode.i32_div_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
+                    assert a != -1 << 31 or b != -1
                     # Python's default division of integers is return the floor (towards negative infinity) with no
                     # ability to change that. You can read the BDFL's reason why.
                     # See: https://python-history.blogspot.com/2010/08/why-pythons-integer-division-floors.html
@@ -2015,6 +2014,7 @@ class Machine:
                 case pywasm.opcode.i64_div_s:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
+                    assert a != -1 << 63 or b != -1
                     c = a // b if a * b > 0 else (a + (-a % b)) // b
                     d = ValInst.from_i64(c)
                     self.stack.value.append(d)
@@ -2256,20 +2256,28 @@ class Machine:
                     self.stack.value.append(b)
                 case pywasm.opcode.i32_trunc_f32_s:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_i32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i32(b)
+                    assert c.into_i32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f32_u:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_u32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u32(b)
+                    assert c.into_u32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f64_s:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_i32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i32(b)
+                    assert c.into_i32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_f64_u:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_u32(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u32(b)
+                    assert c.into_u32() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_extend_i32_s:
                     a = self.stack.value.pop().into_i32()
                     b = ValInst.from_i64(a)
@@ -2280,20 +2288,28 @@ class Machine:
                     self.stack.value.append(b)
                 case pywasm.opcode.i64_trunc_f32_s:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_i64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i64(b)
+                    assert c.into_i64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f32_u:
                     a = self.stack.value.pop().into_f32()
-                    b = ValInst.from_u64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u64(b)
+                    assert c.into_u64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f64_s:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_i64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_i64(b)
+                    assert c.into_i64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_f64_u:
                     a = self.stack.value.pop().into_f64()
-                    b = ValInst.from_u64(int(a))
-                    self.stack.value.append(b)
+                    b = int(a)
+                    c = ValInst.from_u64(b)
+                    assert c.into_u64() == b
+                    self.stack.value.append(c)
                 case pywasm.opcode.f32_convert_i32_s:
                     a = self.stack.value.pop().into_i32()
                     b = ValInst.from_f32(float(a))
@@ -2452,9 +2468,9 @@ class Machine:
                 case pywasm.opcode.memory_init:
                     mems = self.store.mems[frame.module.mems[0]]
                     data = self.store.data[frame.module.data[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(data.data)
                     assert d + n <= len(mems.data)
                     mems.data[d:d+n] = data.data[s:s+n]
@@ -2463,26 +2479,26 @@ class Machine:
                     data.data.clear()
                 case pywasm.opcode.memory_copy:
                     mems = self.store.mems[frame.module.mems[0]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(mems.data)
                     assert d + n <= len(mems.data)
                     mems.data[d:d+n] = mems.data[s:s+n]
                 case pywasm.opcode.memory_fill:
                     mems = self.store.mems[frame.module.mems[0]]
-                    n = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
                     s = self.stack.value.pop().data[0]
-                    d = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_u32()
                     assert d + n <= len(mems.data)
                     for i in range(n):
                         mems.data[d+i] = s
                 case pywasm.opcode.table_init:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[1]]]
                     elem = self.store.elem[frame.module.elem[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(elem.data)
                     assert d + n <= len(tabl.elem)
                     tabl.elem[d:d+n] = elem.data[s:s+n]
@@ -2495,20 +2511,19 @@ class Machine:
                 case pywasm.opcode.table_copy:
                     tabx = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     taby = self.store.tabl[frame.module.tabl[instr.args[1]]]
-                    n = self.stack.value.pop().into_i32()
-                    s = self.stack.value.pop().into_i32()
-                    d = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
+                    s = self.stack.value.pop().into_u32()
+                    d = self.stack.value.pop().into_u32()
                     assert s + n <= len(taby.elem)
                     assert d + n <= len(tabx.elem)
                     tabx.elem[d:d+n] = taby.elem[s:s+n]
                 case pywasm.opcode.table_grow:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
                     size = tabl.size
-                    incr = self.stack.value.pop().into_i32()
+                    incr = self.stack.value.pop().into_u32()
                     init = self.stack.value.pop()
                     rets = -1
-                    # Reject growing to size outside i32 value range
-                    cnda = incr >= 0
+                    cnda = size + incr <= 1024
                     cndb = tabl.type.limits.m == 0 or size + incr <= tabl.type.limits.m
                     if cnda and cndb:
                         rets = size
@@ -2520,9 +2535,9 @@ class Machine:
                     self.stack.value.append(ValInst.from_i32(size))
                 case pywasm.opcode.table_fill:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
                     s = self.stack.value.pop()
-                    d = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_u32()
                     assert d + n <= len(tabl.elem)
                     for i in range(n):
                         tabl.elem[d+i] = s
