@@ -172,7 +172,25 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                     case _:
                         assert 0
             case 'assert_trap':
-                assert 1
+                match elem['action']['type']:
+                    case 'invoke':
+                        cmodule = lmodule
+                        if 'module' in elem['action']:
+                            cmodule = mmodule[elem['action']['module']]
+                        name = elem['action']['field']
+                        args = [valj(e) for e in elem['action']['args']]
+                        text = elem['text']
+                        addr = [e for e in cmodule.exps if e.name == name][0].data.data
+                        try:
+                            r = runtime.machine.invocate(addr, args)
+                        except:
+                            runtime.machine.stack.frame.clear()
+                            runtime.machine.stack.label.clear()
+                            runtime.machine.stack.value.clear()
+                        else:
+                            assert 0
+                    case _:
+                        assert 0
             case 'assert_uninstantiable':
                 try:
                     lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
