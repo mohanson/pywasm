@@ -194,7 +194,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
             case 'assert_uninstantiable':
                 try:
                     lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
-                except Exception as e:
+                except:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
                     runtime.machine.stack.value.clear()
