@@ -1903,6 +1903,7 @@ class Machine:
                 case pywasm.opcode.i32_div_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
+                    assert a != -1 << 31 or b != -1
                     # Python's default division of integers is return the floor (towards negative infinity) with no
                     # ability to change that. You can read the BDFL's reason why.
                     # See: https://python-history.blogspot.com/2010/08/why-pythons-integer-division-floors.html
@@ -2013,6 +2014,7 @@ class Machine:
                 case pywasm.opcode.i64_div_s:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
+                    assert a != -1 << 63 or b != -1
                     c = a // b if a * b > 0 else (a + (-a % b)) // b
                     d = ValInst.from_i64(c)
                     self.stack.value.append(d)
