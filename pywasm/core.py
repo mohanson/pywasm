@@ -2535,9 +2535,9 @@ class Machine:
                     self.stack.value.append(ValInst.from_i32(size))
                 case pywasm.opcode.table_fill:
                     tabl = self.store.tabl[frame.module.tabl[instr.args[0]]]
-                    n = self.stack.value.pop().into_i32()
+                    n = self.stack.value.pop().into_u32()
                     s = self.stack.value.pop()
-                    d = self.stack.value.pop().into_i32()
+                    d = self.stack.value.pop().into_u32()
                     assert d + n <= len(tabl.elem)
                     for i in range(n):
                         tabl.elem[d+i] = s
