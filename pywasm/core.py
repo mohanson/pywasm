@@ -1428,6 +1428,8 @@ class Machine:
         pywasm.log.debugln('call', func, args)
         match func.kind:
             case 0x00:
+                # Call stack exhausted.
+                assert len(self.stack.frame) < 1024
                 locals = LocalsInst(args)
                 for e in func.code.locals:
                     locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
