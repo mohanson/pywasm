@@ -305,72 +305,96 @@ class Inst:
             case pywasm.opcode.i32_load:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                # Alignment must not be larger than natural.
+                assert o.args[0] < 3
             case pywasm.opcode.i64_load:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
             case pywasm.opcode.f32_load:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.f64_load:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
             case pywasm.opcode.i32_load8_s:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i32_load8_u:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i32_load16_s:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i32_load16_u:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i64_load8_s:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i64_load8_u:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i64_load16_s:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i64_load16_u:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i64_load32_s:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.i64_load32_u:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.i32_store:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.i64_store:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
             case pywasm.opcode.f32_store:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.f64_store:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
             case pywasm.opcode.i32_store8:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i32_store16:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i64_store8:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
             case pywasm.opcode.i64_store16:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
             case pywasm.opcode.i64_store32:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
             case pywasm.opcode.memory_size:
                 o.args.append(ord(r.read(1)))
             case pywasm.opcode.memory_grow:
