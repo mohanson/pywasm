@@ -153,7 +153,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         args = [valj(e) for e in elem['action']['args']]
                         addr = [e for e in cmodule.exps if e.name == name][0].data.data
                         try:
-                            r = runtime.machine.invocate(addr, args)
+                            runtime.machine.invocate(addr, args)
                         except Exception as e:
                             runtime.machine.stack.frame.clear()
                             runtime.machine.stack.label.clear()
@@ -198,7 +198,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         args = [valj(e) for e in elem['action']['args']]
                         addr = [e for e in cmodule.exps if e.name == name][0].data.data
                         try:
-                            r = runtime.machine.invocate(addr, args)
+                            runtime.machine.invocate(addr, args)
                         except Exception as e:
                             runtime.machine.stack.frame.clear()
                             runtime.machine.stack.label.clear()
