@@ -217,7 +217,14 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                 else:
                     assert 0
             case 'assert_unlinkable':
-                assert 1
+                try:
+                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
+                except:
+                    runtime.machine.stack.frame.clear()
+                    runtime.machine.stack.label.clear()
+                    runtime.machine.stack.value.clear()
+                else:
+                    assert 0
             case 'module':
                 lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
                 if 'name' in elem:
