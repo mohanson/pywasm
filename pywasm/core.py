@@ -233,6 +233,9 @@ class Inst:
         self.args = args
 
     def __repr__(self) -> str:
+        return self.into_single()
+
+    def into_single(self) -> str:
         seps = [pywasm.opcode.name[self.opcode]]
         if self.opcode in [pywasm.opcode.block, pywasm.opcode.loop, pywasm.opcode.if_then]:
             seps.append(repr(self.args[0]))
@@ -240,6 +243,13 @@ class Inst:
         for e in self.args:
             seps.append(repr(e))
         return ' '.join(seps)
+
+    def into_disasm(self, indent: int) -> None:
+        prefix = ' ' * indent
+        pywasm.log.debugln(f'{prefix}{self.into_single()}')
+        if self.opcode in [pywasm.opcode.block, pywasm.opcode.loop, pywasm.opcode.if_then]:
+            for e in self.args[1]:
+                e.into_disasm(indent + 4)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
@@ -453,6 +463,10 @@ class Expr:
 
     def __repr__(self) -> str:
         return repr(self.data)
+
+    def into_disasm(self, indent: int) -> None:
+        for e in self.data:
+            e.into_disasm(indent)
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
@@ -1079,6 +1093,7 @@ class ModuleDesc:
                         func[i].locals = desc.locals
                         func[i].expr = desc.expr
                         pywasm.log.debugln('   ', i, desc)
+                        desc.expr.into_disasm(8)
                 case 0x0b:
                     pywasm.log.debugln('section data')
                     for i in range(pywasm.leb128.u.decode_reader(section_reader)[0]):
