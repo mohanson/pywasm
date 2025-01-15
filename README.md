@@ -2,7 +2,7 @@
 
 A WebAssembly interpreter written in pure Python, no third-party libraries are used.
 
-The wasm version currently in use is: [WebAssembly Specification, Release 2.0 (Draft 2024-11-12)](https://webassembly.github.io/spec/core/).
+The wasm version currently in use is: [WebAssembly Specification, Release 2.0 (Draft 2024-12-18)](https://webassembly.github.io/spec/core/).
 
 Also requires Python version >= 3.12.
 
