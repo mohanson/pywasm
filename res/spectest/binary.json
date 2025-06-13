@@ -132,7 +132,7 @@
   {"type": "assert_malformed", "line": 1332, "filename": "binary.129.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
   {"type": "assert_malformed", "line": 1342, "filename": "binary.130.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
   {"type": "assert_malformed", "line": 1352, "filename": "binary.131.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
-  {"type": "assert_malformed", "line": 1363, "filename": "binary.132.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
-  {"type": "assert_malformed", "line": 1374, "filename": "binary.133.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
-  {"type": "assert_malformed", "line": 1384, "filename": "binary.134.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
-  {"type": "assert_malformed", "line": 1394, "filename": "binary.135.wasm", "text": "unexpected content after last section", "module_type": "binary"}]}
+  {"type": "assert_malformed", "line": 1364, "filename": "binary.132.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
+  {"type": "assert_malformed", "line": 1376, "filename": "binary.133.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
+  {"type": "assert_malformed", "line": 1386, "filename": "binary.134.wasm", "text": "unexpected content after last section", "module_type": "binary"}, 
+  {"type": "assert_malformed", "line": 1396, "filename": "binary.135.wasm", "text": "unexpected content after last section", "module_type": "binary"}]}
