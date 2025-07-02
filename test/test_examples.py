@@ -1,8 +1,5 @@
+import pathlib
 import subprocess
 
-
-subprocess.run(f'python examples/add.py', shell=True, check=True)
-subprocess.run(f'python examples/env.py', shell=True, check=True)
-subprocess.run(f'python examples/fib.py', shell=True, check=True)
-subprocess.run(f'python examples/str.py', shell=True, check=True)
-subprocess.run(f'python examples/sum.py', shell=True, check=True)
+for name in [p.name for p in pathlib.Path('examples').iterdir() if p.is_dir()]:
+    subprocess.run(f'python examples/{name}.py', shell=True, check=True)
