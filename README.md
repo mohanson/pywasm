@@ -14,7 +14,7 @@ $ pip install pywasm
 
 # Some simple examples
 
-1. First we need a wasm module! Grab our `./examples/fib.wasm` file and save a copy in a new directory on your local machine. Note: `fib.wasm` was compiled from `./examples/fib.c`.
+1. First we need a wasm module! Grab our `examples/fibonacci/bin/fibonacci.wasm` file and save a copy in a new directory on your local machine.
 
 2. Now, instantiate WebAssembly modules directly from underlying sources. This is achieved using the `Runtime.instance_from_file` method.
 
@@ -23,25 +23,25 @@ import pywasm
 pywasm.log.lvl = 1
 
 runtime = pywasm.core.Runtime()
-m = runtime.instance_from_file('./examples/fib.wasm')
-r = runtime.invocate(m, 'fib', [10])
-print(f'fib(10) = {r[0]}')
+m = runtime.instance_from_file('examples/fibonacci/bin/fibonacci.wasm')
+r = runtime.invocate(m, 'fibonacci', [10])
+print(f'fibonacci(10) = {r[0]}')
 ```
 
-A brief description for `./examples`
+A brief description for `examples`
 
-| File                | Description                                  |
-|---------------------|----------------------------------------------|
-| ./examples/add.wasm | Export i32.add function                      |
-| ./examples/env.wasm | Call python/native function in wasm          |
-| ./examples/fib.wasm | Fibonacci, which contains loop and recursion |
-| ./examples/str.wasm | Export a function which returns string       |
-| ./examples/sum.wasm | Equal difference series summation            |
+|            File            |                             Description                              |
+| -------------------------- | -------------------------------------------------------------------- |
+| examples/blake2b.py        | Blake2b hashing algorithm                                            |
+| examples/blake2b_direct.py | Make the hash result returned as a value, not as an output parameter |
+| examples/fibonacci.py      | Fibonacci, which contains loop and recursion                         |
+| examples/fibonacci_env.py  | Call python/native function in wasm                                  |
+| examples/pi.py             | Calculate π using the agm algorithm                                  |
 
 # Test
 
 ```sh
-$ python ./test/test_spec.py
+$ python test/test_spec.py
 ```
 
 # Thanks

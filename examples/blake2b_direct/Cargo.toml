@@ -1,0 +1,10 @@
+[package]
+name = "blake2b_direct"
+version = "1.0.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+blake2ya = "1.0"

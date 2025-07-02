@@ -2645,6 +2645,7 @@ class Runtime:
         # in the store and an appropriate list of argument values.
         addr = [e for e in module.exps if e.name == func][0].data.data
         func = self.machine.store.func[addr]
+        assert len(func.type.args) == len(args)
         args = [ValInst.from_all(a, b) for a, b in zip(func.type.args, args)]
         rets = self.machine.invocate(addr, args)
         return [e.into_all() for e in rets]
