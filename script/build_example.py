@@ -18,8 +18,8 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
-for name in [p.name for p in pathlib.Path('examples').iterdir() if p.is_dir()]:
-    with cd(f'examples/{name}'):
+for name in [p.name for p in pathlib.Path('example').iterdir() if p.is_dir()]:
+    with cd(f'example/{name}'):
         call('cargo build --release')
         call(f'cp target/wasm32-unknown-unknown/release/{name}.wasm bin')
         call(f'wasm2wat -o bin/{name}.wat bin/{name}.wasm')

@@ -7,7 +7,7 @@ import typing
 
 
 pywasm.log.lvl = 0
-unittest_regex = 'res/spectest/.*.json'
+unittest_regex = 'test/spec/.*.json'
 
 
 def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
@@ -115,7 +115,7 @@ def host(runtime: pywasm.core.Runtime) -> typing.Dict[str, typing.Dict[str, pywa
     }
 
 
-for name in sorted(glob.glob('res/spectest/*.json')):
+for name in sorted(glob.glob('test/spec/*.json')):
     if not re.match(unittest_regex, name):
         continue
     with open(name) as f:
@@ -209,7 +209,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                         assert 0
             case 'assert_uninstantiable':
                 try:
-                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
+                    lmodule = runtime.instance_from_file(f'test/spec/{elem['filename']}')
                 except:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
@@ -218,7 +218,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                     assert 0
             case 'assert_unlinkable':
                 try:
-                    lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
+                    lmodule = runtime.instance_from_file(f'test/spec/{elem['filename']}')
                 except:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
@@ -226,7 +226,7 @@ for name in sorted(glob.glob('res/spectest/*.json')):
                 else:
                     assert 0
             case 'module':
-                lmodule = runtime.instance_from_file(f'res/spectest/{elem['filename']}')
+                lmodule = runtime.instance_from_file(f'test/spec/{elem['filename']}')
                 if 'name' in elem:
                     mmodule[elem['name']] = lmodule
             case 'register':

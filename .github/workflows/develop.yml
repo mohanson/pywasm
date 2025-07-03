@@ -11,9 +11,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Test
         run: |
           python -m pip install --editable .
-          python test/test_examples.py
-          python test/test_spec.py
+          python test/example.py
+          python test/spec.py
