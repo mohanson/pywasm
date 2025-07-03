@@ -19,6 +19,6 @@ runtime.imports['env']['fibonacci_host'] = runtime.allocate_func_host(
     pywasm.core.FuncType([pywasm.core.ValType.i32()], [pywasm.core.ValType.i32()]),
     fibonacci_host,
 )
-m = runtime.instance_from_file('examples/fibonacci_env/bin/fibonacci_env.wasm')
+m = runtime.instance_from_file('example/fibonacci_env/bin/fibonacci_env.wasm')
 r = runtime.invocate(m, 'fibonacci', [10])
 print(f'fibonacci(10) = {r[0]}')

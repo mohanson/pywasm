@@ -1,17 +1,17 @@
 import pywasm
 
 runtime = pywasm.core.Runtime()
-m = runtime.instance_from_file('examples/blake2b/bin/blake2b.wasm')
+m = runtime.instance_from_file('example/blake2b_direct/bin/blake2b_direct.wasm')
 
 data = bytearray(b'abc')
 data_size = len(data)
 data_ptr = runtime.invocate(m, 'alloc', [data_size])[0]
-hash_size = 64
-hash_ptr = runtime.invocate(m, 'alloc', [hash_size])[0]
 memory = runtime.exported_memory(m, 'memory').data
 memory[data_ptr:data_ptr+data_size] = data
-runtime.invocate(m, 'blake2b', [data_ptr, data_size, hash_ptr, hash_size])
-hash = memory[hash_ptr: hash_ptr+hash_size]
+
+hash_ptr = runtime.invocate(m, 'blake2b', [data_ptr, data_size])[0]
+hash_size = 64
+hash = memory[hash_ptr:hash_ptr+hash_size]
 print(hash.hex())
 assert hash == bytearray([
     0xba, 0x80, 0xa5, 0x3f, 0x98, 0x1c, 0x4d, 0x0d, 0x6a, 0x27, 0x97, 0xb6, 0x9f, 0x12, 0xf6, 0xe9,
