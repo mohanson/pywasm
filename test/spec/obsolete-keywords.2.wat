@@ -1,1 +1,0 @@
-(func (local $i i32) (drop (get_local $i)))

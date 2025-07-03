@@ -32,18 +32,21 @@ print(f'fibonacci(10) = {r[0]}')
 
 A brief description for `example`
 
-|            File            |                             Description                              |
-| -------------------------- | -------------------------------------------------------------------- |
+|           File            |                             Description                              |
+| ------------------------- | -------------------------------------------------------------------- |
 | example/blake2b.py        | Blake2b hashing algorithm                                            |
 | example/blake2b_direct.py | Make the hash result returned as a value, not as an output parameter |
 | example/fibonacci.py      | Fibonacci, which contains loop and recursion                         |
 | example/fibonacci_env.py  | Call python/native function in wasm                                  |
 | example/pi.py             | Calculate π using the agm algorithm                                  |
+| example/wasi_print.py     | Execute a wasi program and print poem "The Zen of Python"            |
 
 # Test
 
 ```sh
-$ python test/test_spec.py
+$ python test/example.py
+$ python test/spec.py
+$ python test/wasi.py
 ```
 
 # Thanks

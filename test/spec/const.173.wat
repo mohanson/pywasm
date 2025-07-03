@@ -1,1 +1,0 @@
-(func (f64.const nan:1) drop)

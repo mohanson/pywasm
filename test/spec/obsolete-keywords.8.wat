@@ -1,1 +1,0 @@
-(func (drop (i32.wrap/i64 (i64.const 0))))

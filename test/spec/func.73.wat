@@ -1,1 +1,0 @@
-(func (param $foo i32) (param $foo i32))
