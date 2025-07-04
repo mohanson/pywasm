@@ -618,12 +618,42 @@ class MemInst:
         self.size = 0
         self.grow(type.limits.n)
 
+    def get_i32(self, addr: int) -> int:
+        return struct.unpack('<i', self.data[addr:addr+4])[0]
+
+    def get_i64(self, addr: int) -> int:
+        return struct.unpack('<q', self.data[addr:addr+8])[0]
+
+    def get_u32(self, addr: int) -> int:
+        return struct.unpack('<I', self.data[addr:addr+4])[0]
+
+    def get_u64(self, addr: int) -> int:
+        return struct.unpack('<Q', self.data[addr:addr+8])[0]
+
+    def get(self, addr: int, size: int) -> bytearray:
+        return self.data[addr:addr+size].copy()
+
     def grow(self, n: int) -> None:
         if self.type.limits.m:
             assert self.size + n <= self.type.limits.m
         assert self.size + n <= 65536
         self.data.extend([0x00 for _ in range(n * 64 * 1024)])
         self.size += n
+
+    def put_i32(self, addr: int, data: int) -> None:
+        self.data[addr:addr+4] = struct.pack('<i', data)
+
+    def put_i64(self, addr: int, data: int) -> None:
+        self.data[addr:addr+8] = struct.pack('<q', data)
+
+    def put_u32(self, addr: int, data: int) -> None:
+        self.data[addr:addr+4] = struct.pack('<I', data)
+
+    def put_u64(self, addr: int, data: int) -> None:
+        self.data[addr:addr+8] = struct.pack('<Q', data)
+
+    def put(self, addr: int, data: bytearray) -> None:
+        self.data[addr:addr+len(data)] = data.copy()
 
     def suit(self, l: Limits) -> bool:
         return Limits(self.size, self.type.limits.m).suit(l)

@@ -1,2 +1,4 @@
 dist
 res/spec
+res/wabt
+res/wasi-testsuite

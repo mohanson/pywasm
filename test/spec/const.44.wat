@@ -1,1 +1,0 @@
-(func (f32.const 1x) drop)

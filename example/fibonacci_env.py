@@ -9,7 +9,7 @@ def fibonacci(n: int) -> int:
     return fibonacci(n - 1) + fibonacci(n - 2)
 
 
-def fibonacci_host(_: pywasm.core.ModuleInst, args: typing.List[int]) -> typing.List[int]:
+def fibonacci_host(_: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
     return [fibonacci(args[0])]
 
 

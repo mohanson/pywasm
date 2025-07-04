@@ -27,8 +27,6 @@ with cd('res/spec'):
     # When update spectest, we can increase the commit id in small steps.
     # Use: git log --reverse 1041527d508218acc40f0278d4abc3be9ba5e3bd.. -- test/core
     call('git checkout 1041527d508218acc40f0278d4abc3be9ba5e3bd')
-call('rm -rf test/spec')
-call('cp -R res/spec/test/core test/spec')
-with cd('test/spec'):
+with cd('res/spec/test/core'):
     for e in sorted(glob.glob('*.wast')):
         call(f'wast2json {e}')

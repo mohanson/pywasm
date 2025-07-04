@@ -1,1 +1,0 @@
-(type (func (result $x i32)))

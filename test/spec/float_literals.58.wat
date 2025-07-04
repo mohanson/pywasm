@@ -1,1 +1,0 @@
-(global f64 (f64.const 1.0e+_1))
