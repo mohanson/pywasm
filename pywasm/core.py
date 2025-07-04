@@ -624,6 +624,12 @@ class MemInst:
     def get_i64(self, addr: int) -> int:
         return struct.unpack('<q', self.data[addr:addr+8])[0]
 
+    def get_u8(self, addr: int) -> int:
+        return self.data[addr]
+
+    def get_u16(self, addr: int) -> int:
+        return struct.unpack('<H', self.data[addr:addr+2])[0]
+
     def get_u32(self, addr: int) -> int:
         return struct.unpack('<I', self.data[addr:addr+4])[0]
 
@@ -646,6 +652,12 @@ class MemInst:
     def put_i64(self, addr: int, data: int) -> None:
         self.data[addr:addr+8] = struct.pack('<q', data)
 
+    def put_u8(self, addr: int, data: int) -> None:
+        self.data[addr] = data
+
+    def put_u16(self, addr: int, data: int) -> None:
+        self.data[addr:addr+2] = struct.pack('<H', data)
+
     def put_u32(self, addr: int, data: int) -> None:
         self.data[addr:addr+4] = struct.pack('<I', data)
 
@@ -653,6 +665,7 @@ class MemInst:
         self.data[addr:addr+8] = struct.pack('<Q', data)
 
     def put(self, addr: int, data: bytearray) -> None:
+        assert isinstance(data, bytearray)
         self.data[addr:addr+len(data)] = data.copy()
 
     def suit(self, l: Limits) -> bool:
