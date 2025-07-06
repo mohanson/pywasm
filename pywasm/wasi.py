@@ -1141,7 +1141,19 @@ class Preview1:
 
     def path_rename(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Rename a file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]) or self.help_badf(args[3]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_RENAME_SOURCE):
+            return [self.ERRNO_PERM]
+        if self.help_perm(args[3], self.RIGHTS_PATH_RENAME_TARGET):
+            return [self.ERRNO_PERM]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        dest = self.fd[args[3]]
+        name = mems.get(args[1], args[2]).decode()
+        dest = mems.get(args[4], args[5]).decode()
+        os.rename(name, dest, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        return [self.ERRNO_SUCCESS]
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a symbolic link.
