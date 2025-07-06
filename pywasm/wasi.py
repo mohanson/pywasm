@@ -1039,11 +1039,12 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
+        flag = args[1]
         name_base = mems.get(args[2], args[3]).decode()
         name_host = os.path.join(file.name_host, name_base)
         if not os.path.exists(name_host):
             return [self.ERRNO_NOENT]
-        stat_result = os.stat(name_host)
+        stat_result = os.stat(name_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         mems.put_u64(args[4], 1)
         mems.put_u64(args[4] + 8, stat_result.st_ino)
         mems.put_u8(args[4] + 16, self.help_filetype_stat_result(stat_result))
