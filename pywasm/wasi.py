@@ -779,7 +779,7 @@ class Preview1:
         # Write to a file descriptor, without using and updating the file descriptor's offset.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_PERM]
