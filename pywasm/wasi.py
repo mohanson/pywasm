@@ -610,7 +610,7 @@ class Preview1:
             return [self.ERRNO_PERM]
         return [self.ERRNO_SUCCESS]
 
-    def fd_allocate(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_allocate(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Force the allocation of space in a file.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
@@ -696,7 +696,7 @@ class Preview1:
         mems.put_u64(args[1] + 56, stat_result.st_ctime_ns)
         return [self.ERRNO_SUCCESS]
 
-    def fd_filestat_set_size(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_filestat_set_size(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the size of an open file. If this increases the file's size, the extra bytes are filled with zeros.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
@@ -854,8 +854,23 @@ class Preview1:
         mems.put_u32(args[4], dirent - args[1])
         return [self.ERRNO_SUCCESS]
 
-    def fd_renumber(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
-        raise Exception('todo')
+    def fd_renumber(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+        if self.help_badf(args[0]) or self.help_badf(args[1]):
+            return [self.ERRNO_BADF]
+        file = self.fd[args[0]]
+        dest = self.fd[args[1]]
+        dest.fd_host = file.fd_host
+        dest.fd_wasm = file.fd_wasm
+        dest.filetype = file.filetype
+        dest.flag = file.flag
+        dest.name_host = file.name_host
+        dest.name_wasm = file.name_wasm
+        dest.pipe = file.pipe
+        dest.rights_base = file.rights_base
+        dest.rights_root = file.rights_root
+        dest.status = file.status
+        self.fd[args[0]].status = self.FILE_STATUS_CLOSED
+        return [self.ERRNO_SUCCESS]
 
     def fd_seek(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Move the offset of a file descriptor.
