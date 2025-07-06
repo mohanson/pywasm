@@ -1019,7 +1019,7 @@ class Preview1:
         # Remove a directory.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.help_perm(args[0], self.RIGHTS_PATH_CREATE_DIRECTORY):
+        if self.help_perm(args[0], self.RIGHTS_PATH_REMOVE_DIRECTORY):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         name = mems.get(args[1], args[2]).decode()

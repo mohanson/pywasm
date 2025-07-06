@@ -22,11 +22,11 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
 
 
 call('rm -rf res/wasi-testsuite/tests/c/testsuite/fs-tests.dir/pwrite.cleanup')
-# call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_fd_subdir.cleanup')
+call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_fd_subdir.cleanup')
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
-# case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
 for wasm_path in case:
     print(wasm_path)
     root = os.path.dirname(wasm_path)
