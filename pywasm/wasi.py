@@ -857,18 +857,25 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         dirent = args[1]
         cookie = args[3]
-        for e in list(os.scandir(self.fd[args[0]].fd_host))[cookie:]:
-            if dirent + 24 + len(e.name) > args[1] + args[2]:
+        result = ['.', '..', *sorted(os.listdir(self.fd[args[0]].fd_host))]
+        for e in result[cookie:]:
+            stat_result = os.stat(os.path.join(self.fd[args[0]].name_host, e))
+            if dirent + 24 > args[1] + args[2]:
                 break
             mems.put_u64(dirent, cookie + 1)
-            mems.put_u64(dirent + 8, e.inode())
-            mems.put_u32(dirent + 16, len(e.name))
-            mems.put_u8(dirent + 20, self.help_filetype_stat_result(e.stat()))
+            mems.put_u64(dirent + 8, stat_result.st_ino)
+            mems.put_u32(dirent + 16, len(e))
+            mems.put_u8(dirent + 20, self.help_filetype_stat_result(stat_result))
             dirent += 24
-            mems.put(dirent, bytearray(e.name.encode()))
-            dirent += len(e.name)
+            if dirent + len(e) > args[1] + args[2]:
+                break
+            mems.put(dirent, bytearray(e.encode()))
+            dirent += len(e)
             cookie += 1
-        mems.put_u32(args[4], dirent - args[1])
+        if cookie == len(result):
+            mems.put_u32(args[4], dirent - args[1])
+        else:
+            mems.put_u32(args[4], args[2])
         return [self.ERRNO_SUCCESS]
 
     def fd_renumber(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
