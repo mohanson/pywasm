@@ -21,9 +21,15 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
-case = sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm'))
+call('rm -rf res/wasi-testsuite/tests/c/testsuite/fs-tests.dir/pwrite.cleanup')
+# call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_fd_subdir.cleanup')
+case = []
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
+# case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
 for wasm_path in case:
     print(wasm_path)
+    root = os.path.dirname(wasm_path)
     name = os.path.splitext(os.path.basename(wasm_path))[0]
     conf_path = wasm_path[:-5] + '.json'
     conf = {}
@@ -31,10 +37,14 @@ for wasm_path in case:
         with open(conf_path) as f:
             conf = json.load(f)
     runtime = pywasm.core.Runtime()
-    wasi = pywasm.wasi.Preview1([f'{name}.wasm'] + conf.get('args', []), conf.get('env', {}))
-    wasi.fd[1] = io.BytesIO(bytearray())
+    wasi = pywasm.wasi.Preview1(
+        [f'{name}.wasm'] + conf.get('args', []),
+        {e: os.path.join(root, e) for e in conf.get('dirs', [])},
+        conf.get('env', {}),
+    )
+    wasi.fd[1].pipe = io.BytesIO(bytearray())
     wasi.bind(runtime)
     exit = wasi.main(runtime, runtime.instance_from_file(wasm_path))
-    wasi.fd[1].seek(0)
-    assert wasi.fd[1].read().decode() == conf.get('stdout', '')
+    wasi.fd[1].pipe.seek(0)
+    assert wasi.fd[1].pipe.read().decode() == conf.get('stdout', '')
     assert exit == conf.get('exit_code', 0)
