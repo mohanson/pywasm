@@ -607,6 +607,12 @@ class Preview1:
 
     def fd_allocate(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Force the allocation of space in a file.
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_ALLOCATE):
+            return [self.ERRNO_PERM]
         raise Exception('todo')
 
     def fd_close(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -665,6 +671,12 @@ class Preview1:
 
     def fd_filestat_set_size(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the size of an open file. If this increases the file's size, the extra bytes are filled with zeros.
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_SIZE):
+            return [self.ERRNO_PERM]
         raise Exception('todo')
 
     def fd_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -675,6 +687,8 @@ class Preview1:
         # Read from a file descriptor, without using and updating the file descriptor's offset.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -719,6 +733,8 @@ class Preview1:
         # Write to a file descriptor, without using and updating the file descriptor's offset.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -745,6 +761,8 @@ class Preview1:
         # Read from a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -797,6 +815,8 @@ class Preview1:
         # Move the offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SEEK):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -815,6 +835,8 @@ class Preview1:
         # Return the current offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -826,6 +848,8 @@ class Preview1:
         # Write to a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
@@ -977,6 +1001,8 @@ class Preview1:
         name_base = mems.get(args[2], args[3]).decode()
         name_wasm = os.path.join(file.name_wasm, name_base)
         name_host = os.path.join(file.name_host, name_base)
+        if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
+            return [self.ERRNO_LOOP]
         flag = 0
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
@@ -1032,14 +1058,14 @@ class Preview1:
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a symbolic link.
-        if self.help_badf(args[0]):
+        if self.help_badf(args[2]):
             return [self.ERRNO_BADF]
-        if self.help_perm(args[0], self.RIGHTS_PATH_SYMLINK):
+        if self.help_perm(args[2], self.RIGHTS_PATH_SYMLINK):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         path_old = mems.get(args[0], args[1]).decode()
         path_new = mems.get(args[3], args[4]).decode()
-        os.link(path_old, path_new, self.fd[args[2]].fd_host)
+        os.symlink(path_old, path_new, dir_fd=self.fd[args[2]].fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_unlink_file(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:

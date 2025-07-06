@@ -23,6 +23,8 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
 
 call('rm -rf res/wasi-testsuite/tests/c/testsuite/fs-tests.dir/pwrite.cleanup')
 call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_fd_subdir.cleanup')
+call('touch res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/target')
+call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_symlink_symlink.cleanup')
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
