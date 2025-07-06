@@ -725,7 +725,7 @@ class Preview1:
             atim = args[1]
         mtim = stat_result.st_mtime_ns
         if args[3] & self.FSTFLAGS_MTIM_NOW:
-            mtim = args[1]
+            mtim = args[2]
         os.utime(file.fd_host, ns=[atim, mtim])
         return [self.ERRNO_SUCCESS]
 
@@ -1025,7 +1025,26 @@ class Preview1:
 
     def path_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the timestamps of a file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_FILESTAT_SET_TIMES):
+            return [self.ERRNO_PERM]
+        if args[6] & self.FSTFLAGS_ATIM and args[6] & self.FSTFLAGS_ATIM_NOW:
+            return [self.ERRNO_INVAL]
+        if args[6] & self.FSTFLAGS_MTIM and args[6] & self.FSTFLAGS_MTIM_NOW:
+            return [self.ERRNO_INVAL]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        name = mems.get(args[2], args[3]).decode()
+        stat_result = os.stat(name, dir_fd=file.fd_host)
+        atim = stat_result.st_atime_ns
+        if args[6] & self.FSTFLAGS_ATIM_NOW:
+            atim = args[4]
+        mtim = stat_result.st_mtime_ns
+        if args[6] & self.FSTFLAGS_MTIM_NOW:
+            mtim = args[5]
+        os.utime(name, ns=[atim, mtim], dir_fd=file.fd_host)
+        return [self.ERRNO_SUCCESS]
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a hard link.
