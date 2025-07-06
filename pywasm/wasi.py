@@ -736,9 +736,13 @@ class Preview1:
         file = self.fd[args[0]]
         stat_result = os.stat(file.fd_host)
         atim = stat_result.st_atime_ns
-        if args[3] & self.FSTFLAGS_ATIM_NOW:
+        if args[3] & self.FSTFLAGS_ATIM:
             atim = args[1]
+        if args[3] & self.FSTFLAGS_ATIM_NOW:
+            atim = time.time_ns()
         mtim = stat_result.st_mtime_ns
+        if args[3] & self.FSTFLAGS_MTIM:
+            mtim = args[2]
         if args[3] & self.FSTFLAGS_MTIM_NOW:
             mtim = args[2]
         os.utime(file.fd_host, ns=(atim, mtim))
@@ -1053,11 +1057,15 @@ class Preview1:
         name = mems.get(args[2], args[3]).decode()
         stat_result = os.stat(name, dir_fd=file.fd_host)
         atim = stat_result.st_atime_ns
-        if args[6] & self.FSTFLAGS_ATIM_NOW:
+        if args[6] & self.FSTFLAGS_ATIM:
             atim = args[4]
+        if args[6] & self.FSTFLAGS_ATIM_NOW:
+            atim = time.time_ns()
         mtim = stat_result.st_mtime_ns
-        if args[6] & self.FSTFLAGS_MTIM_NOW:
+        if args[6] & self.FSTFLAGS_MTIM:
             mtim = args[5]
+        if args[6] & self.FSTFLAGS_MTIM_NOW:
+            mtim = time.time_ns()
         os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
