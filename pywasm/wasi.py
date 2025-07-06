@@ -446,7 +446,7 @@ class Preview1:
         # By setting the value to io.BytesIO(bytearray()) to capture output or provide input.
         for k, v in sorted(self.dirs.items()):
             k = os.path.normpath(k)
-            v = os.path.normpath(v)
+            v = os.path.abspath(os.path.normpath(v))
             self.fd.append(self.File(
                 fd_host=os.open(v, os.O_RDONLY | os.O_DIRECTORY),
                 fd_wasm=len(self.fd),
@@ -1122,6 +1122,9 @@ class Preview1:
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
         flag = 0
+        # if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
+        #     flag |= os.O_NOFOLLOW
+        #     flag |= os.O_PATH
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
         if args[4] & self.OFLAGS_DIRECTORY and not os.path.isdir(name_host):
