@@ -673,7 +673,9 @@ class Preview1:
 
     def fd_fdstat_set_rights(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the rights associated with a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        return [self.ERRNO_BADF]
 
     def fd_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the attributes of an open file.
