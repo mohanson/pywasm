@@ -1,10 +1,8 @@
 import dataclasses
 import fcntl
-import io
 import os
 import pywasm.core
 import random
-import socket
 import stat
 import sys
 import time
