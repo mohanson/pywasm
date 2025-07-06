@@ -26,11 +26,10 @@ with cd('res/wasi-testsuite'):
     for e in glob.glob('**/*/*.cleanup', recursive=True):
         if not os.path.exists(e):
             continue
-        d = [
-            lambda: os.remove(e),
-            lambda: shutil.rmtree(e),
-        ][int(os.path.isdir(e))]
-        d()
+        if os.path.isfile(e):
+            os.remove(e)
+        if os.path.isdir(e):
+            shutil.rmtree(e)
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
