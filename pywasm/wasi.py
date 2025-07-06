@@ -807,7 +807,7 @@ class Preview1:
         # Read from a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
             return [self.ERRNO_PERM]
@@ -861,7 +861,7 @@ class Preview1:
         # Move the offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SEEK):
             return [self.ERRNO_PERM]
@@ -881,7 +881,7 @@ class Preview1:
         # Return the current offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
             return [self.ERRNO_PERM]
@@ -894,7 +894,7 @@ class Preview1:
         # Write to a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_PERM]
