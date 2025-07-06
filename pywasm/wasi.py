@@ -601,19 +601,23 @@ class Preview1:
         mems.put_u32(args[1], sum([len(e) + 1 for e in self.envs]))
         return [self.ERRNO_SUCCESS]
 
-    def fd_advise(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_advise(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Provide file advisory information on a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_ADVISE):
+            return [self.ERRNO_PERM]
+        return [self.ERRNO_SUCCESS]
 
     def fd_allocate(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Force the allocation of space in a file.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_ALLOCATE):
             return [self.ERRNO_PERM]
-        raise Exception('todo')
+        return [self.ERRNO_NOTSUP]
 
     def fd_close(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Close a file descriptor.
@@ -871,32 +875,6 @@ class Preview1:
     def help_badf(self, fd: int) -> bool:
         return fd < 0 or fd >= len(self.fd) or self.fd[fd].status != self.FILE_STATUS_OPENED
 
-    def help_filetype_fd(self, fd: int) -> int:
-        stat_result = os.fstat(fd)
-        match stat_result.st_mode:
-            case x if stat.S_ISBLK(x):
-                return self.FILETYPE_BLOCK_DEVICE
-            case x if stat.S_ISCHR(x):
-                return self.FILETYPE_CHARACTER_DEVICE
-            case x if stat.S_ISDIR(x):
-                return self.FILETYPE_DIRECTORY
-            case x if stat.S_ISREG(x):
-                return self.FILETYPE_REGULAR_FILE
-            case x if stat.S_ISSOCK(x):
-                sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_RAW)
-                kype = sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)
-                match kype:
-                    case socket.SOCK_DGRAM:
-                        return self.FILETYPE_SOCKET_DGRAM
-                    case socket.SOCK_STREAM:
-                        return self.FILETYPE_SOCKET_STREAM
-                    case _:
-                        return self.FILETYPE_UNKNOWN
-            case x if stat.S_ISLNK(x):
-                return self.FILETYPE_SYMBOLIC_LINK
-            case _:
-                return self.FILETYPE_UNKNOWN
-
     def help_filetype_stat_result(self, stat_result: os.stat_result) -> int:
         match stat_result.st_mode:
             case x if stat.S_ISBLK(x):
@@ -914,15 +892,8 @@ class Preview1:
             case _:
                 return self.FILETYPE_UNKNOWN
 
-    def help_path_host(self, name_wasm: str) -> str:
-        name_wasm = os.path.normpath(name_wasm)
-        for wasm_root, host_root in self.dirs.items():
-            if name_wasm == wasm_root or name_wasm.startswith(wasm_root + '/'):
-                name_host = os.path.normpath(os.path.join(host_root, name_wasm[len(wasm_root):].lstrip('/')))
-                if not name_host.startswith(host_root):
-                    raise ValueError("Path attempts to escape sandbox")
-                return name_host
-        raise ValueError("Path not in preopened directory")
+    def help_idir(self, fd: int) -> bool:
+        return self.fd[fd].filetype == self.FILETYPE_DIRECTORY
 
     def help_perm(self, fd: int, perm: int) -> bool:
         return self.fd[fd].rights_base & perm == 0
