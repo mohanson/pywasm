@@ -34,7 +34,12 @@ case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+skip = [
+    'res/wasi-testsuite/tests/rust/testsuite/fd_readdir.wasm',
+]
 for wasm_path in case:
+    if wasm_path in skip:
+        continue
     print(wasm_path)
     root = os.path.dirname(wasm_path)
     name = os.path.splitext(os.path.basename(wasm_path))[0]

@@ -756,19 +756,20 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         iovs_ptr = args[1]
-        size = 0
-        for _ in range(args[2]):
+        iovs_len = args[2]
+        offs = args[3]
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
-            data = os.pread(self.fd[args[0]].fd_host, elem_len, args[3])
+            data = os.pread(self.fd[args[0]].fd_host, elem_len, offs)
             if len(data) == 0:
                 break
             mems.put(elem_ptr, bytearray(data))
             iovs_ptr += 8
-            size += len(data)
+            offs += len(data)
             if len(data) < elem_len:
                 break
-        mems.put_u32(args[4], size)
+        mems.put_u32(args[4], offs - args[3])
         return [self.ERRNO_SUCCESS]
 
     def fd_prestat_dir_name(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
