@@ -1079,8 +1079,8 @@ class Preview1:
         name_host = os.path.join(file.name_host, name_base)
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
-        rights_base=args[5]
-        rights_root=args[6]
+        rights_base = args[5]
+        rights_root = args[6]
         if os.path.isdir(name_host):
             rights_base &= ~self.RIGHTS_FD_SEEK
         flag = 0
