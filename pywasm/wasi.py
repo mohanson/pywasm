@@ -909,8 +909,8 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        offset = os.lseek(self.fd[args[0]].fd_host, 0, os.SEEK_CUR)
-        mems.put_u64(args[1], offset)
+        offs = os.lseek(self.fd[args[0]].fd_host, 0, os.SEEK_CUR)
+        mems.put_u64(args[1], offs)
         return [self.ERRNO_SUCCESS]
 
     def fd_write(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -983,6 +983,11 @@ class Preview1:
             raise e
         else:
             return 0
+        finally:
+            for e in self.fd[self.FD_STDERR + 1:]:
+                if e.status != self.FILE_STATUS_CLOSED:
+                    os.close(e.fd_host)
+                    e.status = self.FILE_STATUS_CLOSED
 
     def path_create_directory(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a directory.
