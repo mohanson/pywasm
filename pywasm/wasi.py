@@ -1115,7 +1115,18 @@ class Preview1:
 
     def path_readlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Read the contents of a symbolic link.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_READLINK):
+            return [self.ERRNO_PERM]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        name = mems.get(args[1], args[2]).decode()
+        data = os.readlink(name, dir_fd=file.fd_host)
+        size = min(len(data), args[4])
+        mems.put(args[3], data[:size])
+        mems.put_u32(args[5], size)
+        return [self.ERRNO_SUCCESS]
 
     def path_remove_directory(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Remove a directory.
