@@ -671,7 +671,7 @@ class Preview1:
         file.flag = args[1]
         return [self.ERRNO_SUCCESS]
 
-    def fd_fdstat_set_rights(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_fdstat_set_rights(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the rights associated with a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
