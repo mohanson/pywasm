@@ -1178,9 +1178,10 @@ class Preview1:
         os.unlink(name, dir_fd=self.fd[args[0]].fd_host)
         return [self.ERRNO_SUCCESS]
 
-    def poll_oneoff(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def poll_oneoff(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Concurrently poll for the occurrence of a set of events.
-        raise Exception('todo')
+        assert len(args) == 4
+        raise NotImplementedError
 
     def proc_exit(self, _: pywasm.core.Machine, args: typing.List[int]) -> None:
         # Terminate the process normally. An exit code of 0 indicates successful termination of the program. The
@@ -1206,19 +1207,22 @@ class Preview1:
         assert len(args) == 0
         return [self.ERRNO_SUCCESS]
 
-    def sock_accept(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_accept(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Accept a new incoming connection.
-        raise Exception('todo')
+        assert len(args) == 2
+        raise NotImplementedError
 
-    def sock_recv(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_recv(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Receive a message from a socket.
-        raise Exception('todo')
+        assert len(args) == 6
+        raise NotImplementedError
 
-    def sock_send(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_send(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Send a message on a socket.
-        raise Exception('todo')
+        assert len(args) == 5
+        raise NotImplementedError
 
-    def sock_shutdown(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_shutdown(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Shut down socket send and receive channels.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
@@ -1226,4 +1230,4 @@ class Preview1:
             return [self.ERRNO_NOTSOCK]
         if self.help_perm(args[0], self.RIGHTS_SOCK_SHUTDOWN):
             return [self.ERRNO_PERM]
-        raise Exception('todo')
+        raise NotImplementedError
