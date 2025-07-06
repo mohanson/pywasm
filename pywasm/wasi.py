@@ -620,11 +620,12 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         file = self.fd[args[0]]
         size = args[1] + args[2] - os.stat(file.fd_host).st_size
-        if size > 0:
-            offs = os.lseek(file.fd_host, 0, os.SEEK_CUR)
-            os.lseek(file.fd_host, 0, os.SEEK_END)
-            os.write(file.fd_host, bytearray(size))
-            os.lseek(file.fd_host, offs, os.SEEK_SET)
+        if size <= 0:
+            return [self.ERRNO_SUCCESS]
+        offs = os.lseek(file.fd_host, 0, os.SEEK_CUR)
+        os.lseek(file.fd_host, 0, os.SEEK_END)
+        os.write(file.fd_host, bytearray(size))
+        os.lseek(file.fd_host, offs, os.SEEK_SET)
         return [self.ERRNO_SUCCESS]
 
     def fd_close(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
