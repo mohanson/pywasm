@@ -682,7 +682,15 @@ class Preview1:
         # Adjust the rights associated with a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        return [self.ERRNO_BADF]
+        file = self.fd[args[0]]
+        # This can only be used to remove rights
+        if file.rights_base & args[1] != args[1]:
+            return [self.ERRNO_NOTCAPABLE]
+        if file.rights_root & args[2] != args[2]:
+            return [self.ERRNO_NOTCAPABLE]
+        file.rights_base = args[1]
+        file.rights_root = args[2]
+        return [self.ERRNO_SUCCESS]
 
     def fd_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the attributes of an open file.
