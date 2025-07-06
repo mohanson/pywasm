@@ -1,4 +1,5 @@
 import dataclasses
+import fcntl
 import io
 import os
 import pywasm.core
@@ -642,15 +643,33 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        mems.put_u8(args[1], self.fd[args[0]].filetype)
-        mems.put_u16(args[1]+2, self.fd[args[0]].flag)
-        mems.put_u64(args[1]+8, self.fd[args[0]].rights_base)
-        mems.put_u64(args[1]+16, self.fd[args[0]].rights_root)
+        file = self.fd[args[0]]
+        mems.put_u8(args[1], file.filetype)
+        mems.put_u16(args[1]+2, file.flag)
+        mems.put_u64(args[1]+8, file.rights_base)
+        mems.put_u64(args[1]+16, file.rights_root)
         return [self.ERRNO_SUCCESS]
 
-    def fd_fdstat_set_flags(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_fdstat_set_flags(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the flags associated with a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_FDSTAT_SET_FLAGS):
+            return [self.ERRNO_PERM]
+        if args[1] & ~(self.FDFLAGS_APPEND | self.FDFLAGS_APPEND):
+            # Only support changing the NONBLOCK or APPEND flags.
+            return [self.ERRNO_INVAL]
+        file = self.fd[args[0]]
+        flag = fcntl.fcntl(file.fd_host, fcntl.F_GETFL)
+        flag &= ~os.O_APPEND
+        flag &= ~os.O_NONBLOCK
+        if args[1] & self.FDFLAGS_APPEND:
+            flag |= os.O_APPEND
+        if args[1] & self.FDFLAGS_NONBLOCK:
+            flag |= os.O_NONBLOCK
+        fcntl.fcntl(file.fd_host, fcntl.F_SETFL, flag)
+        file.flag = args[1]
+        return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_set_rights(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the rights associated with a file descriptor.
