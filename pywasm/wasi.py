@@ -741,7 +741,7 @@ class Preview1:
         mtim = stat_result.st_mtime_ns
         if args[3] & self.FSTFLAGS_MTIM_NOW:
             mtim = args[2]
-        os.utime(file.fd_host, ns=[atim, mtim])
+        os.utime(file.fd_host, ns=(atim, mtim))
         return [self.ERRNO_SUCCESS]
 
     def fd_pread(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1058,7 +1058,7 @@ class Preview1:
         mtim = stat_result.st_mtime_ns
         if args[6] & self.FSTFLAGS_MTIM_NOW:
             mtim = args[5]
-        os.utime(name, ns=[atim, mtim], dir_fd=file.fd_host)
+        os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
