@@ -1079,6 +1079,10 @@ class Preview1:
         name_host = os.path.join(file.name_host, name_base)
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
+        rights_base=args[5]
+        rights_root=args[6]
+        if os.path.isdir(name_host):
+            rights_base &= ~self.RIGHTS_FD_SEEK
         flag = 0
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
@@ -1106,8 +1110,8 @@ class Preview1:
             name_host=name_host,
             name_wasm=name_wasm,
             pipe=None,
-            rights_base=args[5],
-            rights_root=args[6],
+            rights_base=rights_base,
+            rights_root=rights_root,
             status=0,
         ))
         mems.put_u32(args[8], fd_wasm)
