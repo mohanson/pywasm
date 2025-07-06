@@ -700,7 +700,7 @@ class Preview1:
         # Adjust the size of an open file. If this increases the file's size, the extra bytes are filled with zeros.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.fd[args[0]].filetype == self.FILETYPE_DIRECTORY:
+        if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_SIZE):
             return [self.ERRNO_PERM]
@@ -708,9 +708,26 @@ class Preview1:
         os.ftruncate(file.fd_host, args[1])
         return [self.ERRNO_SUCCESS]
 
-    def fd_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_filestat_set_times(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the timestamps of an open file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_TIMES):
+            return [self.ERRNO_PERM]
+        if args[3] & self.FSTFLAGS_ATIM and args[3] & self.FSTFLAGS_ATIM_NOW:
+            return [self.ERRNO_INVAL]
+        if args[3] & self.FSTFLAGS_MTIM and args[3] & self.FSTFLAGS_MTIM_NOW:
+            return [self.ERRNO_INVAL]
+        file = self.fd[args[0]]
+        stat_result = os.stat(file.fd_host)
+        atim = stat_result.st_atime_ns
+        if args[3] & self.FSTFLAGS_ATIM_NOW:
+            atim = args[1]
+        mtim = stat_result.st_mtime_ns
+        if args[3] & self.FSTFLAGS_MTIM_NOW:
+            mtim = args[1]
+        os.utime(file.fd_host, ns=[atim, mtim])
+        return [self.ERRNO_SUCCESS]
 
     def fd_pread(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Read from a file descriptor, without using and updating the file descriptor's offset.
