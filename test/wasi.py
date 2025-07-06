@@ -24,6 +24,8 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
 
 with cd('res/wasi-testsuite'):
     for e in glob.glob('**/*/*.cleanup', recursive=True):
+        if not os.path.exists(e):
+            continue
         d = [
             lambda: os.remove(e),
             lambda: shutil.rmtree(e),
