@@ -607,7 +607,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_ADVISE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         return [self.ERRNO_SUCCESS]
 
     def fd_allocate(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -617,7 +617,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_ALLOCATE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         file = self.fd[args[0]]
         size = args[1] + args[2] - os.stat(file.fd_host).st_size
         if size > 0:
@@ -642,7 +642,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_DATASYNC):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -662,7 +662,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_FDSTAT_SET_FLAGS):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         if args[1] & ~(self.FDFLAGS_APPEND | self.FDFLAGS_APPEND):
             # Only support changing the NONBLOCK or APPEND flags.
             return [self.ERRNO_INVAL]
@@ -697,7 +697,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_GET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         stat_result = os.stat(file.name_host)
@@ -718,7 +718,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_SIZE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         file = self.fd[args[0]]
         os.ftruncate(file.fd_host, args[1])
         return [self.ERRNO_SUCCESS]
@@ -728,7 +728,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_TIMES):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         if args[3] & self.FSTFLAGS_ATIM and args[3] & self.FSTFLAGS_ATIM_NOW:
             return [self.ERRNO_INVAL]
         if args[3] & self.FSTFLAGS_MTIM and args[3] & self.FSTFLAGS_MTIM_NOW:
@@ -751,7 +751,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         iovs_ptr = args[1]
         size = 0
@@ -797,7 +797,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         iovs_ptr = args[1]
         data = bytearray()
@@ -825,7 +825,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         iovs_ptr = args[1]
         size = 0
@@ -851,7 +851,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_READDIR):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         dirent = args[1]
         cookie = args[3]
@@ -894,7 +894,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SEEK):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         assert self.WHENCE_SET == os.SEEK_SET
         assert self.WHENCE_CUR == os.SEEK_CUR
@@ -910,7 +910,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SYNC):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         file = self.fd[args[0]]
         os.fsync(file.fd_host)
         return [self.ERRNO_SUCCESS]
@@ -922,7 +922,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         offs = os.lseek(self.fd[args[0]].fd_host, 0, os.SEEK_CUR)
         mems.put_u64(args[1], offs)
@@ -935,7 +935,7 @@ class Preview1:
         if self.help_idir(args[0]):
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         iovs_ptr = args[1]
         data = bytearray()
@@ -1009,7 +1009,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_CREATE_DIRECTORY):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         name = mems.get(args[1], args[2]).decode()
         os.mkdir(name, dir_fd=self.fd[args[0]].fd_host)
@@ -1020,7 +1020,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_FILESTAT_GET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name_base = mems.get(args[2], args[3]).decode()
@@ -1043,7 +1043,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_FILESTAT_SET_TIMES):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         if args[6] & self.FSTFLAGS_ATIM and args[6] & self.FSTFLAGS_ATIM_NOW:
             return [self.ERRNO_INVAL]
         if args[6] & self.FSTFLAGS_MTIM and args[6] & self.FSTFLAGS_MTIM_NOW:
@@ -1066,9 +1066,9 @@ class Preview1:
         if self.help_badf(args[0]) or self.help_badf(args[1]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_LINK_SOURCE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         if self.help_perm(args[4], self.RIGHTS_PATH_LINK_TARGET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         dest = self.fd[args[4]]
@@ -1086,7 +1086,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_OPEN):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name_base = mems.get(args[2], args[3]).decode()
@@ -1137,7 +1137,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_READLINK):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
@@ -1152,7 +1152,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_REMOVE_DIRECTORY):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         name = mems.get(args[1], args[2]).decode()
         os.rmdir(name, dir_fd=self.fd[args[0]].fd_host)
@@ -1163,9 +1163,9 @@ class Preview1:
         if self.help_badf(args[0]) or self.help_badf(args[3]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_RENAME_SOURCE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         if self.help_perm(args[3], self.RIGHTS_PATH_RENAME_TARGET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         dest = self.fd[args[3]]
@@ -1179,7 +1179,7 @@ class Preview1:
         if self.help_badf(args[2]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[2], self.RIGHTS_PATH_SYMLINK):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         path_old = mems.get(args[0], args[1]).decode()
         path_new = mems.get(args[3], args[4]).decode()
@@ -1191,7 +1191,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_UNLINK_FILE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         name = mems.get(args[1], args[2]).decode()
         os.unlink(name, dir_fd=self.fd[args[0]].fd_host)
@@ -1248,5 +1248,5 @@ class Preview1:
         if self.help_sock(args[0]):
             return [self.ERRNO_NOTSOCK]
         if self.help_perm(args[0], self.RIGHTS_SOCK_SHUTDOWN):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         raise NotImplementedError
