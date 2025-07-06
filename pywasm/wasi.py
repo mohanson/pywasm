@@ -685,8 +685,6 @@ class Preview1:
             return [self.ERRNO_PERM]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        if not os.path.exists(file.name_host):
-            return [self.ERRNO_NOENT]
         stat_result = os.stat(file.name_host)
         mems.put_u64(args[1], 1)
         mems.put_u64(args[1] + 8, stat_result.st_ino)
