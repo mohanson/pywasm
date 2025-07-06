@@ -1189,9 +1189,11 @@ class Preview1:
             raise Exception(SystemExit, args[0])
         sys.exit(args[0])
 
-    def proc_raise(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def proc_raise(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Send a signal to the process of the calling thread.
-        raise Exception('todo')
+        if args[0] != self.SIGNAL_NONE:
+            return [self.ERRNO_INVAL]
+        return [self.ERRNO_SUCCESS]
 
     def random_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Write high-quality random data into a buffer.
