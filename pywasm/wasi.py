@@ -629,9 +629,13 @@ class Preview1:
         file.status = self.FILE_STATUS_CLOSED
         return [self.ERRNO_SUCCESS]
 
-    def fd_datasync(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_datasync(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Synchronize the data of a file to disk.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_DATASYNC):
+            return [self.ERRNO_PERM]
+        return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Get the attributes of a file descriptor.
