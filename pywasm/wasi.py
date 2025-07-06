@@ -1121,10 +1121,6 @@ class Preview1:
             return [self.ERRNO_PERM]
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
-        rights_base = args[5]
-        rights_root = args[6]
-        if os.path.isdir(name_host):
-            rights_base &= ~self.RIGHTS_FD_SEEK
         flag = 0
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
@@ -1147,6 +1143,40 @@ class Preview1:
             fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
+        rights_base = args[5]
+        rights_root = args[6]
+        if os.path.isdir(name_host):
+            rights_base &= ~self.RIGHTS_FD_SEEK
+            rights_root &= ~self.RIGHTS_FD_SEEK
+        if os.path.isfile(name_host):
+            rights_base &= ~self.RIGHTS_PATH_CREATE_DIRECTORY
+            rights_base &= ~self.RIGHTS_PATH_CREATE_FILE
+            rights_base &= ~self.RIGHTS_PATH_LINK_SOURCE
+            rights_base &= ~self.RIGHTS_PATH_LINK_TARGET
+            rights_base &= ~self.RIGHTS_PATH_OPEN
+            rights_base &= ~self.RIGHTS_PATH_READLINK
+            rights_base &= ~self.RIGHTS_PATH_RENAME_SOURCE
+            rights_base &= ~self.RIGHTS_PATH_RENAME_TARGET
+            rights_base &= ~self.RIGHTS_PATH_FILESTAT_GET
+            rights_base &= ~self.RIGHTS_PATH_FILESTAT_SET_SIZE
+            rights_base &= ~self.RIGHTS_PATH_FILESTAT_SET_TIMES
+            rights_base &= ~self.RIGHTS_PATH_SYMLINK
+            rights_base &= ~self.RIGHTS_PATH_REMOVE_DIRECTORY
+            rights_base &= ~self.RIGHTS_PATH_UNLINK_FILE
+            rights_root &= ~self.RIGHTS_PATH_CREATE_DIRECTORY
+            rights_root &= ~self.RIGHTS_PATH_CREATE_FILE
+            rights_root &= ~self.RIGHTS_PATH_LINK_SOURCE
+            rights_root &= ~self.RIGHTS_PATH_LINK_TARGET
+            rights_root &= ~self.RIGHTS_PATH_OPEN
+            rights_root &= ~self.RIGHTS_PATH_READLINK
+            rights_root &= ~self.RIGHTS_PATH_RENAME_SOURCE
+            rights_root &= ~self.RIGHTS_PATH_RENAME_TARGET
+            rights_root &= ~self.RIGHTS_PATH_FILESTAT_GET
+            rights_root &= ~self.RIGHTS_PATH_FILESTAT_SET_SIZE
+            rights_root &= ~self.RIGHTS_PATH_FILESTAT_SET_TIMES
+            rights_root &= ~self.RIGHTS_PATH_SYMLINK
+            rights_root &= ~self.RIGHTS_PATH_REMOVE_DIRECTORY
+            rights_root &= ~self.RIGHTS_PATH_UNLINK_FILE
         self.fd.append(Preview1.File(
             fd_host=fd_host,
             fd_wasm=fd_wasm,
