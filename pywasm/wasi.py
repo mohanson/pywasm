@@ -1201,9 +1201,10 @@ class Preview1:
         mems.put(args[0], bytearray(random.randbytes(args[1])))
         return [self.ERRNO_SUCCESS]
 
-    def sched_yield(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sched_yield(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Temporarily yield execution of the calling thread.
-        raise Exception('todo')
+        assert len(args) == 0
+        return [self.ERRNO_SUCCESS]
 
     def sock_accept(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Accept a new incoming connection.
