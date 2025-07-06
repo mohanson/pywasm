@@ -1046,7 +1046,7 @@ class Preview1:
         stat_result = os.stat(name_host)
         mems.put_u64(args[4], 1)
         mems.put_u64(args[4] + 8, stat_result.st_ino)
-        mems.put_u8(args[4] + 16, file.filetype)
+        mems.put_u8(args[4] + 16, self.help_filetype_stat_result(stat_result))
         mems.put_u64(args[4] + 24, stat_result.st_nlink)
         mems.put_u64(args[4] + 32, stat_result.st_size)
         mems.put_u64(args[4] + 40, stat_result.st_atime_ns)
