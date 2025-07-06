@@ -888,9 +888,17 @@ class Preview1:
         mems.put_u64(args[3], offset)
         return [self.ERRNO_SUCCESS]
 
-    def fd_sync(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_sync(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Synchronize the data and metadata of a file to disk.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_SYNC):
+            return [self.ERRNO_PERM]
+        file = self.fd[args[0]]
+        os.fsync(file.fd_host)
+        return [self.ERRNO_SUCCESS]
 
     def fd_tell(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the current offset of a file descriptor.
