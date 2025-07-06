@@ -1032,7 +1032,15 @@ class Preview1:
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a symbolic link.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_SYMLINK):
+            return [self.ERRNO_PERM]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        path_old = mems.get(args[0], args[1]).decode()
+        path_new = mems.get(args[3], args[4]).decode()
+        os.link(path_old, path_new, self.fd[args[2]].fd_host)
+        return [self.ERRNO_SUCCESS]
 
     def path_unlink_file(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Unlink a file.
