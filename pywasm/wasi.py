@@ -704,7 +704,9 @@ class Preview1:
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_SIZE):
             return [self.ERRNO_PERM]
-        raise Exception('todo')
+        file = self.fd[args[0]]
+        os.ftruncate(file.fd_host, args[1])
+        return [self.ERRNO_SUCCESS]
 
     def fd_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the timestamps of an open file or directory.
