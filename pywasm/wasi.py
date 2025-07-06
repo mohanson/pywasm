@@ -445,6 +445,8 @@ class Preview1:
         ))
         # By setting the value to io.BytesIO(bytearray()) to capture output or provide input.
         for k, v in sorted(self.dirs.items()):
+            k = os.path.normpath(k)
+            v = os.path.normpath(v)
             self.fd.append(self.File(
                 fd_host=os.open(v, os.O_RDONLY | os.O_DIRECTORY),
                 fd_wasm=len(self.fd),
@@ -1108,8 +1110,12 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name_base = mems.get(args[2], args[3]).decode()
-        name_wasm = os.path.join(file.name_wasm, name_base)
-        name_host = os.path.join(file.name_host, name_base)
+        if os.path.isabs(name_base):
+            return [self.ERRNO_PERM]
+        if '\0' in name_base:
+            return [self.ERRNO_ILSEQ]
+        name_wasm = os.path.normpath(os.path.join(file.name_wasm, name_base))
+        name_host = os.path.normpath(os.path.join(file.name_host, name_base))
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
         rights_base = args[5]
@@ -1134,7 +1140,10 @@ class Preview1:
         if args[7] & self.FDFLAGS_APPEND:
             flag |= os.O_APPEND
         fd_wasm = len(self.fd)
-        fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        try:
+            fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
         self.fd.append(Preview1.File(
             fd_host=fd_host,
             fd_wasm=fd_wasm,
