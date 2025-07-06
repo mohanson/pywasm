@@ -1048,7 +1048,23 @@ class Preview1:
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a hard link.
-        raise Exception('todo')
+        if self.help_badf(args[0]) or self.help_badf(args[1]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_LINK_SOURCE):
+            return [self.ERRNO_PERM]
+        if self.help_perm(args[4], self.RIGHTS_PATH_LINK_TARGET):
+            return [self.ERRNO_PERM]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        dest = self.fd[args[4]]
+        name = mems.get(args[2], args[3]).decode()
+        name_host = os.path.join(file.name_host, name)
+        if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
+            return [self.ERRNO_LOOP]
+        into = mems.get(args[5], args[6]).decode()
+        into_host = os.path.join(dest.name_host, into)
+        os.symlink(name_host, into_host)
+        return [self.ERRNO_SUCCESS]
 
     def path_open(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Open a file or directory.
