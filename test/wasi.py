@@ -4,6 +4,7 @@ import io
 import json
 import os
 import pywasm
+import shutil
 import subprocess
 import typing
 
@@ -25,7 +26,7 @@ with cd('res/wasi-testsuite'):
     for e in glob.glob('**/*/*.cleanup', recursive=True):
         d = [
             lambda: os.remove(e),
-            lambda: os.rmdir(e),
+            lambda: shutil.rmtree(e),
         ][int(os.path.isdir(e))]
         d()
 case = []
