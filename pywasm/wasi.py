@@ -1116,6 +1116,8 @@ class Preview1:
             return [self.ERRNO_ILSEQ]
         name_wasm = os.path.normpath(os.path.join(file.name_wasm, name_base))
         name_host = os.path.normpath(os.path.join(file.name_host, name_base))
+        if not name_host.startswith(file.name_host):
+            return [self.ERRNO_PERM]
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
         rights_base = args[5]
