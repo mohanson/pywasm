@@ -905,12 +905,16 @@ class Preview1:
             return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SEEK):
             return [self.ERRNO_NOTCAPABLE]
-        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         assert self.WHENCE_SET == os.SEEK_SET
         assert self.WHENCE_CUR == os.SEEK_CUR
         assert self.WHENCE_END == os.SEEK_END
-        offset = os.lseek(self.fd[args[0]].fd_host, args[1], args[2])
-        mems.put_u64(args[3], offset)
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        ocur = os.lseek(self.fd[args[0]].fd_host, 0, args[2])
+        # Seek before byte 0 is an error though.
+        if ocur + args[1] < 0:
+            return [self.ERRNO_INVAL]
+        offs = os.lseek(self.fd[args[0]].fd_host, args[1], args[2])
+        mems.put_u64(args[3], offs)
         return [self.ERRNO_SUCCESS]
 
     def fd_sync(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
