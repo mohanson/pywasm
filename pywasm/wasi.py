@@ -838,14 +838,16 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         size = 0
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             data = [
-                lambda: os.read(self.fd[args[0]].fd_host, elem_len),
-                lambda: self.fd[args[0]].pipe.read(elem_len),
+                lambda: os.read(file.fd_host, elem_len),
+                lambda: file.pipe.read(elem_len),
             ][self.help_pipe(args[0])]()
             if len(data) == 0:
                 break
@@ -864,27 +866,30 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_READDIR):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         dirent = args[1]
+        buflen = args[2]
+        bufend = dirent + buflen
         cookie = args[3]
-        result = ['.', '..', *sorted(os.listdir(self.fd[args[0]].fd_host))]
-        for e in result[cookie:]:
-            stat_result = os.stat(os.path.join(self.fd[args[0]].name_host, e))
-            if dirent + 24 > args[1] + args[2]:
+        result = ['.', '..', *sorted(os.listdir(file.fd_host))]
+        for name in result[cookie:]:
+            if dirent + 24 > bufend:
                 break
+            info = os.stat(os.path.normpath(os.path.join(file.name_host, name)))
             mems.put_u64(dirent, cookie + 1)
-            mems.put_u64(dirent + 8, stat_result.st_ino)
-            mems.put_u32(dirent + 16, len(e))
-            mems.put_u8(dirent + 20, self.help_filetype_stat_result(stat_result))
+            mems.put_u64(dirent + 8, info.st_ino)
+            mems.put_u32(dirent + 16, len(name))
+            mems.put_u8(dirent + 20, self.help_filetype_stat_result(info))
             dirent += 24
-            if dirent + len(e) > args[1] + args[2]:
+            if dirent + len(name) > bufend:
                 break
-            mems.put(dirent, bytearray(e.encode()))
-            dirent += len(e)
+            mems.put(dirent, bytearray(name.encode()))
+            dirent += len(name)
             cookie += 1
         if cookie == len(result):
             mems.put_u32(args[4], dirent - args[1])
         else:
-            mems.put_u32(args[4], args[2])
+            mems.put_u32(args[4], buflen)
         return [self.ERRNO_SUCCESS]
 
     def fd_renumber(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
