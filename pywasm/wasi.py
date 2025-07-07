@@ -758,13 +758,14 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
         iovs_len = args[2]
         offs = args[3]
         for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
-            data = os.pread(self.fd[args[0]].fd_host, elem_len, offs)
+            data = os.pread(file.fd_host, elem_len, offs)
             if len(data) == 0:
                 break
             mems.put(elem_ptr, bytearray(data))
@@ -780,7 +781,8 @@ class Preview1:
         if self.help_badf(args[0]) or args[0] - 2 > len(self.dirs):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        name = bytearray(self.fd[args[0]].name_wasm.encode())
+        file = self.fd[args[0]]
+        name = bytearray(file.name_wasm.encode())
         if len(name) > args[2]:
             return [self.ERRNO_NAMETOOLONG]
         mems.put(args[1], name)
@@ -791,7 +793,8 @@ class Preview1:
         if self.help_badf(args[0]) or args[0] - 2 > len(self.dirs):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        name = bytearray(self.fd[args[0]].name_wasm.encode())
+        file = self.fd[args[0]]
+        name = bytearray(file.name_wasm.encode())
         mems.put_u8(args[1], self.PREOPENTYPE_DIR)
         mems.put_u32(args[1] + 4, len(name))
         return [self.ERRNO_SUCCESS]
@@ -805,22 +808,24 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         data = bytearray()
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
-        if self.fd[args[0]].flag & self.FDFLAGS_APPEND:
+        if file.flag & self.FDFLAGS_APPEND:
             # POSIX requires that opening a file with the O_APPEND flag should have no affect on the location at which
             # pwrite() writes data. However, on Linux, if a file is opened with O_APPEND, pwrite() appends data to the
             # end of the file, regardless of the value of offset.
             # See https://linux.die.net/man/2/pwrite.
             mems.put_u32(args[4], len(data))
             return [self.ERRNO_SUCCESS]
-        size = os.pwrite(self.fd[args[0]].fd_host, data, args[3])
+        size = os.pwrite(file.fd_host, data, args[3])
         mems.put_u32(args[4], size)
         return [self.ERRNO_SUCCESS]
 
