@@ -1254,6 +1254,8 @@ class Preview1:
         into_host = os.path.normpath(os.path.join(dest.name_host, into))
         try:
             os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
         except FileNotFoundError:
             return [self.ERRNO_NOENT]
         except IsADirectoryError:
@@ -1273,9 +1275,14 @@ class Preview1:
         if self.help_perm(args[2], self.RIGHTS_PATH_SYMLINK):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        path_old = mems.get(args[0], args[1]).decode()
-        path_new = mems.get(args[3], args[4]).decode()
-        os.symlink(path_old, path_new, dir_fd=self.fd[args[2]].fd_host)
+        name = mems.get(args[0], args[1]).decode()
+        into = mems.get(args[3], args[4]).decode()
+        try:
+            os.symlink(name, into, dir_fd=self.fd[args[2]].fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
         return [self.ERRNO_SUCCESS]
 
     def path_unlink_file(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
