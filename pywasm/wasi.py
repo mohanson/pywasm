@@ -1223,7 +1223,7 @@ class Preview1:
         name = mems.get(args[1], args[2]).decode()
         data = os.readlink(name, dir_fd=file.fd_host)
         size = min(len(data), args[4])
-        mems.put(args[3], data[:size])
+        mems.put(args[3], bytearray(data[:size].encode()))
         mems.put_u32(args[5], size)
         return [self.ERRNO_SUCCESS]
 
@@ -1303,6 +1303,25 @@ class Preview1:
         # Concurrently poll for the occurrence of a set of events.
         assert len(args) == 4
         raise NotImplementedError
+        # # This is a no-op in the current implementation.
+        #     mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        #     events_ptr = args[0] # Pointer to the array of events to poll.
+        #     results_ptr = args[1] # Pointer to the array of results.
+        #     nsubscriptions = args[2] # Number of subscriptions.
+        #     nresults = args[3] # Number of results.
+        #     if nsubscriptions != nresults:
+        #         return [self.ERRNO_INVAL]
+        #     for i in range(nsubscriptions):
+        #         event_type = mems.get_u32(events_ptr + i * 8)
+        #         if event_type != self.EVENTTYPE_CLOCK:
+        #             return [self.ERRNO_INVAL]
+        #         clock_id = mems.get_u32(events_ptr + i * 8 + 4)
+        #         if clock_id != self.CLOCK_MONOTONIC:
+        #             return [self.ERRNO_INVAL]
+        #         # Set the result to indicate that the clock has ticked.
+        #         mems.put_u32(results_ptr + i * 8, self.EVENTTYPE_CLOCK)
+        #         mems.put_u64(results_ptr + i * 8 + 4, time.time_ns())
+        #     return [self.ERRNO_SUCCESS]
 
     def proc_exit(self, _: pywasm.core.Machine, args: typing.List[int]) -> None:
         # Terminate the process normally. An exit code of 0 indicates successful termination of the program. The
