@@ -1236,7 +1236,15 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.rmdir(name, dir_fd=file.fd_host)
+        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        try:
+            os.rmdir(name, dir_fd=file.fd_host)
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
+        except OSError as e:
+            if len(os.listdir(name_host)) != 0:
+                return [self.ERRNO_NOTEMPTY]
+            raise e
         return [self.ERRNO_SUCCESS]
 
     def path_rename(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:

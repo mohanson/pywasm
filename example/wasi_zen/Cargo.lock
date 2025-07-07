@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "wasi_print"
+name = "wasi_zen"
 version = "1.0.0"

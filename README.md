@@ -6,6 +6,8 @@ A WebAssembly interpreter written in pure Python, no third-party libraries are u
 
 The wasm version currently in use is: [WebAssembly Specification, Release 2.0 (Draft 2025-04-25)](https://webassembly.github.io/spec/core/).
 
+The wasi version currently in use is: [WASI Preview 1](https://github.com/WebAssembly/WASI/blob/main/legacy/README.md). For pywasm, wasi is an optional extension.
+
 Also requires Python version >= 3.12.
 
 # Installation
@@ -39,7 +41,7 @@ A brief description for `example`
 | example/fibonacci.py      | Fibonacci, which contains loop and recursion                         |
 | example/fibonacci_env.py  | Call python/native function in wasm                                  |
 | example/pi.py             | Calculate π using the agm algorithm                                  |
-| example/wasi_print.py     | Execute a wasi program and print poem "The Zen of Python"            |
+| example/wasi_zen.py       | Execute a wasi program and print poem "The Zen of Python"            |
 
 # Test
 

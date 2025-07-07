@@ -34,11 +34,7 @@ case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
-# case = [
-#     'res/wasi-testsuite/tests/rust/testsuite/path_link.wasm',
-# ]
 skip = [
-    'res/wasi-testsuite/tests/rust/testsuite/fd_readdir.wasm',
     'res/wasi-testsuite/tests/rust/testsuite/poll_oneoff_stdio.wasm',
 ]
 for wasm_path in case:
