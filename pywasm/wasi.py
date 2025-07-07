@@ -1108,12 +1108,18 @@ class Preview1:
         file = self.fd[args[0]]
         dest = self.fd[args[4]]
         name = mems.get(args[2], args[3]).decode()
-        name_host = os.path.normpath(os.path.join(file.name_host, name))
         into = mems.get(args[5], args[6]).decode()
-        into_host = os.path.normpath(os.path.join(dest.name_host, into))
-        if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
-            return [self.ERRNO_LOOP]
-        os.symlink(name_host, into_host)
+        foll = args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW
+        try:
+            os.link(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host, follow_symlinks=foll)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except PermissionError:
+            return [self.ERRNO_PERM]
+        except Exception as e:
+            raise e
         return [self.ERRNO_SUCCESS]
 
     def path_open(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
