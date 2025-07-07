@@ -1251,7 +1251,19 @@ class Preview1:
         dest = self.fd[args[3]]
         name = mems.get(args[1], args[2]).decode()
         into = mems.get(args[4], args[5]).decode()
-        os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        into_host = os.path.normpath(os.path.join(dest.name_host, into))
+        try:
+            os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
+        except OSError as e:
+            if len(os.listdir(into_host)) != 0:
+                return [self.ERRNO_NOTEMPTY]
+            raise e
         return [self.ERRNO_SUCCESS]
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
