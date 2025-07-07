@@ -1162,6 +1162,8 @@ class Preview1:
         fd_wasm = len(self.fd)
         try:
             fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         rights_base = args[5]
