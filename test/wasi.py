@@ -24,11 +24,11 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
 
 with cd('res/wasi-testsuite'):
     for e in glob.glob('**/*/*.cleanup', recursive=True):
-        if not os.path.exists(e):
-            continue
-        if os.path.isfile(e):
+        if os.path.islink(e):
             os.remove(e)
-        if os.path.isdir(e):
+        if os.path.exists(e) and os.path.isfile(e):
+            os.remove(e)
+        if os.path.exists(e) and os.path.isdir(e):
             shutil.rmtree(e)
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))

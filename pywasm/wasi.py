@@ -1135,6 +1135,7 @@ class Preview1:
             return [self.ERRNO_PERM]
         if '\0' in name:
             return [self.ERRNO_ILSEQ]
+        # No path escape.
         if not name_host.startswith(file.name_host):
             return [self.ERRNO_PERM]
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
@@ -1142,7 +1143,6 @@ class Preview1:
         flag = 0
         # if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
         #     flag |= os.O_NOFOLLOW
-        #     flag |= os.O_PATH
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
         if args[4] & self.OFLAGS_DIRECTORY and not os.path.isdir(name_host):
