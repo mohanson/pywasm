@@ -1234,8 +1234,9 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_PATH_REMOVE_DIRECTORY):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.rmdir(name, dir_fd=self.fd[args[0]].fd_host)
+        os.rmdir(name, dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_rename(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1275,10 +1276,11 @@ class Preview1:
         if self.help_perm(args[2], self.RIGHTS_PATH_SYMLINK):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[2]]
         name = mems.get(args[0], args[1]).decode()
         into = mems.get(args[3], args[4]).decode()
         try:
-            os.symlink(name, into, dir_fd=self.fd[args[2]].fd_host)
+            os.symlink(name, into, dir_fd=file.fd_host)
         except FileExistsError:
             return [self.ERRNO_EXIST]
         except FileNotFoundError:
@@ -1292,8 +1294,9 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_PATH_UNLINK_FILE):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.unlink(name, dir_fd=self.fd[args[0]].fd_host)
+        os.unlink(name, dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def poll_oneoff(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
