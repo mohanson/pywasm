@@ -1,4 +1,4 @@
 [package]
-name = "wasi_print"
+name = "wasi_ll"
 version = "1.0.0"
 edition = "2024"

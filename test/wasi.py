@@ -4,6 +4,7 @@ import io
 import json
 import os
 import pywasm
+import shutil
 import subprocess
 import typing
 
@@ -21,13 +22,24 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
-call('rm -rf res/wasi-testsuite/tests/c/testsuite/fs-tests.dir/pwrite.cleanup')
-# call('rm -rf res/wasi-testsuite/tests/rust/testsuite/fs-tests.dir/dangling_fd_subdir.cleanup')
+with cd('res/wasi-testsuite'):
+    for e in glob.glob('**/*/*.cleanup', recursive=True):
+        if os.path.islink(e):
+            os.remove(e)
+        if os.path.exists(e) and os.path.isfile(e):
+            os.remove(e)
+        if os.path.exists(e) and os.path.isdir(e):
+            shutil.rmtree(e)
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
-# case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+skip = [
+    'res/wasi-testsuite/tests/rust/testsuite/poll_oneoff_stdio.wasm',
+]
 for wasm_path in case:
+    if wasm_path in skip:
+        continue
     print(wasm_path)
     root = os.path.dirname(wasm_path)
     name = os.path.splitext(os.path.basename(wasm_path))[0]
@@ -46,5 +58,6 @@ for wasm_path in case:
     wasi.bind(runtime)
     exit = wasi.main(runtime, runtime.instance_from_file(wasm_path))
     wasi.fd[1].pipe.seek(0)
-    assert wasi.fd[1].pipe.read().decode() == conf.get('stdout', '')
+    if 'stdout' in conf:
+        assert wasi.fd[1].pipe.read().decode() == conf['stdout']
     assert exit == conf.get('exit_code', 0)

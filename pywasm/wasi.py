@@ -1,9 +1,8 @@
 import dataclasses
-import io
+import fcntl
 import os
 import pywasm.core
 import random
-import socket
 import stat
 import sys
 import time
@@ -394,8 +393,8 @@ class Preview1:
     class File:
         fd_host: int
         fd_wasm: int
-        filetype: int
         flag: int
+        fype: int
         name_host: str
         name_wasm: str
         pipe: typing.Optional[typing.BinaryIO]
@@ -409,10 +408,10 @@ class Preview1:
         self.envs = ['='.join(e) for e in sorted(envs.items())]
         self.fd: typing.List[Preview1.File] = []
         self.fd.append(self.File(
-            fd_host=self.FD_STDIN,
+            fd_host=sys.stdin.fileno(),
             fd_wasm=self.FD_STDIN,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stdin.name,
             name_wasm=sys.stdin.name,
             pipe=None,
@@ -421,10 +420,10 @@ class Preview1:
             status=self.FILE_STATUS_OPENED,
         ))
         self.fd.append(self.File(
-            fd_host=self.FD_STDOUT,
+            fd_host=sys.stdout.fileno(),
             fd_wasm=self.FD_STDOUT,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stdout.name,
             name_wasm=sys.stdout.name,
             pipe=None,
@@ -433,10 +432,10 @@ class Preview1:
             status=self.FILE_STATUS_OPENED,
         ))
         self.fd.append(self.File(
-            fd_host=self.FD_STDERR,
+            fd_host=sys.stderr.fileno(),
             fd_wasm=self.FD_STDERR,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stderr.name,
             name_wasm=sys.stderr.name,
             pipe=None,
@@ -446,11 +445,13 @@ class Preview1:
         ))
         # By setting the value to io.BytesIO(bytearray()) to capture output or provide input.
         for k, v in sorted(self.dirs.items()):
+            k = os.path.normpath(k)
+            v = os.path.abspath(os.path.normpath(v))
             self.fd.append(self.File(
                 fd_host=os.open(v, os.O_RDONLY | os.O_DIRECTORY),
                 fd_wasm=len(self.fd),
-                filetype=self.FILETYPE_DIRECTORY,
                 flag=0,
+                fype=self.FILETYPE_DIRECTORY,
                 name_host=v,
                 name_wasm=k,
                 pipe=None,
@@ -601,13 +602,31 @@ class Preview1:
         mems.put_u32(args[1], sum([len(e) + 1 for e in self.envs]))
         return [self.ERRNO_SUCCESS]
 
-    def fd_advise(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_advise(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Provide file advisory information on a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_ADVISE):
+            return [self.ERRNO_NOTCAPABLE]
+        return [self.ERRNO_SUCCESS]
 
-    def fd_allocate(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_allocate(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Force the allocation of space in a file.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_ALLOCATE):
+            return [self.ERRNO_NOTCAPABLE]
+        file = self.fd[args[0]]
+        size = args[1] + args[2] - os.stat(file.fd_host).st_size
+        if size <= 0:
+            return [self.ERRNO_SUCCESS]
+        offs = os.lseek(file.fd_host, 0, os.SEEK_CUR)
+        os.lseek(file.fd_host, 0, os.SEEK_END)
+        os.write(file.fd_host, bytearray(size))
+        os.lseek(file.fd_host, offs, os.SEEK_SET)
+        return [self.ERRNO_SUCCESS]
 
     def fd_close(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Close a file descriptor.
@@ -619,79 +638,142 @@ class Preview1:
         file.status = self.FILE_STATUS_CLOSED
         return [self.ERRNO_SUCCESS]
 
-    def fd_datasync(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_datasync(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Synchronize the data of a file to disk.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_DATASYNC):
+            return [self.ERRNO_NOTCAPABLE]
+        return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Get the attributes of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        mems.put_u8(args[1], self.fd[args[0]].filetype)
-        mems.put_u16(args[1]+2, self.fd[args[0]].flag)
-        mems.put_u64(args[1]+8, self.fd[args[0]].rights_base)
-        mems.put_u64(args[1]+16, self.fd[args[0]].rights_root)
+        file = self.fd[args[0]]
+        mems.put_u8(args[1], file.fype)
+        mems.put_u16(args[1]+2, file.flag)
+        mems.put_u64(args[1]+8, file.rights_base)
+        mems.put_u64(args[1]+16, file.rights_root)
         return [self.ERRNO_SUCCESS]
 
-    def fd_fdstat_set_flags(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_fdstat_set_flags(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the flags associated with a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_FDSTAT_SET_FLAGS):
+            return [self.ERRNO_NOTCAPABLE]
+        if args[1] & ~(self.FDFLAGS_APPEND | self.FDFLAGS_APPEND):
+            # Only support changing the NONBLOCK or APPEND flags.
+            return [self.ERRNO_INVAL]
+        file = self.fd[args[0]]
+        flag = fcntl.fcntl(file.fd_host, fcntl.F_GETFL)
+        flag &= ~os.O_APPEND
+        flag &= ~os.O_NONBLOCK
+        if args[1] & self.FDFLAGS_APPEND:
+            flag |= os.O_APPEND
+        if args[1] & self.FDFLAGS_NONBLOCK:
+            flag |= os.O_NONBLOCK
+        fcntl.fcntl(file.fd_host, fcntl.F_SETFL, flag)
+        file.flag = args[1]
+        return [self.ERRNO_SUCCESS]
 
-    def fd_fdstat_set_rights(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_fdstat_set_rights(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the rights associated with a file descriptor.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        file = self.fd[args[0]]
+        # This can only be used to remove rights
+        if file.rights_base & args[1] != args[1]:
+            return [self.ERRNO_NOTCAPABLE]
+        if file.rights_root & args[2] != args[2]:
+            return [self.ERRNO_NOTCAPABLE]
+        file.rights_base = args[1]
+        file.rights_root = args[2]
+        return [self.ERRNO_SUCCESS]
 
     def fd_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the attributes of an open file.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_GET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        if not os.path.exists(file.name_host):
-            return [self.ERRNO_NOENT]
-        stat_result = os.stat(file.name_host)
+        info = os.stat(file.name_host)
         mems.put_u64(args[1], 1)
-        mems.put_u64(args[1] + 8, stat_result.st_ino)
-        mems.put_u8(args[1] + 16, file.filetype)
-        mems.put_u64(args[1] + 24, stat_result.st_nlink)
-        mems.put_u64(args[1] + 32, stat_result.st_size)
-        mems.put_u64(args[1] + 40, stat_result.st_atime_ns)
-        mems.put_u64(args[1] + 48, stat_result.st_mtime_ns)
-        mems.put_u64(args[1] + 56, stat_result.st_ctime_ns)
+        mems.put_u64(args[1] + 8, info.st_ino)
+        mems.put_u8(args[1] + 16, file.fype)
+        mems.put_u64(args[1] + 24, info.st_nlink)
+        mems.put_u64(args[1] + 32, info.st_size)
+        mems.put_u64(args[1] + 40, info.st_atime_ns)
+        mems.put_u64(args[1] + 48, info.st_mtime_ns)
+        mems.put_u64(args[1] + 56, info.st_ctime_ns)
         return [self.ERRNO_SUCCESS]
 
-    def fd_filestat_set_size(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_filestat_set_size(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the size of an open file. If this increases the file's size, the extra bytes are filled with zeros.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_SIZE):
+            return [self.ERRNO_NOTCAPABLE]
+        file = self.fd[args[0]]
+        os.ftruncate(file.fd_host, args[1])
+        return [self.ERRNO_SUCCESS]
 
-    def fd_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_filestat_set_times(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the timestamps of an open file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_FD_FILESTAT_SET_TIMES):
+            return [self.ERRNO_NOTCAPABLE]
+        if args[3] & self.FSTFLAGS_ATIM and args[3] & self.FSTFLAGS_ATIM_NOW:
+            return [self.ERRNO_INVAL]
+        if args[3] & self.FSTFLAGS_MTIM and args[3] & self.FSTFLAGS_MTIM_NOW:
+            return [self.ERRNO_INVAL]
+        file = self.fd[args[0]]
+        info = os.stat(file.fd_host)
+        atim = info.st_atime_ns
+        if args[3] & self.FSTFLAGS_ATIM:
+            atim = args[1]
+        if args[3] & self.FSTFLAGS_ATIM_NOW:
+            atim = time.time_ns()
+        mtim = info.st_mtime_ns
+        if args[3] & self.FSTFLAGS_MTIM:
+            mtim = args[2]
+        if args[3] & self.FSTFLAGS_MTIM_NOW:
+            mtim = args[2]
+        os.utime(file.fd_host, ns=(atim, mtim))
+        return [self.ERRNO_SUCCESS]
 
     def fd_pread(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Read from a file descriptor, without using and updating the file descriptor's offset.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
-        size = 0
-        for _ in range(args[2]):
+        iovs_len = args[2]
+        offs = args[3]
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
-            data = os.pread(self.fd[args[0]].fd_host, elem_len, args[3])
+            data = os.pread(file.fd_host, elem_len, offs)
             if len(data) == 0:
                 break
             mems.put(elem_ptr, bytearray(data))
             iovs_ptr += 8
-            size += len(data)
+            offs += len(data)
             if len(data) < elem_len:
                 break
-        mems.put_u32(args[4], size)
+        mems.put_u32(args[4], offs - args[3])
         return [self.ERRNO_SUCCESS]
 
     def fd_prestat_dir_name(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -699,7 +781,8 @@ class Preview1:
         if self.help_badf(args[0]) or args[0] - 2 > len(self.dirs):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        name = bytearray(self.fd[args[0]].name_wasm.encode())
+        file = self.fd[args[0]]
+        name = bytearray(file.name_wasm.encode())
         if len(name) > args[2]:
             return [self.ERRNO_NAMETOOLONG]
         mems.put(args[1], name)
@@ -710,7 +793,8 @@ class Preview1:
         if self.help_badf(args[0]) or args[0] - 2 > len(self.dirs):
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        name = bytearray(self.fd[args[0]].name_wasm.encode())
+        file = self.fd[args[0]]
+        name = bytearray(file.name_wasm.encode())
         mems.put_u8(args[1], self.PREOPENTYPE_DIR)
         mems.put_u32(args[1] + 4, len(name))
         return [self.ERRNO_SUCCESS]
@@ -719,25 +803,29 @@ class Preview1:
         # Write to a file descriptor, without using and updating the file descriptor's offset.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         data = bytearray()
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
-        if self.fd[args[0]].flag & self.FDFLAGS_APPEND:
+        if file.flag & self.FDFLAGS_APPEND:
             # POSIX requires that opening a file with the O_APPEND flag should have no affect on the location at which
             # pwrite() writes data. However, on Linux, if a file is opened with O_APPEND, pwrite() appends data to the
             # end of the file, regardless of the value of offset.
             # See https://linux.die.net/man/2/pwrite.
             mems.put_u32(args[4], len(data))
             return [self.ERRNO_SUCCESS]
-        size = os.pwrite(self.fd[args[0]].fd_host, data, args[3])
+        size = os.pwrite(file.fd_host, data, args[3])
         mems.put_u32(args[4], size)
         return [self.ERRNO_SUCCESS]
 
@@ -745,17 +833,21 @@ class Preview1:
         # Read from a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_READ):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         size = 0
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             data = [
-                lambda: os.read(self.fd[args[0]].fd_host, elem_len),
-                lambda: self.fd[args[0]].pipe.read(elem_len),
+                lambda: os.read(file.fd_host, elem_len),
+                lambda: file.pipe.read(elem_len),
             ][self.help_pipe(args[0])]()
             if len(data) == 0:
                 break
@@ -772,74 +864,119 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_FD_READDIR):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         dirent = args[1]
+        buflen = args[2]
+        bufend = dirent + buflen
         cookie = args[3]
-        for e in list(os.scandir(self.fd[args[0]].fd_host))[cookie:]:
-            if dirent + 24 + len(e.name) > args[1] + args[2]:
+        result = ['.', '..', *sorted(os.listdir(file.fd_host))]
+        for name in result[cookie:]:
+            if dirent + 24 > bufend:
                 break
+            info = os.stat(os.path.normpath(os.path.join(file.name_host, name)))
             mems.put_u64(dirent, cookie + 1)
-            mems.put_u64(dirent + 8, e.inode())
-            mems.put_u32(dirent + 16, len(e.name))
-            mems.put_u8(dirent + 20, self.help_filetype_stat_result(e.stat()))
+            mems.put_u64(dirent + 8, info.st_ino)
+            mems.put_u32(dirent + 16, len(name))
+            mems.put_u8(dirent + 20, self.help_fype(info))
             dirent += 24
-            mems.put(dirent, bytearray(e.name.encode()))
-            dirent += len(e.name)
+            if dirent + len(name) > bufend:
+                break
+            mems.put(dirent, bytearray(name.encode()))
+            dirent += len(name)
             cookie += 1
-        mems.put_u32(args[4], dirent - args[1])
+        mems.put_u32(args[4], dirent - args[1] if cookie >= len(result) else buflen)
         return [self.ERRNO_SUCCESS]
 
-    def fd_renumber(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
-        raise Exception('todo')
+    def fd_renumber(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+        if self.help_badf(args[0]) or self.help_badf(args[1]):
+            return [self.ERRNO_BADF]
+        file = self.fd[args[0]]
+        dest = self.fd[args[1]]
+        os.close(dest.fd_host)
+        dest.fd_host = file.fd_host
+        dest.fd_wasm = file.fd_wasm
+        dest.fype = file.fype
+        dest.flag = file.flag
+        dest.name_host = file.name_host
+        dest.name_wasm = file.name_wasm
+        dest.pipe = file.pipe
+        dest.rights_base = file.rights_base
+        dest.rights_root = file.rights_root
+        dest.status = file.status
+        file.status = self.FILE_STATUS_CLOSED
+        return [self.ERRNO_SUCCESS]
 
     def fd_seek(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Move the offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_SEEK):
-            return [self.ERRNO_PERM]
-        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+            return [self.ERRNO_NOTCAPABLE]
         assert self.WHENCE_SET == os.SEEK_SET
         assert self.WHENCE_CUR == os.SEEK_CUR
         assert self.WHENCE_END == os.SEEK_END
-        offset = os.lseek(self.fd[args[0]].fd_host, args[1], args[2])
-        mems.put_u64(args[3], offset)
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        ocur = os.lseek(file.fd_host, 0, args[2])
+        # Seek before byte 0 is an error though.
+        if ocur + args[1] < 0:
+            return [self.ERRNO_INVAL]
+        offs = os.lseek(file.fd_host, args[1], args[2])
+        mems.put_u64(args[3], offs)
         return [self.ERRNO_SUCCESS]
 
-    def fd_sync(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def fd_sync(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Synchronize the data and metadata of a file to disk.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
+        if self.help_perm(args[0], self.RIGHTS_FD_SYNC):
+            return [self.ERRNO_NOTCAPABLE]
+        file = self.fd[args[0]]
+        os.fsync(file.fd_host)
+        return [self.ERRNO_SUCCESS]
 
     def fd_tell(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the current offset of a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        offset = os.lseek(self.fd[args[0]].fd_host, 0, os.SEEK_CUR)
-        mems.put_u64(args[1], offset)
+        file = self.fd[args[0]]
+        offs = os.lseek(file.fd_host, 0, os.SEEK_CUR)
+        mems.put_u64(args[1], offs)
         return [self.ERRNO_SUCCESS]
 
     def fd_write(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Write to a file descriptor.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
+        if self.help_idir(args[0]):
+            return [self.ERRNO_ISDIR]
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         data = bytearray()
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
         size = [
-            lambda: os.write(self.fd[args[0]].fd_host, data),
-            lambda: self.fd[args[0]].pipe.write(data),
+            lambda: os.write(file.fd_host, data),
+            lambda: file.pipe.write(data),
         ][int(self.help_pipe(args[0]))]()
         mems.put_u32(args[3], size)
         return [self.ERRNO_SUCCESS]
@@ -847,33 +984,7 @@ class Preview1:
     def help_badf(self, fd: int) -> bool:
         return fd < 0 or fd >= len(self.fd) or self.fd[fd].status != self.FILE_STATUS_OPENED
 
-    def help_filetype_fd(self, fd: int) -> int:
-        stat_result = os.fstat(fd)
-        match stat_result.st_mode:
-            case x if stat.S_ISBLK(x):
-                return self.FILETYPE_BLOCK_DEVICE
-            case x if stat.S_ISCHR(x):
-                return self.FILETYPE_CHARACTER_DEVICE
-            case x if stat.S_ISDIR(x):
-                return self.FILETYPE_DIRECTORY
-            case x if stat.S_ISREG(x):
-                return self.FILETYPE_REGULAR_FILE
-            case x if stat.S_ISSOCK(x):
-                sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_RAW)
-                kype = sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)
-                match kype:
-                    case socket.SOCK_DGRAM:
-                        return self.FILETYPE_SOCKET_DGRAM
-                    case socket.SOCK_STREAM:
-                        return self.FILETYPE_SOCKET_STREAM
-                    case _:
-                        return self.FILETYPE_UNKNOWN
-            case x if stat.S_ISLNK(x):
-                return self.FILETYPE_SYMBOLIC_LINK
-            case _:
-                return self.FILETYPE_UNKNOWN
-
-    def help_filetype_stat_result(self, stat_result: os.stat_result) -> int:
+    def help_fype(self, stat_result: os.stat_result) -> int:
         match stat_result.st_mode:
             case x if stat.S_ISBLK(x):
                 return self.FILETYPE_BLOCK_DEVICE
@@ -890,15 +1001,8 @@ class Preview1:
             case _:
                 return self.FILETYPE_UNKNOWN
 
-    def help_path_host(self, name_wasm: str) -> str:
-        name_wasm = os.path.normpath(name_wasm)
-        for wasm_root, host_root in self.dirs.items():
-            if name_wasm == wasm_root or name_wasm.startswith(wasm_root + '/'):
-                name_host = os.path.normpath(os.path.join(host_root, name_wasm[len(wasm_root):].lstrip('/')))
-                if not name_host.startswith(host_root):
-                    raise ValueError("Path attempts to escape sandbox")
-                return name_host
-        raise ValueError("Path not in preopened directory")
+    def help_idir(self, fd: int) -> bool:
+        return self.fd[fd].fype == self.FILETYPE_DIRECTORY
 
     def help_perm(self, fd: int, perm: int) -> bool:
         return self.fd[fd].rights_base & perm == 0
@@ -907,7 +1011,7 @@ class Preview1:
         return fd < 3 and self.fd[fd].pipe is not None
 
     def help_sock(self, fd: int) -> bool:
-        return self.fd[fd].filetype not in [self.FILETYPE_SOCKET_DGRAM, self.FILETYPE_SOCKET_STREAM]
+        return self.fd[fd].fype not in [self.FILETYPE_SOCKET_DGRAM, self.FILETYPE_SOCKET_STREAM]
 
     def main(self, runtime: pywasm.core.Runtime, module: pywasm.core.ModuleInst) -> int:
         # Attempt to begin execution of instance as a wasi command by invoking its _start() export. If instance does
@@ -923,16 +1027,24 @@ class Preview1:
             raise e
         else:
             return 0
+        finally:
+            for e in self.fd[self.FD_STDERR + 1:]:
+                if e.fype == self.FILETYPE_CHARACTER_DEVICE:
+                    continue
+                if e.status != self.FILE_STATUS_CLOSED:
+                    os.close(e.fd_host)
+                    e.status = self.FILE_STATUS_CLOSED
 
     def path_create_directory(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a directory.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_CREATE_DIRECTORY):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.mkdir(name, dir_fd=self.fd[args[0]].fd_host)
+        os.mkdir(name, dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -940,17 +1052,17 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_FILESTAT_GET):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        name_base = mems.get(args[2], args[3]).decode()
-        name_host = os.path.join(file.name_host, name_base)
-        if not os.path.exists(name_host):
+        flag = args[1]
+        name = mems.get(args[2], args[3]).decode()
+        if not os.path.exists(os.path.join(file.name_host, name)):
             return [self.ERRNO_NOENT]
-        stat_result = os.stat(name_host)
+        stat_result = os.stat(name, dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         mems.put_u64(args[4], 1)
         mems.put_u64(args[4] + 8, stat_result.st_ino)
-        mems.put_u8(args[4] + 16, file.filetype)
+        mems.put_u8(args[4] + 16, self.help_fype(stat_result))
         mems.put_u64(args[4] + 24, stat_result.st_nlink)
         mems.put_u64(args[4] + 32, stat_result.st_size)
         mems.put_u64(args[4] + 40, stat_result.st_atime_ns)
@@ -960,32 +1072,89 @@ class Preview1:
 
     def path_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Adjust the timestamps of a file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_FILESTAT_SET_TIMES):
+            return [self.ERRNO_NOTCAPABLE]
+        if args[6] & self.FSTFLAGS_ATIM and args[6] & self.FSTFLAGS_ATIM_NOW:
+            return [self.ERRNO_INVAL]
+        if args[6] & self.FSTFLAGS_MTIM and args[6] & self.FSTFLAGS_MTIM_NOW:
+            return [self.ERRNO_INVAL]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        flag = args[1]
+        name = mems.get(args[2], args[3]).decode()
+        info = os.stat(name, dir_fd=file.fd_host)
+        atim = info.st_atime_ns
+        if args[6] & self.FSTFLAGS_ATIM:
+            atim = args[4]
+        if args[6] & self.FSTFLAGS_ATIM_NOW:
+            atim = time.time_ns()
+        mtim = info.st_mtime_ns
+        if args[6] & self.FSTFLAGS_MTIM:
+            mtim = args[5]
+        if args[6] & self.FSTFLAGS_MTIM_NOW:
+            mtim = time.time_ns()
+        os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
+        return [self.ERRNO_SUCCESS]
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a hard link.
-        raise Exception('todo')
+        if self.help_badf(args[0]) or self.help_badf(args[4]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_LINK_SOURCE):
+            return [self.ERRNO_NOTCAPABLE]
+        if self.help_perm(args[4], self.RIGHTS_PATH_LINK_TARGET):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        dest = self.fd[args[4]]
+        name = mems.get(args[2], args[3]).decode()
+        if os.path.isabs(name):
+            return [self.ERRNO_PERM]
+        into = mems.get(args[5], args[6]).decode()
+        foll = args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW
+        try:
+            os.link(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host, follow_symlinks=foll)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except PermissionError:
+            return [self.ERRNO_PERM]
+        return [self.ERRNO_SUCCESS]
 
     def path_open(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Open a file or directory.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_OPEN):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        name_base = mems.get(args[2], args[3]).decode()
-        name_wasm = os.path.join(file.name_wasm, name_base)
-        name_host = os.path.join(file.name_host, name_base)
+        name = mems.get(args[2], args[3]).decode()
+        name_wasm = os.path.normpath(os.path.join(file.name_wasm, name))
+        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        if os.path.isabs(name):
+            return [self.ERRNO_PERM]
+        if '\0' in name:
+            return [self.ERRNO_ILSEQ]
+        # No path escape.
+        if not name_host.startswith(file.name_host):
+            return [self.ERRNO_PERM]
         flag = 0
+        if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
+            flag |= os.O_NOFOLLOW
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
-        if args[4] & self.OFLAGS_DIRECTORY and not os.path.isdir(name_host):
-            return [self.ERRNO_NOTDIR]
-        if args[4] & self.OFLAGS_EXCL and os.path.exists(name_host):
-            return [self.ERRNO_EXIST]
+        if args[4] & self.OFLAGS_DIRECTORY:
+            flag |= os.O_DIRECTORY
+        if args[4] & self.OFLAGS_EXCL:
+            flag |= os.O_EXCL
         if args[4] & self.OFLAGS_TRUNC:
             flag |= os.O_TRUNC
+            if file.rights_base & self.RIGHTS_PATH_FILESTAT_SET_SIZE == 0:
+                return [self.ERRNO_PERM]
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_READ:
             flag |= os.O_RDONLY
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_WRITE:
@@ -995,17 +1164,55 @@ class Preview1:
         if args[7] & self.FDFLAGS_APPEND:
             flag |= os.O_APPEND
         fd_wasm = len(self.fd)
-        fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        try:
+            fd_host = os.open(name, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
+        except OSError:
+            return [self.ERRNO_LOOP]
+        rights_base = args[5]
+        rights_root = args[6]
+        # Drectory does not have the seek right.
+        if os.path.isdir(fd_host):
+            void = self.RIGHTS_FD_SEEK
+            rights_base &= ~void
+            rights_root &= ~void
+        # Files shouldn't have rights for path_* syscalls even if manually given.
+        if os.path.isfile(fd_host):
+            void = sum([
+                self.RIGHTS_PATH_CREATE_DIRECTORY,
+                self.RIGHTS_PATH_CREATE_FILE,
+                self.RIGHTS_PATH_LINK_SOURCE,
+                self.RIGHTS_PATH_LINK_TARGET,
+                self.RIGHTS_PATH_OPEN,
+                self.RIGHTS_PATH_READLINK,
+                self.RIGHTS_PATH_RENAME_SOURCE,
+                self.RIGHTS_PATH_RENAME_TARGET,
+                self.RIGHTS_PATH_FILESTAT_GET,
+                self.RIGHTS_PATH_FILESTAT_SET_SIZE,
+                self.RIGHTS_PATH_FILESTAT_SET_TIMES,
+                self.RIGHTS_PATH_SYMLINK,
+                self.RIGHTS_PATH_REMOVE_DIRECTORY,
+                self.RIGHTS_PATH_UNLINK_FILE,
+            ])
+            rights_base &= ~void
+            rights_root &= ~void
         self.fd.append(Preview1.File(
             fd_host=fd_host,
             fd_wasm=fd_wasm,
-            filetype=self.help_filetype_stat_result(os.fstat(fd_host)),
             flag=args[7],
+            fype=self.help_fype(os.fstat(fd_host)),
             name_host=name_host,
             name_wasm=name_wasm,
             pipe=None,
-            rights_base=args[5],
-            rights_root=args[6],
+            rights_base=rights_base,
+            rights_root=rights_root,
             status=0,
         ))
         mems.put_u32(args[8], fd_wasm)
@@ -1013,41 +1220,129 @@ class Preview1:
 
     def path_readlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Read the contents of a symbolic link.
-        raise Exception('todo')
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_READLINK):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        name = mems.get(args[1], args[2]).decode()
+        data = os.readlink(name, dir_fd=file.fd_host)
+        size = min(len(data), args[4])
+        mems.put(args[3], bytearray(data[:size].encode()))
+        mems.put_u32(args[5], size)
+        return [self.ERRNO_SUCCESS]
 
     def path_remove_directory(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Remove a directory.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
-        if self.help_perm(args[0], self.RIGHTS_PATH_CREATE_DIRECTORY):
-            return [self.ERRNO_PERM]
+        if self.help_perm(args[0], self.RIGHTS_PATH_REMOVE_DIRECTORY):
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.rmdir(name, dir_fd=self.fd[args[0]].fd_host)
+        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        try:
+            os.rmdir(name, dir_fd=file.fd_host)
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
+        except OSError as e:
+            if len(os.listdir(name_host)) != 0:
+                return [self.ERRNO_NOTEMPTY]
+            raise e
         return [self.ERRNO_SUCCESS]
 
     def path_rename(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Rename a file or directory.
-        raise Exception('todo')
+        if self.help_badf(args[0]) or self.help_badf(args[3]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[0], self.RIGHTS_PATH_RENAME_SOURCE):
+            return [self.ERRNO_NOTCAPABLE]
+        if self.help_perm(args[3], self.RIGHTS_PATH_RENAME_TARGET):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        dest = self.fd[args[3]]
+        name = mems.get(args[1], args[2]).decode()
+        into = mems.get(args[4], args[5]).decode()
+        into_host = os.path.normpath(os.path.join(dest.name_host, into))
+        try:
+            os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
+        except OSError as e:
+            if len(os.listdir(into_host)) != 0:
+                return [self.ERRNO_NOTEMPTY]
+            raise e
+        return [self.ERRNO_SUCCESS]
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a symbolic link.
-        raise Exception('todo')
+        if self.help_badf(args[2]):
+            return [self.ERRNO_BADF]
+        if self.help_perm(args[2], self.RIGHTS_PATH_SYMLINK):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[2]]
+        name = mems.get(args[0], args[1]).decode()
+        if os.path.isabs(name):
+            return [self.ERRNO_PERM]
+        into = mems.get(args[3], args[4]).decode()
+        try:
+            os.symlink(name, into, dir_fd=file.fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        return [self.ERRNO_SUCCESS]
 
     def path_unlink_file(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Unlink a file.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_UNLINK_FILE):
-            return [self.ERRNO_PERM]
+            return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.unlink(name, dir_fd=self.fd[args[0]].fd_host)
+        try:
+            os.unlink(name, dir_fd=file.fd_host)
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
         return [self.ERRNO_SUCCESS]
 
-    def poll_oneoff(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def poll_oneoff(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Concurrently poll for the occurrence of a set of events.
-        raise Exception('todo')
+        assert len(args) == 4
+        raise NotImplementedError
+        # # This is a no-op in the current implementation.
+        #     mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        #     events_ptr = args[0] # Pointer to the array of events to poll.
+        #     results_ptr = args[1] # Pointer to the array of results.
+        #     nsubscriptions = args[2] # Number of subscriptions.
+        #     nresults = args[3] # Number of results.
+        #     if nsubscriptions != nresults:
+        #         return [self.ERRNO_INVAL]
+        #     for i in range(nsubscriptions):
+        #         event_type = mems.get_u32(events_ptr + i * 8)
+        #         if event_type != self.EVENTTYPE_CLOCK:
+        #             return [self.ERRNO_INVAL]
+        #         clock_id = mems.get_u32(events_ptr + i * 8 + 4)
+        #         if clock_id != self.CLOCK_MONOTONIC:
+        #             return [self.ERRNO_INVAL]
+        #         # Set the result to indicate that the clock has ticked.
+        #         mems.put_u32(results_ptr + i * 8, self.EVENTTYPE_CLOCK)
+        #         mems.put_u64(results_ptr + i * 8 + 4, time.time_ns())
+        #     return [self.ERRNO_SUCCESS]
 
     def proc_exit(self, _: pywasm.core.Machine, args: typing.List[int]) -> None:
         # Terminate the process normally. An exit code of 0 indicates successful termination of the program. The
@@ -1056,9 +1351,11 @@ class Preview1:
             raise Exception(SystemExit, args[0])
         sys.exit(args[0])
 
-    def proc_raise(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def proc_raise(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Send a signal to the process of the calling thread.
-        raise Exception('todo')
+        if args[0] != self.SIGNAL_NONE:
+            return [self.ERRNO_INVAL]
+        return [self.ERRNO_SUCCESS]
 
     def random_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Write high-quality random data into a buffer.
@@ -1066,28 +1363,32 @@ class Preview1:
         mems.put(args[0], bytearray(random.randbytes(args[1])))
         return [self.ERRNO_SUCCESS]
 
-    def sched_yield(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sched_yield(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Temporarily yield execution of the calling thread.
-        raise Exception('todo')
+        assert len(args) == 0
+        return [self.ERRNO_SUCCESS]
 
-    def sock_accept(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_accept(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Accept a new incoming connection.
-        raise Exception('todo')
+        assert len(args) == 2
+        raise NotImplementedError
 
-    def sock_recv(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_recv(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Receive a message from a socket.
-        raise Exception('todo')
+        assert len(args) == 6
+        raise NotImplementedError
 
-    def sock_send(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_send(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Send a message on a socket.
-        raise Exception('todo')
+        assert len(args) == 5
+        raise NotImplementedError
 
-    def sock_shutdown(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_shutdown(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Shut down socket send and receive channels.
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         if self.help_sock(args[0]):
             return [self.ERRNO_NOTSOCK]
         if self.help_perm(args[0], self.RIGHTS_SOCK_SHUTDOWN):
-            return [self.ERRNO_PERM]
-        raise Exception('todo')
+            return [self.ERRNO_NOTCAPABLE]
+        raise NotImplementedError
