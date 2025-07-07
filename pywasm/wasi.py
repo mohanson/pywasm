@@ -3,6 +3,7 @@ import fcntl
 import os
 import pywasm.core
 import random
+import select
 import stat
 import sys
 import time
@@ -415,7 +416,7 @@ class Preview1:
             name_host=sys.stdin.name,
             name_wasm=sys.stdin.name,
             pipe=None,
-            rights_base=self.RIGHTS_FD_READ,
+            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_READ,
             rights_root=0,
             status=self.FILE_STATUS_OPENED,
         ))
@@ -427,7 +428,7 @@ class Preview1:
             name_host=sys.stdout.name,
             name_wasm=sys.stdout.name,
             pipe=None,
-            rights_base=self.RIGHTS_FD_WRITE,
+            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
             rights_root=0,
             status=self.FILE_STATUS_OPENED,
         ))
@@ -439,7 +440,7 @@ class Preview1:
             name_host=sys.stderr.name,
             name_wasm=sys.stderr.name,
             pipe=None,
-            rights_base=self.RIGHTS_FD_WRITE,
+            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
             rights_root=0,
             status=self.FILE_STATUS_OPENED,
         ))
@@ -545,40 +546,14 @@ class Preview1:
     def clock_res_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the resolution of a clock.
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        match args[0]:
-            case self.CLOCKID_REALTIME:
-                mems.put_u64(args[1], 1)
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_MONOTONIC:
-                mems.put_u64(args[1], 1)
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_PROCESS_CPUTIME_ID:
-                mems.put_u64(args[1], 1)
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_THREAD_CPUTIME_ID:
-                mems.put_u64(args[1], 1)
-                return [self.ERRNO_SUCCESS]
-            case _:
-                return [self.ERRNO_BADF]
+        mems.put_u64(args[1], 1)
+        return [self.ERRNO_SUCCESS]
 
     def clock_time_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the time value of a clock.
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        match args[0]:
-            case self.CLOCKID_REALTIME:
-                mems.put_u64(args[2], time.time_ns())
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_MONOTONIC:
-                mems.put_u64(args[2], time.time_ns())
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_PROCESS_CPUTIME_ID:
-                mems.put_u64(args[2], time.process_time_ns())
-                return [self.ERRNO_SUCCESS]
-            case self.CLOCKID_THREAD_CPUTIME_ID:
-                mems.put_u64(args[2], time.thread_time_ns())
-                return [self.ERRNO_SUCCESS]
-            case _:
-                return [self.ERRNO_BADF]
+        mems.put_u64(args[2], time.time_ns())
+        return [self.ERRNO_SUCCESS]
 
     def environ_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Read environment variable data. The sizes of the buffers should match that returned by environ_sizes_get.
@@ -1320,29 +1295,79 @@ class Preview1:
             return [self.ERRNO_NOTDIR]
         return [self.ERRNO_SUCCESS]
 
-    def poll_oneoff(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def poll_oneoff(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Concurrently poll for the occurrence of a set of events.
-        assert len(args) == 4
-        raise NotImplementedError
-        # # This is a no-op in the current implementation.
-        #     mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        #     events_ptr = args[0] # Pointer to the array of events to poll.
-        #     results_ptr = args[1] # Pointer to the array of results.
-        #     nsubscriptions = args[2] # Number of subscriptions.
-        #     nresults = args[3] # Number of results.
-        #     if nsubscriptions != nresults:
-        #         return [self.ERRNO_INVAL]
-        #     for i in range(nsubscriptions):
-        #         event_type = mems.get_u32(events_ptr + i * 8)
-        #         if event_type != self.EVENTTYPE_CLOCK:
-        #             return [self.ERRNO_INVAL]
-        #         clock_id = mems.get_u32(events_ptr + i * 8 + 4)
-        #         if clock_id != self.CLOCK_MONOTONIC:
-        #             return [self.ERRNO_INVAL]
-        #         # Set the result to indicate that the clock has ticked.
-        #         mems.put_u32(results_ptr + i * 8, self.EVENTTYPE_CLOCK)
-        #         mems.put_u64(results_ptr + i * 8 + 4, time.time_ns())
-        #     return [self.ERRNO_SUCCESS]
+        subs = args[0]
+        outs = args[1]
+        nsub = args[2]
+        nout = args[3]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        csub = []
+        rsub = []
+        wsub = []
+        for i in range(nsub):
+            # Each subscription is 48 bytes
+            addr = subs + i * 48
+            userdata = mems.get_u64(addr)
+            eype = mems.get_u8(addr + 8)
+            match eype:
+                case self.EVENTTYPE_CLOCK:
+                    nval = mems.get_u64(addr + 24)
+                    flag = mems.get_u32(addr + 40)
+                    if flag & self.SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME == 0:
+                        nval += time.time_ns()
+                    csub.append([userdata, nval])
+                case self.EVENTTYPE_FD_READ:
+                    file = mems.get_u32(addr + 16)
+                    if self.help_badf(file):
+                        return [self.ERRNO_BADF]
+                    if self.help_perm(file, self.RIGHTS_POLL_FD_READWRITE):
+                        return [self.ERRNO_NOTCAPABLE]
+                    rsub.append([userdata, file])
+                case self.EVENTTYPE_FD_WRITE:
+                    file = mems.get_u32(addr + 16)
+                    if self.help_badf(file):
+                        return [self.ERRNO_BADF]
+                    if self.help_perm(file, self.RIGHTS_POLL_FD_READWRITE):
+                        return [self.ERRNO_NOTCAPABLE]
+                    wsub.append([userdata, file])
+        # Calculate minimum timeout.
+        delt = 8
+        if csub:
+            delt = (min([e[1] for e in csub]) - time.time_ns()) / 1000000000.0
+        ryes, wyes, _ = select.select(
+            [self.fd[fd].fd_host for _, fd in rsub],
+            [self.fd[fd].fd_host for _, fd in wsub],
+            [],
+            delt,
+        )
+        neve = 0
+        for userdata, nval in csub:
+            if time.time_ns() < nval:
+                continue
+            mems.put_u64(outs, userdata)
+            mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
+            mems.put_u8(outs + 10, self.EVENTTYPE_CLOCK)
+            outs += 32
+            neve += 1
+        for userdata, file in rsub:
+            if self.fd[file].fd_host not in ryes:
+                continue
+            mems.put_u64(outs, userdata)
+            mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
+            mems.put_u8(outs + 10, self.EVENTTYPE_FD_READ)
+            outs += 32
+            neve += 1
+        for userdata, file in wsub:
+            if self.fd[file].fd_host not in wyes:
+                continue
+            mems.put_u64(outs, userdata)
+            mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
+            mems.put_u8(outs + 10, self.EVENTTYPE_FD_WRITE)
+            outs += 32
+            neve += 1
+        mems.put_u32(nout, neve)
+        return [self.ERRNO_SUCCESS]
 
     def proc_exit(self, _: pywasm.core.Machine, args: typing.List[int]) -> None:
         # Terminate the process normally. An exit code of 0 indicates successful termination of the program. The
