@@ -1138,17 +1138,15 @@ class Preview1:
         # No path escape.
         if not name_host.startswith(file.name_host):
             return [self.ERRNO_PERM]
-        if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
-            return [self.ERRNO_LOOP]
         flag = 0
-        # if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
-        #     flag |= os.O_NOFOLLOW
+        if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
+            flag |= os.O_NOFOLLOW
         if args[4] & self.OFLAGS_CREAT:
             flag |= os.O_CREAT
-        if args[4] & self.OFLAGS_DIRECTORY and not os.path.isdir(name_host):
-            return [self.ERRNO_NOTDIR]
-        if args[4] & self.OFLAGS_EXCL and os.path.exists(name_host):
-            return [self.ERRNO_EXIST]
+        if args[4] & self.OFLAGS_DIRECTORY:
+            flag |= os.O_DIRECTORY
+        if args[4] & self.OFLAGS_EXCL:
+            flag |= os.O_EXCL
         if args[4] & self.OFLAGS_TRUNC:
             flag |= os.O_TRUNC
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_READ:
@@ -1162,44 +1160,43 @@ class Preview1:
         fd_wasm = len(self.fd)
         try:
             fd_host = os.open(name, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
         except FileNotFoundError:
             return [self.ERRNO_NOENT]
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
+        except OSError:
+            return [self.ERRNO_LOOP]
         rights_base = args[5]
         rights_root = args[6]
-        if os.path.isdir(name_host):
-            rights_base &= ~self.RIGHTS_FD_SEEK
-            rights_root &= ~self.RIGHTS_FD_SEEK
-        if os.path.isfile(name_host):
-            rights_base &= ~self.RIGHTS_PATH_CREATE_DIRECTORY
-            rights_base &= ~self.RIGHTS_PATH_CREATE_FILE
-            rights_base &= ~self.RIGHTS_PATH_LINK_SOURCE
-            rights_base &= ~self.RIGHTS_PATH_LINK_TARGET
-            rights_base &= ~self.RIGHTS_PATH_OPEN
-            rights_base &= ~self.RIGHTS_PATH_READLINK
-            rights_base &= ~self.RIGHTS_PATH_RENAME_SOURCE
-            rights_base &= ~self.RIGHTS_PATH_RENAME_TARGET
-            rights_base &= ~self.RIGHTS_PATH_FILESTAT_GET
-            rights_base &= ~self.RIGHTS_PATH_FILESTAT_SET_SIZE
-            rights_base &= ~self.RIGHTS_PATH_FILESTAT_SET_TIMES
-            rights_base &= ~self.RIGHTS_PATH_SYMLINK
-            rights_base &= ~self.RIGHTS_PATH_REMOVE_DIRECTORY
-            rights_base &= ~self.RIGHTS_PATH_UNLINK_FILE
-            rights_root &= ~self.RIGHTS_PATH_CREATE_DIRECTORY
-            rights_root &= ~self.RIGHTS_PATH_CREATE_FILE
-            rights_root &= ~self.RIGHTS_PATH_LINK_SOURCE
-            rights_root &= ~self.RIGHTS_PATH_LINK_TARGET
-            rights_root &= ~self.RIGHTS_PATH_OPEN
-            rights_root &= ~self.RIGHTS_PATH_READLINK
-            rights_root &= ~self.RIGHTS_PATH_RENAME_SOURCE
-            rights_root &= ~self.RIGHTS_PATH_RENAME_TARGET
-            rights_root &= ~self.RIGHTS_PATH_FILESTAT_GET
-            rights_root &= ~self.RIGHTS_PATH_FILESTAT_SET_SIZE
-            rights_root &= ~self.RIGHTS_PATH_FILESTAT_SET_TIMES
-            rights_root &= ~self.RIGHTS_PATH_SYMLINK
-            rights_root &= ~self.RIGHTS_PATH_REMOVE_DIRECTORY
-            rights_root &= ~self.RIGHTS_PATH_UNLINK_FILE
+        # Drectory does not have the seek right.
+        if os.path.isdir(fd_host):
+            void = self.RIGHTS_FD_SEEK
+            rights_base &= ~void
+            rights_root &= ~void
+        # Files shouldn't have rights for path_* syscalls even if manually given.
+        if os.path.isfile(fd_host):
+            void = sum([
+                self.RIGHTS_PATH_CREATE_DIRECTORY,
+                self.RIGHTS_PATH_CREATE_FILE,
+                self.RIGHTS_PATH_LINK_SOURCE,
+                self.RIGHTS_PATH_LINK_TARGET,
+                self.RIGHTS_PATH_OPEN,
+                self.RIGHTS_PATH_READLINK,
+                self.RIGHTS_PATH_RENAME_SOURCE,
+                self.RIGHTS_PATH_RENAME_TARGET,
+                self.RIGHTS_PATH_FILESTAT_GET,
+                self.RIGHTS_PATH_FILESTAT_SET_SIZE,
+                self.RIGHTS_PATH_FILESTAT_SET_TIMES,
+                self.RIGHTS_PATH_SYMLINK,
+                self.RIGHTS_PATH_REMOVE_DIRECTORY,
+                self.RIGHTS_PATH_UNLINK_FILE,
+            ])
+            rights_base &= ~void
+            rights_root &= ~void
         self.fd.append(Preview1.File(
             fd_host=fd_host,
             fd_wasm=fd_wasm,
