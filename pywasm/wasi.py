@@ -701,15 +701,15 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        stat_result = os.stat(file.name_host)
+        info = os.stat(file.name_host)
         mems.put_u64(args[1], 1)
-        mems.put_u64(args[1] + 8, stat_result.st_ino)
+        mems.put_u64(args[1] + 8, info.st_ino)
         mems.put_u8(args[1] + 16, file.filetype)
-        mems.put_u64(args[1] + 24, stat_result.st_nlink)
-        mems.put_u64(args[1] + 32, stat_result.st_size)
-        mems.put_u64(args[1] + 40, stat_result.st_atime_ns)
-        mems.put_u64(args[1] + 48, stat_result.st_mtime_ns)
-        mems.put_u64(args[1] + 56, stat_result.st_ctime_ns)
+        mems.put_u64(args[1] + 24, info.st_nlink)
+        mems.put_u64(args[1] + 32, info.st_size)
+        mems.put_u64(args[1] + 40, info.st_atime_ns)
+        mems.put_u64(args[1] + 48, info.st_mtime_ns)
+        mems.put_u64(args[1] + 56, info.st_ctime_ns)
         return [self.ERRNO_SUCCESS]
 
     def fd_filestat_set_size(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -735,13 +735,13 @@ class Preview1:
         if args[3] & self.FSTFLAGS_MTIM and args[3] & self.FSTFLAGS_MTIM_NOW:
             return [self.ERRNO_INVAL]
         file = self.fd[args[0]]
-        stat_result = os.stat(file.fd_host)
-        atim = stat_result.st_atime_ns
+        info = os.stat(file.fd_host)
+        atim = info.st_atime_ns
         if args[3] & self.FSTFLAGS_ATIM:
             atim = args[1]
         if args[3] & self.FSTFLAGS_ATIM_NOW:
             atim = time.time_ns()
-        mtim = stat_result.st_mtime_ns
+        mtim = info.st_mtime_ns
         if args[3] & self.FSTFLAGS_MTIM:
             mtim = args[2]
         if args[3] & self.FSTFLAGS_MTIM_NOW:
