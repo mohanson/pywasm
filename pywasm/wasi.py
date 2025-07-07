@@ -1029,6 +1029,8 @@ class Preview1:
             return 0
         finally:
             for e in self.fd[self.FD_STDERR + 1:]:
+                if e.fype == self.FILETYPE_CHARACTER_DEVICE:
+                    continue
                 if e.status != self.FILE_STATUS_CLOSED:
                     os.close(e.fd_host)
                     e.status = self.FILE_STATUS_CLOSED

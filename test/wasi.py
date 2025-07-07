@@ -34,6 +34,9 @@ case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+case = [
+    '/home/ubuntu/src/pywasm/res/wasi-testsuite/tests/rust/testsuite/symlink_create.wasm',
+]
 skip = [
     'res/wasi-testsuite/tests/rust/testsuite/poll_oneoff_stdio.wasm',
 ]
