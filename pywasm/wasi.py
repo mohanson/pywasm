@@ -1118,8 +1118,6 @@ class Preview1:
             return [self.ERRNO_NOENT]
         except PermissionError:
             return [self.ERRNO_PERM]
-        except Exception as e:
-            raise e
         return [self.ERRNO_SUCCESS]
 
     def path_open(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
