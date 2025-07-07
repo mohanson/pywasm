@@ -1250,8 +1250,8 @@ class Preview1:
         file = self.fd[args[0]]
         dest = self.fd[args[3]]
         name = mems.get(args[1], args[2]).decode()
-        dest = mems.get(args[4], args[5]).decode()
-        os.rename(name, dest, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+        into = mems.get(args[4], args[5]).decode()
+        os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_symlink(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
