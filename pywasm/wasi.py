@@ -1040,8 +1040,9 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_PATH_CREATE_DIRECTORY):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.mkdir(name, dir_fd=self.fd[args[0]].fd_host)
+        os.mkdir(name, dir_fd=file.fd_host)
         return [self.ERRNO_SUCCESS]
 
     def path_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1053,11 +1054,10 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         flag = args[1]
-        name_base = mems.get(args[2], args[3]).decode()
-        name_host = os.path.join(file.name_host, name_base)
-        if not os.path.exists(name_host):
+        name = mems.get(args[2], args[3]).decode()
+        if not os.path.exists(os.path.join(file.name_host, name)):
             return [self.ERRNO_NOENT]
-        stat_result = os.stat(name_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
+        stat_result = os.stat(name, dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         mems.put_u64(args[4], 1)
         mems.put_u64(args[4] + 8, stat_result.st_ino)
         mems.put_u8(args[4] + 16, self.help_fype(stat_result))
@@ -1080,24 +1080,25 @@ class Preview1:
             return [self.ERRNO_INVAL]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
+        flag = args[1]
         name = mems.get(args[2], args[3]).decode()
-        stat_result = os.stat(name, dir_fd=file.fd_host)
-        atim = stat_result.st_atime_ns
+        info = os.stat(name, dir_fd=file.fd_host)
+        atim = info.st_atime_ns
         if args[6] & self.FSTFLAGS_ATIM:
             atim = args[4]
         if args[6] & self.FSTFLAGS_ATIM_NOW:
             atim = time.time_ns()
-        mtim = stat_result.st_mtime_ns
+        mtim = info.st_mtime_ns
         if args[6] & self.FSTFLAGS_MTIM:
             mtim = args[5]
         if args[6] & self.FSTFLAGS_MTIM_NOW:
             mtim = time.time_ns()
-        os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host)
+        os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         return [self.ERRNO_SUCCESS]
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Create a hard link.
-        if self.help_badf(args[0]) or self.help_badf(args[1]):
+        if self.help_badf(args[0]) or self.help_badf(args[4]):
             return [self.ERRNO_BADF]
         if self.help_perm(args[0], self.RIGHTS_PATH_LINK_SOURCE):
             return [self.ERRNO_NOTCAPABLE]
@@ -1107,11 +1108,11 @@ class Preview1:
         file = self.fd[args[0]]
         dest = self.fd[args[4]]
         name = mems.get(args[2], args[3]).decode()
-        name_host = os.path.join(file.name_host, name)
+        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        into = mems.get(args[5], args[6]).decode()
+        into_host = os.path.normpath(os.path.join(dest.name_host, into))
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
             return [self.ERRNO_LOOP]
-        into = mems.get(args[5], args[6]).decode()
-        into_host = os.path.join(dest.name_host, into)
         os.symlink(name_host, into_host)
         return [self.ERRNO_SUCCESS]
 
