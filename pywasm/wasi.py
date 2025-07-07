@@ -1110,6 +1110,8 @@ class Preview1:
         file = self.fd[args[0]]
         dest = self.fd[args[4]]
         name = mems.get(args[2], args[3]).decode()
+        if os.path.isabs(name):
+            return [self.ERRNO_PERM]
         into = mems.get(args[5], args[6]).decode()
         foll = args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW
         try:
@@ -1288,6 +1290,8 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[2]]
         name = mems.get(args[0], args[1]).decode()
+        if os.path.isabs(name):
+            return [self.ERRNO_PERM]
         into = mems.get(args[3], args[4]).decode()
         try:
             os.symlink(name, into, dir_fd=file.fd_host)
