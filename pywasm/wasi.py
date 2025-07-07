@@ -886,10 +886,7 @@ class Preview1:
             mems.put(dirent, bytearray(name.encode()))
             dirent += len(name)
             cookie += 1
-        if cookie == len(result):
-            mems.put_u32(args[4], dirent - args[1])
-        else:
-            mems.put_u32(args[4], buflen)
+        mems.put_u32(args[4], dirent - args[1] if cookie >= len(result) else buflen)
         return [self.ERRNO_SUCCESS]
 
     def fd_renumber(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -897,6 +894,7 @@ class Preview1:
             return [self.ERRNO_BADF]
         file = self.fd[args[0]]
         dest = self.fd[args[1]]
+        os.close(dest.fd_host)
         dest.fd_host = file.fd_host
         dest.fd_wasm = file.fd_wasm
         dest.filetype = file.filetype
@@ -907,7 +905,7 @@ class Preview1:
         dest.rights_base = file.rights_base
         dest.rights_root = file.rights_root
         dest.status = file.status
-        self.fd[args[0]].status = self.FILE_STATUS_CLOSED
+        file.status = self.FILE_STATUS_CLOSED
         return [self.ERRNO_SUCCESS]
 
     def fd_seek(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
