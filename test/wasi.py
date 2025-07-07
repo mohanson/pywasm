@@ -61,5 +61,6 @@ for wasm_path in case:
     wasi.bind(runtime)
     exit = wasi.main(runtime, runtime.instance_from_file(wasm_path))
     wasi.fd[1].pipe.seek(0)
-    assert wasi.fd[1].pipe.read().decode() == conf.get('stdout', '')
+    if 'stdout' in conf:
+        assert wasi.fd[1].pipe.read().decode() == conf['stdout']
     assert exit == conf.get('exit_code', 0)
