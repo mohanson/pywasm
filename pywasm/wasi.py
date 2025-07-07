@@ -393,8 +393,8 @@ class Preview1:
     class File:
         fd_host: int
         fd_wasm: int
-        filetype: int
         flag: int
+        fype: int
         name_host: str
         name_wasm: str
         pipe: typing.Optional[typing.BinaryIO]
@@ -410,8 +410,8 @@ class Preview1:
         self.fd.append(self.File(
             fd_host=self.FD_STDIN,
             fd_wasm=self.FD_STDIN,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stdin.name,
             name_wasm=sys.stdin.name,
             pipe=None,
@@ -422,8 +422,8 @@ class Preview1:
         self.fd.append(self.File(
             fd_host=self.FD_STDOUT,
             fd_wasm=self.FD_STDOUT,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stdout.name,
             name_wasm=sys.stdout.name,
             pipe=None,
@@ -434,8 +434,8 @@ class Preview1:
         self.fd.append(self.File(
             fd_host=self.FD_STDERR,
             fd_wasm=self.FD_STDERR,
-            filetype=self.FILETYPE_CHARACTER_DEVICE,
             flag=0,
+            fype=self.FILETYPE_CHARACTER_DEVICE,
             name_host=sys.stderr.name,
             name_wasm=sys.stderr.name,
             pipe=None,
@@ -450,8 +450,8 @@ class Preview1:
             self.fd.append(self.File(
                 fd_host=os.open(v, os.O_RDONLY | os.O_DIRECTORY),
                 fd_wasm=len(self.fd),
-                filetype=self.FILETYPE_DIRECTORY,
                 flag=0,
+                fype=self.FILETYPE_DIRECTORY,
                 name_host=v,
                 name_wasm=k,
                 pipe=None,
@@ -652,7 +652,7 @@ class Preview1:
             return [self.ERRNO_BADF]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        mems.put_u8(args[1], file.filetype)
+        mems.put_u8(args[1], file.fype)
         mems.put_u16(args[1]+2, file.flag)
         mems.put_u64(args[1]+8, file.rights_base)
         mems.put_u64(args[1]+16, file.rights_root)
@@ -704,7 +704,7 @@ class Preview1:
         info = os.stat(file.name_host)
         mems.put_u64(args[1], 1)
         mems.put_u64(args[1] + 8, info.st_ino)
-        mems.put_u8(args[1] + 16, file.filetype)
+        mems.put_u8(args[1] + 16, file.fype)
         mems.put_u64(args[1] + 24, info.st_nlink)
         mems.put_u64(args[1] + 32, info.st_size)
         mems.put_u64(args[1] + 40, info.st_atime_ns)
@@ -879,7 +879,7 @@ class Preview1:
             mems.put_u64(dirent, cookie + 1)
             mems.put_u64(dirent + 8, info.st_ino)
             mems.put_u32(dirent + 16, len(name))
-            mems.put_u8(dirent + 20, self.help_filetype_stat_result(info))
+            mems.put_u8(dirent + 20, self.help_fype(info))
             dirent += 24
             if dirent + len(name) > bufend:
                 break
@@ -897,7 +897,7 @@ class Preview1:
         os.close(dest.fd_host)
         dest.fd_host = file.fd_host
         dest.fd_wasm = file.fd_wasm
-        dest.filetype = file.filetype
+        dest.fype = file.fype
         dest.flag = file.flag
         dest.name_host = file.name_host
         dest.name_wasm = file.name_wasm
@@ -920,11 +920,12 @@ class Preview1:
         assert self.WHENCE_CUR == os.SEEK_CUR
         assert self.WHENCE_END == os.SEEK_END
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        ocur = os.lseek(self.fd[args[0]].fd_host, 0, args[2])
+        file = self.fd[args[0]]
+        ocur = os.lseek(file.fd_host, 0, args[2])
         # Seek before byte 0 is an error though.
         if ocur + args[1] < 0:
             return [self.ERRNO_INVAL]
-        offs = os.lseek(self.fd[args[0]].fd_host, args[1], args[2])
+        offs = os.lseek(file.fd_host, args[1], args[2])
         mems.put_u64(args[3], offs)
         return [self.ERRNO_SUCCESS]
 
@@ -949,7 +950,8 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_TELL):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        offs = os.lseek(self.fd[args[0]].fd_host, 0, os.SEEK_CUR)
+        file = self.fd[args[0]]
+        offs = os.lseek(file.fd_host, 0, os.SEEK_CUR)
         mems.put_u64(args[1], offs)
         return [self.ERRNO_SUCCESS]
 
@@ -962,17 +964,19 @@ class Preview1:
         if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
         iovs_ptr = args[1]
+        iovs_len = args[2]
         data = bytearray()
-        for _ in range(args[2]):
+        for _ in range(iovs_len):
             elem_ptr = mems.get_u32(iovs_ptr)
             elem_len = mems.get_u32(iovs_ptr + 4)
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
         size = [
-            lambda: os.write(self.fd[args[0]].fd_host, data),
-            lambda: self.fd[args[0]].pipe.write(data),
+            lambda: os.write(file.fd_host, data),
+            lambda: file.pipe.write(data),
         ][int(self.help_pipe(args[0]))]()
         mems.put_u32(args[3], size)
         return [self.ERRNO_SUCCESS]
@@ -980,7 +984,7 @@ class Preview1:
     def help_badf(self, fd: int) -> bool:
         return fd < 0 or fd >= len(self.fd) or self.fd[fd].status != self.FILE_STATUS_OPENED
 
-    def help_filetype_stat_result(self, stat_result: os.stat_result) -> int:
+    def help_fype(self, stat_result: os.stat_result) -> int:
         match stat_result.st_mode:
             case x if stat.S_ISBLK(x):
                 return self.FILETYPE_BLOCK_DEVICE
@@ -998,7 +1002,7 @@ class Preview1:
                 return self.FILETYPE_UNKNOWN
 
     def help_idir(self, fd: int) -> bool:
-        return self.fd[fd].filetype == self.FILETYPE_DIRECTORY
+        return self.fd[fd].fype == self.FILETYPE_DIRECTORY
 
     def help_perm(self, fd: int, perm: int) -> bool:
         return self.fd[fd].rights_base & perm == 0
@@ -1007,7 +1011,7 @@ class Preview1:
         return fd < 3 and self.fd[fd].pipe is not None
 
     def help_sock(self, fd: int) -> bool:
-        return self.fd[fd].filetype not in [self.FILETYPE_SOCKET_DGRAM, self.FILETYPE_SOCKET_STREAM]
+        return self.fd[fd].fype not in [self.FILETYPE_SOCKET_DGRAM, self.FILETYPE_SOCKET_STREAM]
 
     def main(self, runtime: pywasm.core.Runtime, module: pywasm.core.ModuleInst) -> int:
         # Attempt to begin execution of instance as a wasi command by invoking its _start() export. If instance does
@@ -1056,7 +1060,7 @@ class Preview1:
         stat_result = os.stat(name_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         mems.put_u64(args[4], 1)
         mems.put_u64(args[4] + 8, stat_result.st_ino)
-        mems.put_u8(args[4] + 16, self.help_filetype_stat_result(stat_result))
+        mems.put_u8(args[4] + 16, self.help_fype(stat_result))
         mems.put_u64(args[4] + 24, stat_result.st_nlink)
         mems.put_u64(args[4] + 32, stat_result.st_size)
         mems.put_u64(args[4] + 40, stat_result.st_atime_ns)
@@ -1192,8 +1196,8 @@ class Preview1:
         self.fd.append(Preview1.File(
             fd_host=fd_host,
             fd_wasm=fd_wasm,
-            filetype=self.help_filetype_stat_result(os.fstat(fd_host)),
             flag=args[7],
+            fype=self.help_fype(os.fstat(fd_host)),
             name_host=name_host,
             name_wasm=name_wasm,
             pipe=None,
