@@ -408,7 +408,7 @@ class Preview1:
         self.envs = ['='.join(e) for e in sorted(envs.items())]
         self.fd: typing.List[Preview1.File] = []
         self.fd.append(self.File(
-            fd_host=self.FD_STDIN,
+            fd_host=sys.stdin.fileno(),
             fd_wasm=self.FD_STDIN,
             flag=0,
             fype=self.FILETYPE_CHARACTER_DEVICE,
@@ -420,7 +420,7 @@ class Preview1:
             status=self.FILE_STATUS_OPENED,
         ))
         self.fd.append(self.File(
-            fd_host=self.FD_STDOUT,
+            fd_host=sys.stdout.fileno(),
             fd_wasm=self.FD_STDOUT,
             flag=0,
             fype=self.FILETYPE_CHARACTER_DEVICE,
@@ -432,7 +432,7 @@ class Preview1:
             status=self.FILE_STATUS_OPENED,
         ))
         self.fd.append(self.File(
-            fd_host=self.FD_STDERR,
+            fd_host=sys.stderr.fileno(),
             fd_wasm=self.FD_STDERR,
             flag=0,
             fype=self.FILETYPE_CHARACTER_DEVICE,
