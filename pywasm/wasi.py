@@ -1128,13 +1128,13 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
-        name_base = mems.get(args[2], args[3]).decode()
-        if os.path.isabs(name_base):
+        name = mems.get(args[2], args[3]).decode()
+        name_wasm = os.path.normpath(os.path.join(file.name_wasm, name))
+        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        if os.path.isabs(name):
             return [self.ERRNO_PERM]
-        if '\0' in name_base:
+        if '\0' in name:
             return [self.ERRNO_ILSEQ]
-        name_wasm = os.path.normpath(os.path.join(file.name_wasm, name_base))
-        name_host = os.path.normpath(os.path.join(file.name_host, name_base))
         if not name_host.startswith(file.name_host):
             return [self.ERRNO_PERM]
         if os.path.islink(name_host) and (args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0):
@@ -1161,7 +1161,7 @@ class Preview1:
             flag |= os.O_APPEND
         fd_wasm = len(self.fd)
         try:
-            fd_host = os.open(name_base, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
+            fd_host = os.open(name, flag, 0o644, dir_fd=self.fd[args[0]].fd_host)
         except FileNotFoundError:
             return [self.ERRNO_NOENT]
         except NotADirectoryError:
