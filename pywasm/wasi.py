@@ -1153,6 +1153,8 @@ class Preview1:
             flag |= os.O_EXCL
         if args[4] & self.OFLAGS_TRUNC:
             flag |= os.O_TRUNC
+            if file.rights_base & self.RIGHTS_PATH_FILESTAT_SET_SIZE == 0:
+                return [self.ERRNO_PERM]
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_READ:
             flag |= os.O_RDONLY
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_WRITE:
@@ -1310,7 +1312,12 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.unlink(name, dir_fd=file.fd_host)
+        try:
+            os.unlink(name, dir_fd=file.fd_host)
+        except IsADirectoryError:
+            return [self.ERRNO_ISDIR]
+        except NotADirectoryError:
+            return [self.ERRNO_NOTDIR]
         return [self.ERRNO_SUCCESS]
 
     def poll_oneoff(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
