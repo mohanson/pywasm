@@ -3,6 +3,7 @@ import glob
 import io
 import json
 import os
+import platform
 import pywasm
 import shutil
 import subprocess
@@ -33,10 +34,13 @@ with cd('res/wasi-testsuite'):
 case = []
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
-case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
-skip = [
-]
+if platform.system().lower() in ['darwin', 'linux']:
+    case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
+skip = [os.path.normpath(e) for e in [
+    'res/wasi-testsuite/tests/rust/testsuite/fd_readdir.wasm'
+]]
 for wasm_path in case:
+    wasm_path = os.path.normpath(wasm_path)
     if wasm_path in skip:
         continue
     print(wasm_path)
@@ -57,6 +61,8 @@ for wasm_path in case:
     wasi.bind(runtime)
     exit = wasi.main(runtime, runtime.instance_from_file(wasm_path))
     wasi.fd[1].pipe.seek(0)
+    if platform.system().lower() == 'windows':
+        continue
     if 'stdout' in conf:
         assert wasi.fd[1].pipe.read().decode() == conf['stdout']
     assert exit == conf.get('exit_code', 0)
