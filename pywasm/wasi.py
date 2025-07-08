@@ -552,7 +552,7 @@ class Preview1:
     def clock_time_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Return the time value of a clock.
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        mems.put_u64(args[2], time.time_ns())
+        mems.put_u64(args[2], self.help_time(args[0]))
         return [self.ERRNO_SUCCESS]
 
     def environ_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -608,7 +608,7 @@ class Preview1:
         if self.help_badf(args[0]):
             return [self.ERRNO_BADF]
         file = self.fd[args[0]]
-        if args[0] > 2:
+        if file.fype != self.FILETYPE_CHARACTER_DEVICE:
             os.close(file.fd_host)
         file.status = self.FILE_STATUS_CLOSED
         return [self.ERRNO_SUCCESS]
@@ -959,8 +959,11 @@ class Preview1:
     def help_badf(self, fd: int) -> bool:
         return fd < 0 or fd >= len(self.fd) or self.fd[fd].status != self.FILE_STATUS_OPENED
 
-    def help_fype(self, stat_result: os.stat_result) -> int:
-        match stat_result.st_mode:
+    def help_escp(self, root: str, name: str) -> bool:
+        return not os.path.normpath(os.path.join(root, name)).startswith(root)
+
+    def help_fype(self, info: os.stat_result) -> int:
+        match info.st_mode:
             case x if stat.S_ISBLK(x):
                 return self.FILETYPE_BLOCK_DEVICE
             case x if stat.S_ISCHR(x):
@@ -987,6 +990,19 @@ class Preview1:
 
     def help_sock(self, fd: int) -> bool:
         return self.fd[fd].fype not in [self.FILETYPE_SOCKET_DGRAM, self.FILETYPE_SOCKET_STREAM]
+
+    def help_time(self, id: int) -> int:
+        match id:
+            case self.CLOCKID_REALTIME:
+                return time.time_ns()
+            case self.CLOCKID_MONOTONIC:
+                return time.monotonic_ns()
+            case self.CLOCKID_PROCESS_CPUTIME_ID:
+                return time.process_time_ns()
+            case self.CLOCKID_THREAD_CPUTIME_ID:
+                return time.thread_time_ns()
+            case _:
+                return 0
 
     def main(self, runtime: pywasm.core.Runtime, module: pywasm.core.ModuleInst) -> int:
         # Attempt to begin execution of instance as a wasi command by invoking its _start() export. If instance does
@@ -1019,7 +1035,12 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        os.mkdir(name, dir_fd=file.fd_host)
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
+        try:
+            os.mkdir(name, dir_fd=file.fd_host)
+        except FileExistsError:
+            return [self.ERRNO_EXIST]
         return [self.ERRNO_SUCCESS]
 
     def path_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1032,17 +1053,20 @@ class Preview1:
         file = self.fd[args[0]]
         flag = args[1]
         name = mems.get(args[2], args[3]).decode()
-        if not os.path.exists(os.path.join(file.name_host, name)):
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
+        try:
+            info = os.stat(name, dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
+        except FileNotFoundError:
             return [self.ERRNO_NOENT]
-        stat_result = os.stat(name, dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
         mems.put_u64(args[4], 1)
-        mems.put_u64(args[4] + 8, stat_result.st_ino)
-        mems.put_u8(args[4] + 16, self.help_fype(stat_result))
-        mems.put_u64(args[4] + 24, stat_result.st_nlink)
-        mems.put_u64(args[4] + 32, stat_result.st_size)
-        mems.put_u64(args[4] + 40, stat_result.st_atime_ns)
-        mems.put_u64(args[4] + 48, stat_result.st_mtime_ns)
-        mems.put_u64(args[4] + 56, stat_result.st_ctime_ns)
+        mems.put_u64(args[4] + 8, info.st_ino)
+        mems.put_u8(args[4] + 16, self.help_fype(info))
+        mems.put_u64(args[4] + 24, info.st_nlink)
+        mems.put_u64(args[4] + 32, info.st_size)
+        mems.put_u64(args[4] + 40, info.st_atime_ns)
+        mems.put_u64(args[4] + 48, info.st_mtime_ns)
+        mems.put_u64(args[4] + 56, info.st_ctime_ns)
         return [self.ERRNO_SUCCESS]
 
     def path_filestat_set_times(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1059,6 +1083,8 @@ class Preview1:
         file = self.fd[args[0]]
         flag = args[1]
         name = mems.get(args[2], args[3]).decode()
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
         info = os.stat(name, dir_fd=file.fd_host)
         atim = info.st_atime_ns
         if args[6] & self.FSTFLAGS_ATIM:
@@ -1070,7 +1096,10 @@ class Preview1:
             mtim = args[5]
         if args[6] & self.FSTFLAGS_MTIM_NOW:
             mtim = time.time_ns()
-        os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
+        try:
+            os.utime(name, ns=(atim, mtim), dir_fd=file.fd_host, follow_symlinks=flag & self.LOOKUPFLAGS_SYMLINK_FOLLOW)
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
         return [self.ERRNO_SUCCESS]
 
     def path_link(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -1082,15 +1111,17 @@ class Preview1:
         if self.help_perm(args[4], self.RIGHTS_PATH_LINK_TARGET):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        file = self.fd[args[0]]
+        stem = self.fd[args[0]]
         dest = self.fd[args[4]]
-        name = mems.get(args[2], args[3]).decode()
-        if os.path.isabs(name):
+        stem_name = mems.get(args[2], args[3]).decode()
+        dest_name = mems.get(args[5], args[6]).decode()
+        if self.help_escp(stem.name_wasm, stem_name):
             return [self.ERRNO_PERM]
-        into = mems.get(args[5], args[6]).decode()
+        if self.help_escp(dest.name_wasm, dest_name):
+            return [self.ERRNO_PERM]
         foll = args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW
         try:
-            os.link(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host, follow_symlinks=foll)
+            os.link(stem_name, dest_name, src_dir_fd=stem.fd_host, dst_dir_fd=dest.fd_host, follow_symlinks=foll)
         except FileExistsError:
             return [self.ERRNO_EXIST]
         except FileNotFoundError:
@@ -1110,12 +1141,9 @@ class Preview1:
         name = mems.get(args[2], args[3]).decode()
         name_wasm = os.path.normpath(os.path.join(file.name_wasm, name))
         name_host = os.path.normpath(os.path.join(file.name_host, name))
-        if os.path.isabs(name):
-            return [self.ERRNO_PERM]
         if '\0' in name:
             return [self.ERRNO_ILSEQ]
-        # No path escape.
-        if not name_host.startswith(file.name_host):
+        if self.help_escp(file.name_host, name):
             return [self.ERRNO_PERM]
         flag = 0
         if args[1] & self.LOOKUPFLAGS_SYMLINK_FOLLOW == 0:
@@ -1202,7 +1230,14 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        data = os.readlink(name, dir_fd=file.fd_host)
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
+        try:
+            data = os.readlink(name, dir_fd=file.fd_host)
+        except FileNotFoundError:
+            return [self.ERRNO_NOENT]
+        except OSError:
+            return [self.ERRNO_INVAL]
         size = min(len(data), args[4])
         mems.put(args[3], bytearray(data[:size].encode()))
         mems.put_u32(args[5], size)
@@ -1217,13 +1252,14 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
-        name_host = os.path.normpath(os.path.join(file.name_host, name))
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
         try:
             os.rmdir(name, dir_fd=file.fd_host)
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
-            if len(os.listdir(name_host)) != 0:
+            if len(os.listdir(file.fd_host)) != 0:
                 return [self.ERRNO_NOTEMPTY]
             raise e
         return [self.ERRNO_SUCCESS]
@@ -1237,13 +1273,16 @@ class Preview1:
         if self.help_perm(args[3], self.RIGHTS_PATH_RENAME_TARGET):
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
-        file = self.fd[args[0]]
+        stem = self.fd[args[0]]
         dest = self.fd[args[3]]
-        name = mems.get(args[1], args[2]).decode()
-        into = mems.get(args[4], args[5]).decode()
-        into_host = os.path.normpath(os.path.join(dest.name_host, into))
+        stem_name = mems.get(args[1], args[2]).decode()
+        dest_name = mems.get(args[4], args[5]).decode()
+        if self.help_escp(stem.name_wasm, stem_name):
+            return [self.ERRNO_PERM]
+        if self.help_escp(dest.name_wasm, dest_name):
+            return [self.ERRNO_PERM]
         try:
-            os.rename(name, into, src_dir_fd=file.fd_host, dst_dir_fd=dest.fd_host)
+            os.rename(stem_name, dest_name, src_dir_fd=stem.fd_host, dst_dir_fd=dest.fd_host)
         except FileExistsError:
             return [self.ERRNO_EXIST]
         except FileNotFoundError:
@@ -1253,7 +1292,7 @@ class Preview1:
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
-            if len(os.listdir(into_host)) != 0:
+            if len(os.listdir(dest.fd_host)) != 0:
                 return [self.ERRNO_NOTEMPTY]
             raise e
         return [self.ERRNO_SUCCESS]
@@ -1266,12 +1305,14 @@ class Preview1:
             return [self.ERRNO_NOTCAPABLE]
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[2]]
-        name = mems.get(args[0], args[1]).decode()
-        if os.path.isabs(name):
+        stem = mems.get(args[0], args[1]).decode()
+        dest = mems.get(args[3], args[4]).decode()
+        if self.help_escp(file.name_wasm, stem):
             return [self.ERRNO_PERM]
-        into = mems.get(args[3], args[4]).decode()
+        if self.help_escp(file.name_wasm, dest):
+            return [self.ERRNO_PERM]
         try:
-            os.symlink(name, into, dir_fd=file.fd_host)
+            os.symlink(stem, dest, dir_fd=file.fd_host)
         except FileExistsError:
             return [self.ERRNO_EXIST]
         except FileNotFoundError:
@@ -1287,6 +1328,8 @@ class Preview1:
         mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
         file = self.fd[args[0]]
         name = mems.get(args[1], args[2]).decode()
+        if self.help_escp(file.name_wasm, name):
+            return [self.ERRNO_PERM]
         try:
             os.unlink(name, dir_fd=file.fd_host)
         except IsADirectoryError:
@@ -1312,11 +1355,13 @@ class Preview1:
             eype = mems.get_u8(addr + 8)
             match eype:
                 case self.EVENTTYPE_CLOCK:
+                    ckid = mems.get_u64(addr + 16)
                     nval = mems.get_u64(addr + 24)
                     flag = mems.get_u32(addr + 40)
-                    if flag & self.SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME == 0:
-                        nval += time.time_ns()
-                    csub.append([userdata, nval])
+                    ctim = self.help_time(ckid)
+                    delt = ctim - nval if flag & self.SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME else nval
+                    ends = nval if flag & self.SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME else ctim + nval
+                    csub.append([userdata, ckid, delt, ends])
                 case self.EVENTTYPE_FD_READ:
                     file = mems.get_u32(addr + 16)
                     if self.help_badf(file):
@@ -1334,7 +1379,7 @@ class Preview1:
         # Calculate minimum timeout.
         delt = 8
         if csub:
-            delt = (min([e[1] for e in csub]) - time.time_ns()) / 1000000000.0
+            delt = min([e[2] for e in csub]) / 1000000000.0
         ryes, wyes, _ = select.select(
             [self.fd[fd].fd_host for _, fd in rsub],
             [self.fd[fd].fd_host for _, fd in wsub],
@@ -1342,26 +1387,26 @@ class Preview1:
             delt,
         )
         neve = 0
-        for userdata, nval in csub:
-            if time.time_ns() < nval:
+        for e in csub:
+            if self.help_time(e[1]) < e[3]:
                 continue
-            mems.put_u64(outs, userdata)
+            mems.put_u64(outs, e[0])
             mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
             mems.put_u8(outs + 10, self.EVENTTYPE_CLOCK)
             outs += 32
             neve += 1
-        for userdata, file in rsub:
-            if self.fd[file].fd_host not in ryes:
+        for e in rsub:
+            if self.fd[e[1]].fd_host not in ryes:
                 continue
-            mems.put_u64(outs, userdata)
+            mems.put_u64(outs, e[0])
             mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
             mems.put_u8(outs + 10, self.EVENTTYPE_FD_READ)
             outs += 32
             neve += 1
-        for userdata, file in wsub:
-            if self.fd[file].fd_host not in wyes:
+        for e in wsub:
+            if self.fd[e[1]].fd_host not in wyes:
                 continue
-            mems.put_u64(outs, userdata)
+            mems.put_u64(outs, e[0])
             mems.put_u16(outs + 8, self.ERRNO_SUCCESS)
             mems.put_u8(outs + 10, self.EVENTTYPE_FD_WRITE)
             outs += 32
