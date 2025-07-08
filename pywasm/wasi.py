@@ -396,11 +396,11 @@ class Preview1:
         host_name: str
         host_status: int
         pipe: typing.Optional[typing.BinaryIO]
-        rights_base: int
-        rights_root: int
         wasm_fd: int
         wasm_flag: int
         wasm_name: str
+        wasm_rights_base: int
+        wasm_rights_root: int
         wasm_status: int
         wasm_type: int
 
@@ -416,11 +416,11 @@ class Preview1:
             host_name=sys.stdin.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
-            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_READ,
-            rights_root=0,
             wasm_fd=self.FD_STDIN,
             wasm_flag=0,
             wasm_name=sys.stdin.name,
+            wasm_rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_READ,
+            wasm_rights_root=0,
             wasm_status=self.FILE_STATUS_OPENED,
             wasm_type=self.FILETYPE_CHARACTER_DEVICE,
         ))
@@ -430,11 +430,11 @@ class Preview1:
             host_name=sys.stdout.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
-            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
-            rights_root=0,
             wasm_fd=self.FD_STDOUT,
             wasm_flag=0,
             wasm_name=sys.stdout.name,
+            wasm_rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
+            wasm_rights_root=0,
             wasm_status=self.FILE_STATUS_OPENED,
             wasm_type=self.FILETYPE_CHARACTER_DEVICE,
         ))
@@ -444,11 +444,11 @@ class Preview1:
             host_name=sys.stderr.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
-            rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
-            rights_root=0,
             wasm_fd=self.FD_STDERR,
             wasm_flag=0,
             wasm_name=sys.stderr.name,
+            wasm_rights_base=self.RIGHTS_POLL_FD_READWRITE | self.RIGHTS_FD_WRITE,
+            wasm_rights_root=0,
             wasm_status=self.FILE_STATUS_OPENED,
             wasm_type=self.FILETYPE_CHARACTER_DEVICE,
         ))
@@ -461,11 +461,11 @@ class Preview1:
                 host_name=v,
                 host_status=self.FILE_STATUS_OPENED,
                 pipe=None,
-                rights_base=0b00000111101101111111111000000000,
-                rights_root=0b00001111111101111111111111111111,
                 wasm_fd=len(self.fd),
                 wasm_flag=0,
                 wasm_name=k,
+                wasm_rights_base=0b00000111101101111111111000000000,
+                wasm_rights_root=0b00001111111101111111111111111111,
                 wasm_status=self.FILE_STATUS_OPENED,
                 wasm_type=self.FILETYPE_DIRECTORY,
             ))
@@ -639,8 +639,8 @@ class Preview1:
         file = self.fd[args[0]]
         mems.put_u8(args[1], file.wasm_type)
         mems.put_u16(args[1]+2, file.wasm_flag)
-        mems.put_u64(args[1]+8, file.rights_base)
-        mems.put_u64(args[1]+16, file.rights_root)
+        mems.put_u64(args[1]+8, file.wasm_rights_base)
+        mems.put_u64(args[1]+16, file.wasm_rights_root)
         return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_set_flags(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -680,12 +680,12 @@ class Preview1:
             return [self.ERRNO_BADF]
         file = self.fd[args[0]]
         # This can only be used to remove rights
-        if file.rights_base & args[1] != args[1]:
+        if file.wasm_rights_base & args[1] != args[1]:
             return [self.ERRNO_NOTCAPABLE]
-        if file.rights_root & args[2] != args[2]:
+        if file.wasm_rights_root & args[2] != args[2]:
             return [self.ERRNO_NOTCAPABLE]
-        file.rights_base = args[1]
-        file.rights_root = args[2]
+        file.wasm_rights_base = args[1]
+        file.wasm_rights_root = args[2]
         return [self.ERRNO_SUCCESS]
 
     def fd_filestat_get(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -896,11 +896,11 @@ class Preview1:
         dest.host_name = stem.host_name
         dest.host_status = stem.host_status
         dest.pipe = stem.pipe
-        dest.rights_base = stem.rights_base
-        dest.rights_root = stem.rights_root
         dest.wasm_fd = stem.wasm_fd
         dest.wasm_flag = stem.wasm_flag
         dest.wasm_name = stem.wasm_name
+        dest.wasm_rights_base = stem.wasm_rights_base
+        dest.wasm_rights_root = stem.wasm_rights_root
         dest.wasm_status = stem.wasm_status
         dest.wasm_type = stem.wasm_type
         stem.host_status = self.FILE_STATUS_CLOSED
@@ -1007,7 +1007,7 @@ class Preview1:
         return self.fd[fd].wasm_type == self.FILETYPE_DIRECTORY
 
     def help_perm(self, fd: int, perm: int) -> bool:
-        return self.fd[fd].rights_base & perm == 0
+        return self.fd[fd].wasm_rights_base & perm == 0
 
     def help_pipe(self, fd: int) -> bool:
         return fd < 3 and self.fd[fd].pipe is not None
@@ -1180,7 +1180,7 @@ class Preview1:
             flag |= os.O_EXCL
         if args[4] & self.OFLAGS_TRUNC:
             flag |= os.O_TRUNC
-            if file.rights_base & self.RIGHTS_PATH_FILESTAT_SET_SIZE == 0:
+            if file.wasm_rights_base & self.RIGHTS_PATH_FILESTAT_SET_SIZE == 0:
                 return [self.ERRNO_PERM]
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_READ:
             flag |= os.O_RDONLY
@@ -1236,11 +1236,11 @@ class Preview1:
             host_name=host_name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
-            rights_base=rights_base,
-            rights_root=rights_root,
             wasm_fd=wasm_fd,
             wasm_flag=args[7],
             wasm_name=wasm_name,
+            wasm_rights_base=rights_base,
+            wasm_rights_root=rights_root,
             wasm_status=self.FILE_STATUS_OPENED,
             wasm_type=self.help_wasm_type(os.fstat(host_fd)),
         ))
