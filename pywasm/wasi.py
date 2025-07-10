@@ -464,8 +464,8 @@ class Preview1:
                 wasm_fd=len(self.fd),
                 wasm_flag=0,
                 wasm_name=k,
-                wasm_rights_base=0b00000111101101111111111000000000,
-                wasm_rights_root=0b00001111111101111111111111111111,
+                wasm_rights_base=0b00000111101111111111111000000000,
+                wasm_rights_root=0b00001111111111111111111111111111,
                 wasm_status=self.FILE_STATUS_OPENED,
                 wasm_type=self.FILETYPE_DIRECTORY,
             ))
