@@ -1,6 +1,9 @@
+import platform
+
 from . import core
 from . import leb128
 from . import log
 from . import opcode
-from . import wasi
+if platform.system().lower() in ['darwin', 'linux']:
+    from . import wasi
 from .core import *
