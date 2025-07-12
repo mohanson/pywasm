@@ -1,4 +1,5 @@
 import dataclasses
+import fcntl
 import os
 import pywasm.core
 import random
@@ -654,24 +655,17 @@ class Preview1:
         if file.wasm_flag ^ args[1] | fyes != fyes:
             # Only support changing the NONBLOCK or APPEND flags.
             return [self.ERRNO_INVAL]
-        host_flag = file.host_flag
-        host_flag &= ~os.O_APPEND
-        host_flag &= ~os.O_APPEND
-        wasm_flag = file.wasm_flag
-        wasm_flag &= ~self.FDFLAGS_APPEND
-        wasm_flag &= ~self.FDFLAGS_NONBLOCK
+        file.host_flag &= ~os.O_APPEND
+        file.host_flag &= ~os.O_APPEND
+        file.wasm_flag &= ~self.FDFLAGS_APPEND
+        file.wasm_flag &= ~self.FDFLAGS_NONBLOCK
         if args[1] & self.FDFLAGS_APPEND:
-            host_flag |= os.O_APPEND
-            wasm_flag |= self.FDFLAGS_APPEND
+            file.host_flag |= os.O_APPEND
+            file.wasm_flag |= self.FDFLAGS_APPEND
         if args[1] & self.FDFLAGS_NONBLOCK:
-            host_flag |= os.O_NONBLOCK
-            wasm_flag |= self.FDFLAGS_NONBLOCK
-        ocur = os.lseek(file.host_fd, 0, os.SEEK_CUR)
-        os.close(file.host_fd)
-        file.host_fd = os.open(file.host_name, host_flag)
-        os.lseek(file.host_fd, ocur, os.SEEK_SET)
-        file.host_flag = host_flag
-        file.wasm_flag = wasm_flag
+            file.host_flag |= os.O_NONBLOCK
+            file.wasm_flag |= self.FDFLAGS_NONBLOCK
+        fcntl.fcntl(file.host_fd, fcntl.F_SETFL, file.host_flag)
         return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_set_rights(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:

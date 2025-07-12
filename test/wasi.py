@@ -18,7 +18,7 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
-if platform.system().lower() not in ['darwin', 'linux']:
+if platform.system().lower() in ['windows']:
     sys.exit(0)
 
 with cd('res/wasi-testsuite'):
