@@ -3,15 +3,11 @@ import glob
 import io
 import json
 import os
+import platform
 import pywasm
 import shutil
-import subprocess
+import sys
 import typing
-
-
-def call(cmd: str) -> subprocess.CompletedProcess[bytes]:
-    print(f'$ {cmd}')
-    return subprocess.run(cmd, shell=True, check=True)
 
 
 @contextlib.contextmanager
@@ -21,6 +17,9 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     yield
     os.chdir(cwd)
 
+
+if platform.system().lower() not in ['darwin', 'linux']:
+    sys.exit(0)
 
 with cd('res/wasi-testsuite'):
     for e in glob.glob('**/*/*.cleanup', recursive=True):
