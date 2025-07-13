@@ -643,7 +643,7 @@ class MemInst:
         if self.type.limits.m:
             assert self.size + n <= self.type.limits.m
         assert self.size + n <= 65536
-        self.data.extend([0x00 for _ in range(n * 64 * 1024)])
+        self.data.extend(bytearray(n * 64 * 1024))
         self.size += n
 
     def put_i32(self, addr: int, data: int) -> None:
