@@ -1177,8 +1177,12 @@ class Preview1:
             return [self.ERRNO_ISDIR]
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
-        except OSError:
-            return [self.ERRNO_LOOP]
+        except OSError as e:
+            if platform.system().lower() == 'darwin' and e.errno == 62:
+                return [self.ERRNO_NOTEMPTY]
+            if platform.system().lower() == 'linux' and e.errno == 40:
+                return [self.ERRNO_LOOP]
+            raise e
         rights_base = args[5]
         rights_root = args[6]
         # Drectory does not have the seek right.
