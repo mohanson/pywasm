@@ -1237,7 +1237,8 @@ class Preview1:
             data = os.readlink(name, dir_fd=file.host_fd)
         except FileNotFoundError:
             return [self.ERRNO_NOENT]
-        except OSError:
+        except OSError as e:
+            print(e)
             return [self.ERRNO_INVAL]
         size = min(len(data), args[4])
         mems.put(args[3], bytearray(data[:size].encode()))
