@@ -1,5 +1,4 @@
 import dataclasses
-import fcntl
 import os
 import pywasm.core
 import random
@@ -393,7 +392,6 @@ class Preview1:
     @dataclasses.dataclass
     class File:
         host_fd: int
-        host_flag: int
         host_name: str
         host_status: int
         pipe: typing.Optional[typing.BinaryIO]
@@ -413,7 +411,6 @@ class Preview1:
         self.fd: typing.List[Preview1.File] = []
         self.fd.append(self.File(
             host_fd=sys.stdin.fileno(),
-            host_flag=0,
             host_name=sys.stdin.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
@@ -427,7 +424,6 @@ class Preview1:
         ))
         self.fd.append(self.File(
             host_fd=sys.stdout.fileno(),
-            host_flag=0,
             host_name=sys.stdout.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
@@ -441,7 +437,6 @@ class Preview1:
         ))
         self.fd.append(self.File(
             host_fd=sys.stderr.fileno(),
-            host_flag=0,
             host_name=sys.stderr.name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
@@ -458,7 +453,6 @@ class Preview1:
             v = os.path.abspath(os.path.normpath(v))
             self.fd.append(self.File(
                 host_fd=os.open(v, os.O_RDONLY | os.O_DIRECTORY),
-                host_flag=0,
                 host_name=v,
                 host_status=self.FILE_STATUS_OPENED,
                 pipe=None,
@@ -655,17 +649,12 @@ class Preview1:
         if file.wasm_flag ^ args[1] | fyes != fyes:
             # Only support changing the NONBLOCK or APPEND flags.
             return [self.ERRNO_INVAL]
-        file.host_flag &= ~os.O_APPEND
-        file.host_flag &= ~os.O_APPEND
         file.wasm_flag &= ~self.FDFLAGS_APPEND
         file.wasm_flag &= ~self.FDFLAGS_NONBLOCK
         if args[1] & self.FDFLAGS_APPEND:
-            file.host_flag |= os.O_APPEND
             file.wasm_flag |= self.FDFLAGS_APPEND
         if args[1] & self.FDFLAGS_NONBLOCK:
-            file.host_flag |= os.O_NONBLOCK
             file.wasm_flag |= self.FDFLAGS_NONBLOCK
-        fcntl.fcntl(file.host_fd, fcntl.F_SETFL, file.host_flag)
         return [self.ERRNO_SUCCESS]
 
     def fd_fdstat_set_rights(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
@@ -807,13 +796,6 @@ class Preview1:
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
-        if file.wasm_flag & self.FDFLAGS_APPEND:
-            # POSIX requires that opening a file with the O_APPEND flag should have no affect on the location at which
-            # pwrite() writes data. However, on Linux, if a file is opened with O_APPEND, pwrite() appends data to the
-            # end of the file, regardless of the value of offset.
-            # See https://linux.die.net/man/2/pwrite.
-            mems.put_u32(args[4], len(data))
-            return [self.ERRNO_SUCCESS]
         size = os.pwrite(file.host_fd, data, args[3])
         mems.put_u32(args[4], size)
         return [self.ERRNO_SUCCESS]
@@ -886,7 +868,6 @@ class Preview1:
         if dest.wasm_type != self.FILETYPE_CHARACTER_DEVICE:
             os.close(dest.host_fd)
         dest.host_fd = stem.host_fd
-        dest.host_flag = stem.host_flag
         dest.host_name = stem.host_name
         dest.host_status = stem.host_status
         dest.pipe = stem.pipe
@@ -967,6 +948,8 @@ class Preview1:
             elem = mems.get(elem_ptr, elem_len)
             iovs_ptr += 8
             data.extend(elem)
+        if file.wasm_flag & self.FDFLAGS_APPEND:
+            os.lseek(file.host_fd, 0, os.SEEK_END)
         size = [
             lambda: os.write(file.host_fd, data),
             lambda: file.pipe.write(data),
@@ -1182,8 +1165,6 @@ class Preview1:
             flag |= os.O_WRONLY
         if args[5] & self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE == self.RIGHTS_FD_READ + self.RIGHTS_FD_WRITE:
             flag |= os.O_RDWR
-        if args[7] & self.FDFLAGS_APPEND:
-            flag |= os.O_APPEND
         wasm_fd = len(self.fd)
         try:
             host_fd = os.open(name, flag, 0o644, dir_fd=self.fd[args[0]].host_fd)
@@ -1226,7 +1207,6 @@ class Preview1:
             rights_root &= ~void
         self.fd.append(Preview1.File(
             host_fd=host_fd,
-            host_flag=flag,
             host_name=host_name,
             host_status=self.FILE_STATUS_OPENED,
             pipe=None,
