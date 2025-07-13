@@ -1179,7 +1179,7 @@ class Preview1:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
             if platform.system().lower() == 'darwin' and e.errno == 62:
-                return [self.ERRNO_NOTEMPTY]
+                return [self.ERRNO_LOOP]
             if platform.system().lower() == 'linux' and e.errno == 40:
                 return [self.ERRNO_LOOP]
             raise e
