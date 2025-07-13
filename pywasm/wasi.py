@@ -1,5 +1,6 @@
 import dataclasses
 import os
+import platform
 import pywasm.core
 import random
 import select
@@ -1292,6 +1293,7 @@ class Preview1:
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
+            assert e.errno == 39
             if len(os.listdir(dest.host_fd)) != 0:
                 return [self.ERRNO_NOTEMPTY]
             raise e
