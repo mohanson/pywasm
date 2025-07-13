@@ -1260,7 +1260,9 @@ class Preview1:
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
-            if len(os.listdir(file.host_fd)) != 0:
+            if platform.system().lower() == 'darwin' and e.errno == 66:
+                return [self.ERRNO_NOTEMPTY]
+            if platform.system().lower() == 'linux' and e.errno == 39:
                 return [self.ERRNO_NOTEMPTY]
             raise e
         return [self.ERRNO_SUCCESS]
@@ -1293,8 +1295,9 @@ class Preview1:
         except NotADirectoryError:
             return [self.ERRNO_NOTDIR]
         except OSError as e:
-            assert e.errno == 39
-            if len(os.listdir(dest.host_fd)) != 0:
+            if platform.system().lower() == 'darwin' and e.errno == 66:
+                return [self.ERRNO_NOTEMPTY]
+            if platform.system().lower() == 'linux' and e.errno == 39:
                 return [self.ERRNO_NOTEMPTY]
             raise e
         return [self.ERRNO_SUCCESS]
