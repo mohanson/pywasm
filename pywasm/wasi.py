@@ -4,6 +4,7 @@ import platform
 import pywasm.core
 import random
 import select
+import socket
 import stat
 import sys
 import time
@@ -314,6 +315,7 @@ class Preview1:
     SDFLAGS_RD = 1 << 0
     # Disables further send operations.
     SDFLAGS_WR = 1 << 1
+    SDFLAGS_RW = SDFLAGS_RD | SDFLAGS_WR
 
     # No signal. Note that POSIX has special semantics for kill(pid, 0), so this value is reserved.
     SIGNAL_NONE = 0
@@ -1449,20 +1451,128 @@ class Preview1:
         assert len(args) == 0
         return [self.ERRNO_SUCCESS]
 
-    def sock_accept(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_accept(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Accept a new incoming connection.
-        assert len(args) == 2
-        raise NotImplementedError
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_sock(args[0]):
+            return [self.ERRNO_NOTSOCK]
+        if self.help_perm(args[0], self.RIGHTS_SOCK_ACCEPT):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        kype = {
+            self.FILETYPE_SOCKET_STREAM: socket.SOCK_STREAM,
+            self.FILETYPE_SOCKET_DGRAM: socket.SOCK_DGRAM,
+        }[file.wasm_type]
+        sock = socket.fromfd(file.host_fd, socket.AF_INET, kype)
+        if args[1] & self.FDFLAGS_NONBLOCK:
+            sock.setblocking(False)
+        conn, _ = sock.accept()
+        host_fd = conn.fileno()
+        wasm_fd = len(self.fd)
+        self.fd.append(self.File(
+            host_fd=host_fd,
+            host_name=file.host_name,
+            host_status=self.FILE_STATUS_OPENED,
+            pipe=None,
+            wasm_fd=wasm_fd,
+            wasm_flag=args[1],
+            wasm_name=file.wasm_name,
+            wasm_rights_base=file.wasm_rights_base,
+            wasm_rights_root=file.wasm_rights_root,
+            wasm_status=self.FILE_STATUS_OPENED,
+            wasm_type=file.wasm_type,
+        ))
+        mems.put_u32(args[2], wasm_fd)
+        return [self.ERRNO_SUCCESS]
 
-    def sock_recv(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_recv(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Receive a message from a socket.
-        assert len(args) == 6
-        raise NotImplementedError
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_sock(args[0]):
+            return [self.ERRNO_NOTSOCK]
+        if self.help_perm(args[0], self.RIGHTS_FD_READ):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        kype = {
+            self.FILETYPE_SOCKET_STREAM: socket.SOCK_STREAM,
+            self.FILETYPE_SOCKET_DGRAM: socket.SOCK_DGRAM,
+        }[file.wasm_type]
+        sock = socket.fromfd(file.host_fd, socket.AF_INET, kype)
+        iovs_ptr = args[1]
+        iovs_len = args[2]
+        ro_flags = 0
+        ri_flags = 0
+        if args[3] & self.RIFLAGS_RECV_PEEK:
+            ri_flags |= socket.MSG_PEEK
+        if args[3] & self.RIFLAGS_RECV_WAITALL and file.wasm_type == self.FILETYPE_SOCKET_STREAM:
+            # Only meaningful for stream sockets.
+            ri_flags |= socket.MSG_WAITALL
+        size_all = 0
+        for _ in range(iovs_len):
+            elem_len = mems.get_u32(iovs_ptr + 4)
+            size_all += elem_len
+            iovs_ptr += 8
+        try:
+            data = sock.recv(size_all, ri_flags)
+        except BrokenPipeError:
+            return [self.ERRNO_PIPE]
+        data_len = len(data)
+        # If no data received, check for connection closure.
+        if data_len == 0 and file.wasm_type == self.FILETYPE_SOCKET_STREAM:
+            ro_flags |= self.EVENTRWFLAGS_FD_READWRITE_HANGUP
+        # Distribute data across iovec buffers.
+        iovs_ptr = args[1]
+        offs = 0
+        for _ in range(iovs_len):
+            if offs >= data_len:
+                break
+            elem_ptr = mems.get_u32(iovs_ptr)
+            elem_len = mems.get_u32(iovs_ptr + 4)
+            size = min(elem_len, data_len - offs)
+            if size > 0:
+                mems.put(elem_ptr, bytearray(data[offs:offs + size]))
+                offs += size
+            iovs_ptr += 8
+        if data_len < size_all:
+            ro_flags |= self.ROFLAGS_RECV_DATA_TRUNCATED
+        mems.put_u32(args[4], data_len)
+        mems.put_u32(args[5], ro_flags)
+        return [self.ERRNO_SUCCESS]
 
-    def sock_send(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
+    def sock_send(self, m: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Send a message on a socket.
-        assert len(args) == 5
-        raise NotImplementedError
+        if self.help_badf(args[0]):
+            return [self.ERRNO_BADF]
+        if self.help_sock(args[0]):
+            return [self.ERRNO_NOTSOCK]
+        if self.help_perm(args[0], self.RIGHTS_FD_WRITE):
+            return [self.ERRNO_NOTCAPABLE]
+        mems = m.store.mems[m.stack.frame[-1].module.mems[0]]
+        file = self.fd[args[0]]
+        kype = {
+            self.FILETYPE_SOCKET_STREAM: socket.SOCK_STREAM,
+            self.FILETYPE_SOCKET_DGRAM: socket.SOCK_DGRAM,
+        }[file.wasm_type]
+        sock = socket.fromfd(file.host_fd, socket.AF_INET, kype)
+        iovs_ptr = args[1]
+        iovs_len = args[2]
+        data = bytearray()
+        for _ in range(iovs_len):
+            elem_ptr = mems.get_u32(iovs_ptr)
+            elem_len = mems.get_u32(iovs_ptr + 4)
+            elem = mems.get(elem_ptr, elem_len)
+            data.extend(elem)
+            iovs_ptr += 8
+        try:
+            size = sock.send(data)
+        except BrokenPipeError:
+            return [self.ERRNO_PIPE]
+        mems.put_u32(args[4], size)
+        return [self.ERRNO_SUCCESS]
 
     def sock_shutdown(self, _: pywasm.core.Machine, args: typing.List[int]) -> typing.List[int]:
         # Shut down socket send and receive channels.
@@ -1472,4 +1582,21 @@ class Preview1:
             return [self.ERRNO_NOTSOCK]
         if self.help_perm(args[0], self.RIGHTS_SOCK_SHUTDOWN):
             return [self.ERRNO_NOTCAPABLE]
-        raise NotImplementedError
+        file = self.fd[args[0]]
+        kype = {
+            self.FILETYPE_SOCKET_STREAM: socket.SOCK_STREAM,
+            self.FILETYPE_SOCKET_DGRAM: socket.SOCK_DGRAM,
+        }[file.wasm_type]
+        sock = socket.fromfd(file.host_fd, socket.AF_INET, kype)
+        shut = 0
+        match args[1]:
+            case self.SDFLAGS_RD:
+                shut = socket.SHUT_RD
+            case self.SDFLAGS_WR:
+                shut = socket.SHUT_WR
+            case self.SDFLAGS_RW:
+                shut = socket.SHUT_RDWR
+            case _:
+                return [self.ERRNO_INVAL]
+        sock.shutdown(shut)
+        return [self.ERRNO_SUCCESS]
