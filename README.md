@@ -41,7 +41,8 @@ A brief description for `example`
 | example/fibonacci.py      | Fibonacci, which contains loop and recursion                         |
 | example/fibonacci_env.py  | Call python/native function in wasm                                  |
 | example/pi.py             | Calculate π using the agm algorithm                                  |
-| example/wasi_ll.py       | Execute a wasi program and list information about a directory         |
+| example/wasi_httpbin.py   | Execute a wasi program and http get from <http://httpbin.org>        |
+| example/wasi_ll.py        | Execute a wasi program and list information about a directory        |
 | example/wasi_zen.py       | Execute a wasi program and print poem "The Zen of Python"            |
 
 # Test
