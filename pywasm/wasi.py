@@ -1598,5 +1598,10 @@ class Preview1:
                 shut = socket.SHUT_RDWR
             case _:
                 return [self.ERRNO_INVAL]
-        sock.shutdown(shut)
+        try:
+            sock.shutdown(shut)
+        except OSError as e:
+            if platform.system().lower() == 'darwin' and e.errno == 57:
+                return [self.ERRNO_CONNABORTED]
+            raise e
         return [self.ERRNO_SUCCESS]
