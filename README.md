@@ -43,14 +43,19 @@ A brief description for `example`
 | example/pi.py             | Calculate π using the agm algorithm                                  |
 | example/wasi_httpbin.py   | Execute a wasi program and http get from <http://httpbin.org>        |
 | example/wasi_ll.py        | Execute a wasi program and list information about a directory        |
+| example/wasi_stdout.py    | Execute a wasi program and capture stdout                            |
 | example/wasi_zen.py       | Execute a wasi program and print poem "The Zen of Python"            |
 
 # Test
 
 ```sh
-$ python test/example.py
-$ python test/spec.py
-$ python test/wasi.py
+$ python script/build_wabt.py # Download wabt tools at res/wabt.
+$ python script/build_spec.py # Download spec tests at res/spec.
+$ python script/build_wasi.py # Download wasi tests at res/wasi-testsuite.
+
+$ python test/example.py      # Test example.
+$ python test/spec.py         # Test spec.
+$ python test/wasi.py         # Test wasi.
 ```
 
 # Thanks

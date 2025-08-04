@@ -410,7 +410,7 @@ class Preview1:
         self.args = args
         self.dirs = {os.path.normpath(k): os.path.normpath(v) for k, v in dirs.items()}
         self.envs = ['='.join(e) for e in sorted(envs.items())]
-        # By setting the value to io.BytesIO(bytearray()) to capture output or provide input.
+        # By setting the pipe to io.BytesIO(bytearray()) to capture output or provide input.
         self.fd: typing.List[Preview1.File] = []
         self.fd.append(self.File(
             host_fd=sys.stdin.fileno(),
@@ -1023,6 +1023,9 @@ class Preview1:
         else:
             return 0
         finally:
+            for e in self.fd[self.FD_STDOUT: self.FD_STDERR + 1]:
+                if e.pipe:
+                    e.pipe.seek(0)
             for e in self.fd[self.FD_STDERR + 1:]:
                 if e.wasm_type == self.FILETYPE_CHARACTER_DEVICE:
                     continue
