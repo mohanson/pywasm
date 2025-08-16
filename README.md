@@ -58,6 +58,12 @@ $ python test/spec.py         # Test spec.
 $ python test/wasi.py         # Test wasi.
 ```
 
+# Performance
+
+Pywasm is an interpreter implemented using pure python and its standard library, capable of running on any python platform. Due to the inherent characteristics of python, you should not have overly high expectations for pywasm's performance.
+
+However, pywasm's design makes it jit-friendly. Compared to cpython, pywasm's performance on [pypy](https://pypy.org/) can improve by approximately 10 times, significantly surpassing the average 3-fold improvement.
+
 # Thanks
 
 - [wagon](https://github.com/go-interpreter/wagon)
