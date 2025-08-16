@@ -1,3 +1,4 @@
+import os
 import pywasm
 import socket
 
@@ -16,6 +17,7 @@ rights = sum([
 wasi = pywasm.wasi.Preview1(['wasi_httpbin.wasm'], {}, {})
 wasi.fd.append(pywasm.wasi.Preview1.File(
     host_fd=client_socket.fileno(),
+    host_flag=os.O_RDWR,
     host_name=client_socket.getsockname(),
     host_status=pywasm.wasi.Preview1.FILE_STATUS_OPENED,
     pipe=None,

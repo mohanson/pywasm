@@ -34,6 +34,13 @@ case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
 case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
 skip = [
+    # POSIX requires that opening a file with the O_APPEND flag should have no affect on the location at which pwrite()
+    # writes data. However, on Linux, if a file is opened with O_APPEND, pwrite() appends data to the end of the file,
+    # regardless of the value of offset.
+    #
+    # See https://linux.die.net/man/2/pwrite.
+    # See https://github.com/WebAssembly/wasi-testsuite/issues/111
+    'res/wasi-testsuite/tests/c/testsuite/pwrite-with-append.wasm'
 ]
 for wasm_path in case:
     if wasm_path in skip:
