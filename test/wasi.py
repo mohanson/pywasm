@@ -30,11 +30,10 @@ with cd('res/wasi-testsuite'):
         if os.path.exists(e) and os.path.isdir(e):
             shutil.rmtree(e)
 case = []
-case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/*.wasm')))
-case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/*.wasm')))
-case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/*.wasm')))
-skip = [
-]
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/assemblyscript/testsuite/wasm32-wasip1/*.wasm')))
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/c/testsuite/wasm32-wasip1/*.wasm')))
+case.extend(sorted(glob.glob('res/wasi-testsuite/tests/rust/testsuite/wasm32-wasip1/*.wasm')))
+skip = []
 for wasm_path in case:
     if wasm_path in skip:
         continue
