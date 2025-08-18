@@ -16,7 +16,7 @@ parser.add_argument("--dir", action="append", default=[])
 args = parser.parse_args()
 
 if args.version:
-    print('pywasm: https://github.com/mohanson/pywasm/releases/latest')
+    print(pywasm.version)
     sys.exit(0)
 
 runtime = pywasm.core.Runtime()
