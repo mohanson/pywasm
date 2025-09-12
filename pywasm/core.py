@@ -253,7 +253,11 @@ class Inst:
 
     @classmethod
     def from_reader(cls, r: typing.BinaryIO) -> typing.Self:
-        o = Inst(ord(r.read(1)), [])
+        b = ord(r.read(1))
+        if b >= 0xfc:
+            e = pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0])
+            b = int.from_bytes(bytearray([b]) + e)
+        o = Inst(b, [])
         match o.opcode:
             case pywasm.opcode.block:
                 o.args.append(Bype.from_reader(r))
@@ -423,34 +427,30 @@ class Inst:
                 o.args.append(ord(r.read(1)))
             case pywasm.opcode.ref_func:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-            case 0xfc:
-                for e in pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0]):
-                    o.opcode = (o.opcode << 8) + e
-                match o.opcode:
-                    case pywasm.opcode.memory_init:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                        assert ord(r.read(1)) == 0x00
-                    case pywasm.opcode.data_drop:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.memory_copy:
-                        assert ord(r.read(1)) == 0x00
-                        assert ord(r.read(1)) == 0x00
-                    case pywasm.opcode.memory_fill:
-                        assert ord(r.read(1)) == 0x00
-                    case pywasm.opcode.table_init:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.elem_drop:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.table_copy:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.table_grow:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.table_size:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
-                    case pywasm.opcode.table_fill:
-                        o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.memory_init:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert ord(r.read(1)) == 0x00
+            case pywasm.opcode.data_drop:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.memory_copy:
+                assert ord(r.read(1)) == 0x00
+                assert ord(r.read(1)) == 0x00
+            case pywasm.opcode.memory_fill:
+                assert ord(r.read(1)) == 0x00
+            case pywasm.opcode.table_init:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.elem_drop:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_copy:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_grow:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_size:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.table_fill:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
         return o
 
 
