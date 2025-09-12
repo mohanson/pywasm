@@ -63,8 +63,10 @@ class ValType:
 class ValInst:
     # Values are represented by themselves.
 
+    blen = 8
+
     def __init__(self, type: ValType, data: bytearray) -> typing.Self:
-        assert len(data) == 8
+        assert len(data) == self.blen
         self.type = type
         self.data = data
 
@@ -92,28 +94,28 @@ class ValInst:
     def from_i32(cls, n: int) -> typing.Self:
         n = n & 0xffffffff
         n = n - ((n & 0x80000000) << 1)
-        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(4))
+        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(cls.blen - 4))
 
     @classmethod
     def from_i64(cls, n: int) -> typing.Self:
         n = n & 0xffffffffffffffff
         n = n - ((n & 0x8000000000000000) << 1)
-        return cls(ValType.i64(), bytearray(struct.pack('<q', n)))
+        return cls(ValType.i64(), bytearray(struct.pack('<q', n)) + bytearray(cls.blen - 8))
 
     @classmethod
     def from_u32(cls, n: int) -> typing.Self:
         n = n & 0xffffffff
-        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(4))
+        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(cls.blen - 4))
 
     @classmethod
     def from_u64(cls, n: int) -> typing.Self:
         n = n & 0xffffffffffffffff
-        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)))
+        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)) + bytearray(cls.blen - 8))
 
     @classmethod
     def from_f32(cls, n: float) -> typing.Self:
         n = ctypes.c_float(n).value
-        return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(4))
+        return cls(ValType.f32(), bytearray(struct.pack('<f', n)) + bytearray(cls.blen - 4))
 
     @classmethod
     def from_f32_u32(cls, n: int) -> typing.Self:
@@ -123,7 +125,7 @@ class ValInst:
 
     @classmethod
     def from_f64(cls, n: float) -> typing.Self:
-        return cls(ValType.f64(), bytearray(struct.pack('<d', n)))
+        return cls(ValType.f64(), bytearray(struct.pack('<d', n)) + bytearray(cls.blen - 8))
 
     @classmethod
     def from_f64_u64(cls, n: int) -> typing.Self:
@@ -133,7 +135,7 @@ class ValInst:
 
     @classmethod
     def from_ref(cls, type: ValType, n: int) -> typing.Self:
-        return cls(type, bytearray(struct.pack('<i', n)) + bytearray([0x01, 0x00, 0x00, 0x00]))
+        return cls(type, bytearray(struct.pack('<i', n)) + bytearray([0x01]) + bytearray(cls.blen - 5))
 
     @classmethod
     def from_all(cls, type: ValType, n: typing.Union[int, float]) -> typing.Self:
@@ -191,6 +193,10 @@ class ValInst:
                 return self.into_ref()
             case _:
                 assert 0
+
+    @classmethod
+    def zero(cls, type: ValType) -> typing.Self:
+        return cls(type, bytearray(cls.blen))
 
 
 class Bype:
@@ -705,7 +711,7 @@ class TableInst:
         self.type = type
         self.elem: typing.List[ValInst] = []
         self.size = 0
-        self.grow(type.limits.n, ValInst(self.type.type, bytearray(8)))
+        self.grow(type.limits.n, ValInst.zero(self.type.type))
 
     def grow(self, n: int, v: ValInst) -> None:
         if self.type.limits.m:
@@ -1453,7 +1459,7 @@ class Machine:
         pywasm.log.debugln('invocate', addr, args)
         locals = LocalsInst(args)
         for e in func.code.locals:
-            locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+            locals.data.extend([ValInst.zero(e.type) for _ in range(e.n)])
         self.stack.frame.append(Frame(func.module, locals, len(func.type.rets), 0, 0))
         self.stack.label.append(Label(len(func.type.rets), 1, 0, 3, func.code.expr.data, 0))
         self.evaluate()
@@ -1500,7 +1506,7 @@ class Machine:
                 assert len(self.stack.frame) < 1024
                 locals = LocalsInst(args)
                 for e in func.code.locals:
-                    locals.data.extend([ValInst(e.type, bytearray(8)) for _ in range(e.n)])
+                    locals.data.extend([ValInst.zero(e.type) for _ in range(e.n)])
                 self.stack.frame.append(Frame(
                     func.module,
                     locals,
@@ -2466,7 +2472,7 @@ class Machine:
                     d = ValInst.from_i64(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.ref_null:
-                    a = ValInst(ValType(instr.args[0]), bytearray(8))
+                    a = ValInst.zero(ValType(instr.args[0]))
                     self.stack.value.append(a)
                 case pywasm.opcode.ref_is_null:
                     a = self.stack.value.pop()
