@@ -13,9 +13,9 @@ unittest_regex = 'res/spec/test/core/.*.json'
 def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
     match j['type']:
         case 'i32':
-            return pywasm.ValInst.from_i32(int(j['value']))
+            return pywasm.ValInst.from_i32(pywasm.arith.i32.fit(int(j['value'])))
         case 'i64':
-            return pywasm.ValInst.from_i64(int(j['value']))
+            return pywasm.ValInst.from_i64(pywasm.arith.i64.fit(int(j['value'])))
         case 'f32':
             match j['value']:
                 case 'nan:canonical':

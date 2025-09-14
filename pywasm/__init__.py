@@ -1,5 +1,6 @@
 import platform
 
+from . import arith
 from . import core
 from . import leb128
 from . import log
