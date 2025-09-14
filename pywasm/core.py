@@ -1536,7 +1536,7 @@ class Machine:
         assert addr + size <= len(mems.data)
         return mems.data[addr:addr+size]
 
-    def evaluate_mem_save(self, offset: int, size: int) -> bytearray:
+    def evaluate_mem_save(self, offset: int, size: int) -> None:
         mems = self.store.mems[self.stack.frame[-1].module.mems[0]]
         data = self.stack.value.pop().data
         addr = self.stack.value.pop().into_u32()
