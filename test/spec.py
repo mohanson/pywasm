@@ -1,21 +1,20 @@
 import glob
 import json
 import math
+import pathlib
 import pywasm
-import re
 import typing
 
 
 pywasm.log.lvl = 0
-unittest_regex = 'res/spec/test/core/.*.json'
 
 
-def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
+def valj(j: typing.Dict) -> pywasm.ValInst:
     match j['type']:
         case 'i32':
-            return pywasm.ValInst.from_i32(int(j['value']))
+            return pywasm.ValInst.from_i32(pywasm.arith.i32.fit(int(j['value'])))
         case 'i64':
-            return pywasm.ValInst.from_i64(int(j['value']))
+            return pywasm.ValInst.from_i64(pywasm.arith.i64.fit(int(j['value'])))
         case 'f32':
             match j['value']:
                 case 'nan:canonical':
@@ -32,6 +31,24 @@ def valj(j: typing.Dict[str, str]) -> pywasm.ValInst:
                     return pywasm.ValInst.from_f64_u64(0x7ff8000000000001)
                 case _:
                     return pywasm.ValInst.from_f64_u64(int(j['value']))
+        case 'v128':
+            match j['lane_type']:
+                case 'i8':
+                    return pywasm.ValInst.from_v128_i8([pywasm.arith.i8.fit(int(c)) for c in j['value']])
+                case 'i16':
+                    return pywasm.ValInst.from_v128_i16([pywasm.arith.i16.fit(int(c)) for c in j['value']])
+                case 'i32':
+                    return pywasm.ValInst.from_v128_i32([pywasm.arith.i32.fit(int(c)) for c in j['value']])
+                case 'i64':
+                    return pywasm.ValInst.from_v128_i64([pywasm.arith.i64.fit(int(c)) for c in j['value']])
+                case 'f32':
+                    data = [valj({'type': 'f32', 'value': e}).into_u32() for e in j['value']]
+                    return pywasm.ValInst.from_v128_u32(data)
+                case 'f64':
+                    data = [valj({'type': 'f64', 'value': e}).into_u64() for e in j['value']]
+                    return pywasm.ValInst.from_v128_u64(data)
+                case _:
+                    assert 0
         case 'funcref':
             match j['value']:
                 case 'null':
@@ -63,6 +80,18 @@ def vale(a: pywasm.ValInst, b: pywasm.ValInst) -> bool:
         if math.isnan(a.into_f64()):
             return math.isnan(b.into_f64())
         return math.isclose(a.into_f64(), b.into_f64(), rel_tol=1e-6)
+    if a.type == pywasm.core.ValType.v128():
+        if a.into_v128() == b.into_v128():
+            return True
+        x = [pywasm.core.ValInst.from_f32(e) for e in a.into_v128_f32()]
+        y = [pywasm.core.ValInst.from_f32(e) for e in b.into_v128_f32()]
+        if all([vale(x, y) for x, y in zip(x, y)]):
+            return True
+        x = [pywasm.core.ValInst.from_f64(e) for e in a.into_v128_f64()]
+        y = [pywasm.core.ValInst.from_f64(e) for e in b.into_v128_f64()]
+        if all([vale(x, y) for x, y in zip(x, y)]):
+            return True
+        return False
     if a.type == pywasm.core.ValType.ref_func():
         return a.into_i64() == b.into_i64()
     if a.type == pywasm.core.ValType.ref_extern():
@@ -115,11 +144,12 @@ def host(runtime: pywasm.core.Runtime) -> typing.Dict[str, typing.Dict[str, pywa
     }
 
 
-for name in sorted(glob.glob('res/spec/test/core/*.json')):
-    if not re.match(unittest_regex, name):
-        continue
-    with open(name) as f:
-        suit = json.load(f)['commands']
+all_test = [
+    *sorted(glob.glob('res/spec/test/core/*.json')),
+    *sorted(glob.glob('res/spec/test/core/simd/*.json'))
+]
+for desc in all_test:
+    suit = json.loads(pathlib.Path(desc).read_text())['commands']
     runtime = pywasm.Runtime()
     cmodule: pywasm.ModuleInst
     lmodule: pywasm.ModuleInst
@@ -208,8 +238,9 @@ for name in sorted(glob.glob('res/spec/test/core/*.json')):
                     case _:
                         assert 0
             case 'assert_uninstantiable':
+                name = pathlib.Path(desc).parent.joinpath(elem['filename'])
                 try:
-                    lmodule = runtime.instance_from_file(f'res/spec/test/core/{elem['filename']}')
+                    lmodule = runtime.instance_from_file(name)
                 except:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
@@ -217,8 +248,9 @@ for name in sorted(glob.glob('res/spec/test/core/*.json')):
                 else:
                     assert 0
             case 'assert_unlinkable':
+                name = pathlib.Path(desc).parent.joinpath(elem['filename'])
                 try:
-                    lmodule = runtime.instance_from_file(f'res/spec/test/core/{elem['filename']}')
+                    lmodule = runtime.instance_from_file(name)
                 except:
                     runtime.machine.stack.frame.clear()
                     runtime.machine.stack.label.clear()
@@ -226,7 +258,8 @@ for name in sorted(glob.glob('res/spec/test/core/*.json')):
                 else:
                     assert 0
             case 'module':
-                lmodule = runtime.instance_from_file(f'res/spec/test/core/{elem['filename']}')
+                name = pathlib.Path(desc).parent.joinpath(elem['filename'])
+                lmodule = runtime.instance_from_file(name)
                 if 'name' in elem:
                     mmodule[elem['name']] = lmodule
             case 'register':

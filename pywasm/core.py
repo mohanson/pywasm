@@ -1,6 +1,7 @@
 import ctypes
 import io
 import math
+import pywasm.arith
 import pywasm.leb128
 import pywasm.log
 import pywasm.opcode
@@ -12,7 +13,7 @@ class ValType:
     # Value types are encoded by a single byte.
 
     def __init__(self, data: int) -> typing.Self:
-        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x70, 0x6f]
+        assert data in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]
         self.data = data
 
     def __eq__(self, value: typing.Self) -> bool:
@@ -27,6 +28,7 @@ class ValType:
             0x7e: 'i64',
             0x7d: 'f32',
             0x7c: 'f64',
+            0x7b: 'v128',
             0x70: 'ref.func',
             0x6f: 'ref.extern',
         }[self.data]
@@ -48,6 +50,10 @@ class ValType:
         return cls(0x7c)
 
     @classmethod
+    def v128(cls) -> typing.Self:
+        return cls(0x7b)
+
+    @classmethod
     def ref_func(cls) -> typing.Self:
         return cls(0x70)
 
@@ -63,7 +69,7 @@ class ValType:
 class ValInst:
     # Values are represented by themselves.
 
-    blen = 8
+    blen = 16
 
     def __init__(self, type: ValType, data: bytearray) -> typing.Self:
         assert len(data) == self.blen
@@ -83,6 +89,8 @@ class ValInst:
                 return f'{self.type} {self.into_f32()}'
             case 0x7c:
                 return f'{self.type} {self.into_f64()}'
+            case 0x7b:
+                return f'{self.type} {self.into_v128().hex()}'
             case 0x70:
                 body = repr(self.into_ref()) if self.data[4] != 0x00 else 'null'
                 return f'{self.type} {body}'
@@ -92,25 +100,19 @@ class ValInst:
 
     @classmethod
     def from_i32(cls, n: int) -> typing.Self:
-        n = n & 0xffffffff
-        n = n - ((n & 0x80000000) << 1)
-        return cls(ValType.i32(), bytearray(struct.pack('<i', n)) + bytearray(cls.blen - 4))
+        return cls(ValType.i32(), pywasm.arith.i32.into_bytearray(n) + bytearray(cls.blen - 4))
 
     @classmethod
     def from_i64(cls, n: int) -> typing.Self:
-        n = n & 0xffffffffffffffff
-        n = n - ((n & 0x8000000000000000) << 1)
-        return cls(ValType.i64(), bytearray(struct.pack('<q', n)) + bytearray(cls.blen - 8))
+        return cls(ValType.i64(), pywasm.arith.i64.into_bytearray(n) + bytearray(cls.blen - 8))
 
     @classmethod
     def from_u32(cls, n: int) -> typing.Self:
-        n = n & 0xffffffff
-        return cls(ValType.i32(), bytearray(struct.pack('<I', n)) + bytearray(cls.blen - 4))
+        return cls(ValType.i32(), pywasm.arith.u32.into_bytearray(n) + bytearray(cls.blen - 4))
 
     @classmethod
     def from_u64(cls, n: int) -> typing.Self:
-        n = n & 0xffffffffffffffff
-        return cls(ValType.i64(), bytearray(struct.pack('<Q', n)) + bytearray(cls.blen - 8))
+        return cls(ValType.i64(), pywasm.arith.u64.into_bytearray(n) + bytearray(cls.blen - 8))
 
     @classmethod
     def from_f32(cls, n: float) -> typing.Self:
@@ -134,11 +136,76 @@ class ValInst:
         return o
 
     @classmethod
+    def from_v128(cls, n: bytearray) -> typing.Self:
+        assert len(n) == 16
+        return cls(ValType.v128(), n + bytearray(cls.blen - 16))
+
+    @classmethod
+    def from_v128_i8(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 16
+        data = bytearray().join([pywasm.arith.i8.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_u8(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 16
+        data = bytearray().join([pywasm.arith.u8.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_i16(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 8
+        data = bytearray().join([pywasm.arith.i16.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_u16(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 8
+        data = bytearray().join([pywasm.arith.u16.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_i32(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 4
+        data = bytearray().join([pywasm.arith.i32.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_u32(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 4
+        data = bytearray().join([pywasm.arith.u32.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_i64(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 2
+        data = bytearray().join([pywasm.arith.i64.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_u64(cls, n: typing.List[int]) -> typing.Self:
+        assert len(n) == 2
+        data = bytearray().join([pywasm.arith.u64.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_f32(cls, n: typing.List[float]) -> typing.Self:
+        assert len(n) == 4
+        data = bytearray().join([pywasm.arith.f32.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
+    def from_v128_f64(cls, n: typing.List[float]) -> typing.Self:
+        assert len(n) == 2
+        data = bytearray().join([pywasm.arith.f64.into_bytearray(e) for e in n]) + bytearray(cls.blen - 16)
+        return cls(ValType.v128(), data)
+
+    @classmethod
     def from_ref(cls, type: ValType, n: int) -> typing.Self:
         return cls(type, bytearray(struct.pack('<i', n)) + bytearray([0x01]) + bytearray(cls.blen - 5))
 
     @classmethod
-    def from_all(cls, type: ValType, n: typing.Union[int, float]) -> typing.Self:
+    def from_all(cls, type: ValType, n: typing.Union[int, float, bytearray]) -> typing.Self:
         match type.data:
             case 0x7f:
                 return cls.from_i32(n)
@@ -148,6 +215,8 @@ class ValInst:
                 return cls.from_f32(n)
             case 0x7c:
                 return cls.from_f64(n)
+            case 0x7b:
+                return cls.from_v128(n)
             case 0x70:
                 return cls.from_ref(type, n)
             case 0x6f:
@@ -173,11 +242,44 @@ class ValInst:
     def into_f64(self) -> float:
         return struct.unpack('<d', self.data[0:8])[0]
 
+    def into_v128(self) -> bytearray:
+        return self.data[:16].copy()
+
+    def into_v128_i8(self) -> typing.List[int]:
+        return [pywasm.arith.i8.fit(e) for e in self.data]
+
+    def into_v128_u8(self) -> typing.List[int]:
+        return [pywasm.arith.u8.fit(e) for e in self.data]
+
+    def into_v128_i16(self) -> typing.List[int]:
+        return [pywasm.arith.i16.from_bytearray(bytearray(self.data[i:i + 2])) for i in range(0, 16, 2)]
+
+    def into_v128_u16(self) -> typing.List[int]:
+        return [pywasm.arith.u16.from_bytearray(bytearray(self.data[i:i + 2])) for i in range(0, 16, 2)]
+
+    def into_v128_i32(self) -> typing.List[int]:
+        return [pywasm.arith.i32.from_bytearray(bytearray(self.data[i:i + 4])) for i in range(0, 16, 4)]
+
+    def into_v128_u32(self) -> typing.List[int]:
+        return [pywasm.arith.u32.from_bytearray(bytearray(self.data[i:i + 4])) for i in range(0, 16, 4)]
+
+    def into_v128_i64(self) -> typing.List[int]:
+        return [pywasm.arith.i64.from_bytearray(bytearray(self.data[i:i + 8])) for i in range(0, 16, 8)]
+
+    def into_v128_u64(self) -> typing.List[int]:
+        return [pywasm.arith.u64.from_bytearray(bytearray(self.data[i:i + 8])) for i in range(0, 16, 8)]
+
+    def into_v128_f32(self) -> typing.List[float]:
+        return [pywasm.arith.f32.from_bytearray(bytearray(self.data[i:i + 4])) for i in range(0, 16, 4)]
+
+    def into_v128_f64(self) -> typing.List[float]:
+        return [pywasm.arith.f64.from_bytearray(bytearray(self.data[i:i + 8])) for i in range(0, 16, 8)]
+
     def into_ref(self) -> int:
         assert self.data[4] == 0x01
         return self.into_i32()
 
-    def into_all(self) -> typing.Union[int, float]:
+    def into_all(self) -> typing.Union[int, float, bytearray]:
         match self.type.data:
             case 0x7f:
                 return self.into_i32()
@@ -187,6 +289,8 @@ class ValInst:
                 return self.into_f32()
             case 0x7c:
                 return self.into_f64()
+            case 0x7b:
+                return self.into_v128()
             case 0x70:
                 return self.into_ref()
             case 0x6f:
@@ -223,7 +327,7 @@ class Bype:
         n = ord(r.read(1))
         if n == 0x40:
             return cls(0x00, 0x40)
-        if n in [0x7f, 0x7e, 0x7d, 0x7c, 0x70, 0x6f]:
+        if n in [0x7f, 0x7e, 0x7d, 0x7c, 0x7b, 0x70, 0x6f]:
             return cls(0x01, n)
         r.seek(-1, 1)
         return cls(0x02, pywasm.leb128.i.decode_reader(r)[0])
@@ -263,6 +367,7 @@ class Inst:
         if b >= 0xfc:
             e = pywasm.leb128.u.encode(pywasm.leb128.u.decode_reader(r)[0])
             b = int.from_bytes(bytearray([b]) + e)
+        assert b in pywasm.opcode.name, hex(b)
         o = Inst(b, [])
         match o.opcode:
             case pywasm.opcode.block:
@@ -456,6 +561,149 @@ class Inst:
             case pywasm.opcode.table_size:
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
             case pywasm.opcode.table_fill:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.v128_load:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 5
+            case pywasm.opcode.v128_load8x8_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load8x8_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load16x4_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load16x4_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load32x2_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load32x2_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_load8_splat:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 1
+            case pywasm.opcode.v128_load16_splat:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
+            case pywasm.opcode.v128_load32_splat:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 3
+            case pywasm.opcode.v128_load64_splat:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.v128_store:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 5
+            case pywasm.opcode.v128_const:
+                o.args.append(bytearray(r.read(16)))
+            case pywasm.opcode.i8x16_shuffle:
+                for _ in range(16):
+                    o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                for e in o.args:
+                    assert e < 32
+            case pywasm.opcode.i8x16_extract_lane_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 16
+            case pywasm.opcode.i8x16_extract_lane_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 16
+            case pywasm.opcode.i8x16_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 16
+            case pywasm.opcode.i16x8_extract_lane_s:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 8
+            case pywasm.opcode.i16x8_extract_lane_u:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 8
+            case pywasm.opcode.i16x8_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 8
+            case pywasm.opcode.i32x4_extract_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.i32x4_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.i64x2_extract_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
+            case pywasm.opcode.i64x2_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
+            case pywasm.opcode.f32x4_extract_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.f32x4_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 4
+            case pywasm.opcode.f64x2_extract_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
+            case pywasm.opcode.f64x2_replace_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[0] < 2
+            case pywasm.opcode.v128_load8_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 16
+            case pywasm.opcode.v128_load16_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 8
+            case pywasm.opcode.v128_load32_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 4
+            case pywasm.opcode.v128_load64_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 2
+            case pywasm.opcode.v128_store8_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 16
+            case pywasm.opcode.v128_store16_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 8
+            case pywasm.opcode.v128_store32_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 4
+            case pywasm.opcode.v128_store64_lane:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                assert o.args[2] < 2
+            case pywasm.opcode.v128_load32_zero:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
+            case pywasm.opcode.v128_load64_zero:
+                o.args.append(pywasm.leb128.u.decode_reader(r)[0])
                 o.args.append(pywasm.leb128.u.decode_reader(r)[0])
         return o
 
@@ -1674,16 +1922,16 @@ class Machine:
                     b = self.stack.value.pop().into_u32()
                     tabl.elem[b] = a
                 case pywasm.opcode.i32_load:
-                    a = ValInst.from_i32(struct.unpack('<i', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    a = ValInst(ValType.i32(), self.evaluate_mem_load(instr.args[1], 4) + bytearray(ValInst.blen - 4))
                     self.stack.value.append(a)
                 case pywasm.opcode.i64_load:
-                    a = ValInst.from_i64(struct.unpack('<q', self.evaluate_mem_load(instr.args[1], 8))[0])
+                    a = ValInst(ValType.i64(), self.evaluate_mem_load(instr.args[1], 8) + bytearray(ValInst.blen - 8))
                     self.stack.value.append(a)
                 case pywasm.opcode.f32_load:
-                    a = ValInst.from_f32(struct.unpack('<f', self.evaluate_mem_load(instr.args[1], 4))[0])
+                    a = ValInst(ValType.f32(), self.evaluate_mem_load(instr.args[1], 4) + bytearray(ValInst.blen - 4))
                     self.stack.value.append(a)
                 case pywasm.opcode.f64_load:
-                    a = ValInst.from_f64(struct.unpack('<d', self.evaluate_mem_load(instr.args[1], 8))[0])
+                    a = ValInst(ValType.f64(), self.evaluate_mem_load(instr.args[1], 8) + bytearray(ValInst.blen - 8))
                     self.stack.value.append(a)
                 case pywasm.opcode.i32_load8_s:
                     a = ValInst.from_i32(struct.unpack('<b', self.evaluate_mem_load(instr.args[1], 1))[0])
@@ -1933,74 +2181,53 @@ class Machine:
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_clz:
                     a = self.stack.value.pop().into_u32()
-                    b = 0
-                    for _ in range(32):
-                        if a & 0x80000000 != 0:
-                            break
-                        b += 1
-                        a = a << 1
+                    b = pywasm.arith.u32.clz(a)
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_ctz:
                     a = self.stack.value.pop().into_u32()
-                    b = 0
-                    for _ in range(32):
-                        if a & 0x00000001 != 0:
-                            break
-                        b += 1
-                        a = a >> 1
+                    b = pywasm.arith.u32.ctz(a)
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_popcnt:
                     a = self.stack.value.pop().into_u32()
-                    b = 0
-                    for _ in range(32):
-                        if a & 0x00000001 != 0:
-                            b += 1
-                        a = a >> 1
+                    b = pywasm.arith.u32.popcnt(a)
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_add:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = ValInst.from_i32(a + b)
+                    c = ValInst.from_i32(pywasm.arith.i32.add(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_sub:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = ValInst.from_i32(a - b)
+                    c = ValInst.from_i32(pywasm.arith.i32.sub(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_mul:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = ValInst.from_i32(a * b)
+                    c = ValInst.from_i32(pywasm.arith.i32.mul(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_div_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    assert a != -1 << 31 or b != -1
-                    # Python's default division of integers is return the floor (towards negative infinity) with no
-                    # ability to change that. You can read the BDFL's reason why.
-                    # See: https://python-history.blogspot.com/2010/08/why-pythons-integer-division-floors.html
-                    # But in webassembly, it requires do truncation towards zero.
-                    c = a // b if a * b > 0 else (a + (-a % b)) // b
-                    d = ValInst.from_i32(c)
-                    self.stack.value.append(d)
+                    c = ValInst.from_i32(pywasm.arith.i32.div(a, b))
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_div_u:
                     b = self.stack.value.pop().into_u32()
                     a = self.stack.value.pop().into_u32()
-                    c = ValInst.from_i32(a // b)
+                    c = ValInst.from_u32(pywasm.arith.u32.div(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_rem_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = a % b if a * b > 0 else -(-a % b)
-                    d = ValInst.from_i32(c)
-                    self.stack.value.append(d)
+                    c = ValInst.from_i32(pywasm.arith.i32.rem(a, b))
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_rem_u:
                     b = self.stack.value.pop().into_u32()
                     a = self.stack.value.pop().into_u32()
-                    c = ValInst.from_i32(a % b)
+                    c = ValInst.from_u32(pywasm.arith.u32.rem(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_and:
                     b = self.stack.value.pop().into_i32()
@@ -2020,94 +2247,77 @@ class Machine:
                 case pywasm.opcode.i32_shl:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = ValInst.from_i32(a << (b % 0x20))
+                    c = ValInst.from_i32(pywasm.arith.i32.shl(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_shr_s:
                     b = self.stack.value.pop().into_i32()
                     a = self.stack.value.pop().into_i32()
-                    c = ValInst.from_i32(a >> (b % 0x20))
+                    c = ValInst.from_i32(pywasm.arith.i32.shr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_shr_u:
                     b = self.stack.value.pop().into_u32()
                     a = self.stack.value.pop().into_u32()
-                    c = ValInst.from_i32(a >> (b % 0x20))
+                    c = ValInst.from_u32(pywasm.arith.u32.shr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_rotl:
-                    b = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop().into_u32()
                     a = self.stack.value.pop().into_u32()
-                    c = ValInst.from_i32((((a << (b % 0x20)) & 0xffffffff) | (a >> (0x20 - (b % 0x20)))))
+                    c = ValInst.from_u32(pywasm.arith.u32.rotl(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_rotr:
-                    b = self.stack.value.pop().into_i32()
+                    b = self.stack.value.pop().into_u32()
                     a = self.stack.value.pop().into_u32()
-                    c = ValInst.from_i32(((a >> (b % 0x20)) | ((a << (0x20 - (b % 0x20))) & 0xffffffff)))
+                    c = ValInst.from_u32(pywasm.arith.u32.rotr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_clz:
                     a = self.stack.value.pop().into_u64()
-                    b = 0
-                    for _ in range(64):
-                        if a & 0x8000000000000000 != 0:
-                            break
-                        b += 1
-                        a = a << 1
+                    b = pywasm.arith.u64.clz(a)
                     c = ValInst.from_i64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_ctz:
                     a = self.stack.value.pop().into_u64()
-                    b = 0
-                    for _ in range(64):
-                        if a & 0x0000000000000001 != 0:
-                            break
-                        b += 1
-                        a = a >> 1
+                    b = pywasm.arith.u64.ctz(a)
                     c = ValInst.from_i64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_popcnt:
                     a = self.stack.value.pop().into_u64()
-                    b = 0
-                    for _ in range(64):
-                        if a & 0x0000000000000001 != 0:
-                            b += 1
-                        a = a >> 1
+                    b = pywasm.arith.u64.popcnt(a)
                     c = ValInst.from_i64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_add:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = ValInst.from_i64(a + b)
+                    c = ValInst.from_i64(pywasm.arith.i64.add(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_sub:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = ValInst.from_i64(a - b)
+                    c = ValInst.from_i64(pywasm.arith.i64.sub(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_mul:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = ValInst.from_i64(a * b)
+                    c = ValInst.from_i64(pywasm.arith.i64.mul(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_div_s:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    assert a != -1 << 63 or b != -1
-                    c = a // b if a * b > 0 else (a + (-a % b)) // b
-                    d = ValInst.from_i64(c)
-                    self.stack.value.append(d)
+                    c = ValInst.from_i64(pywasm.arith.i64.div(a, b))
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_div_u:
                     b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
-                    c = ValInst.from_i64(a // b)
+                    c = ValInst.from_i64(pywasm.arith.u64.div(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_rem_s:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = a % b if a * b > 0 else -(-a % b)
-                    d = ValInst.from_i64(c)
-                    self.stack.value.append(d)
+                    c = ValInst.from_i64(pywasm.arith.i64.rem(a, b))
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_rem_u:
                     b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
-                    c = ValInst.from_i64(a % b)
+                    c = ValInst.from_u64(pywasm.arith.u64.rem(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_and:
                     b = self.stack.value.pop().into_i64()
@@ -2127,27 +2337,27 @@ class Machine:
                 case pywasm.opcode.i64_shl:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = ValInst.from_i64(a << (b % 0x40))
+                    c = ValInst.from_i64(pywasm.arith.i64.shl(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_shr_s:
                     b = self.stack.value.pop().into_i64()
                     a = self.stack.value.pop().into_i64()
-                    c = ValInst.from_i64(a >> (b % 0x40))
+                    c = ValInst.from_i64(pywasm.arith.i64.shr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_shr_u:
                     b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
-                    c = ValInst.from_i64(a >> (b % 0x40))
+                    c = ValInst.from_u64(pywasm.arith.u64.shr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_rotl:
-                    b = self.stack.value.pop().into_i64()
+                    b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
-                    c = ValInst.from_i64((((a << (b % 0x40)) & 0xffffffffffffffff) | (a >> (0x40 - (b % 0x40)))))
+                    c = ValInst.from_u64(pywasm.arith.u64.rotl(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_rotr:
-                    b = self.stack.value.pop().into_i64()
+                    b = self.stack.value.pop().into_u64()
                     a = self.stack.value.pop().into_u64()
-                    c = ValInst.from_i64(((a >> (b % 0x40)) | ((a << (0x40 - (b % 0x40))) & 0xffffffffffffffff)))
+                    c = ValInst.from_u64(pywasm.arith.u64.rotr(a, b))
                     self.stack.value.append(c)
                 case pywasm.opcode.f32_abs:
                     a = self.stack.value.pop()
@@ -2202,34 +2412,19 @@ class Machine:
                 case pywasm.opcode.f32_div:
                     b = self.stack.value.pop().into_f32()
                     a = self.stack.value.pop().into_f32()
-                    match b:
-                        case 0:
-                            s = +1 if math.copysign(1, a) == math.copysign(1, b) else -1
-                            c = math.copysign(math.inf, s)
-                            if a == 0 or math.isnan(a):
-                                c = math.copysign(math.nan, s)
-                        case _:
-                            c = a / b
+                    c = pywasm.arith.f32.div(a, b)
                     d = ValInst.from_f32(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f32_min:
                     b = self.stack.value.pop().into_f32()
                     a = self.stack.value.pop().into_f32()
-                    c = min(a, b)
-                    if math.isnan(a):
-                        c = a
-                    if math.isnan(b):
-                        c = b
+                    c = pywasm.arith.f32.min(a, b)
                     d = ValInst.from_f32(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f32_max:
                     b = self.stack.value.pop().into_f32()
                     a = self.stack.value.pop().into_f32()
-                    c = max(a, b)
-                    if math.isnan(a):
-                        c = a
-                    if math.isnan(b):
-                        c = b
+                    c = pywasm.arith.f32.max(a, b)
                     d = ValInst.from_f32(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f32_copysign:
@@ -2290,34 +2485,19 @@ class Machine:
                 case pywasm.opcode.f64_div:
                     b = self.stack.value.pop().into_f64()
                     a = self.stack.value.pop().into_f64()
-                    match b:
-                        case 0:
-                            s = +1 if math.copysign(1, a) == math.copysign(1, b) else -1
-                            c = math.copysign(math.inf, s)
-                            if a == 0 or math.isnan(a):
-                                c = math.copysign(math.nan, s)
-                        case _:
-                            c = a / b
+                    c = pywasm.arith.f64.div(a, b)
                     d = ValInst.from_f64(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f64_min:
                     b = self.stack.value.pop().into_f64()
                     a = self.stack.value.pop().into_f64()
-                    c = min(a, b)
-                    if math.isnan(a):
-                        c = a
-                    if math.isnan(b):
-                        c = b
+                    c = pywasm.arith.f64.min(a, b)
                     d = ValInst.from_f64(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f64_max:
                     b = self.stack.value.pop().into_f64()
                     a = self.stack.value.pop().into_f64()
-                    c = max(a, b)
-                    if math.isnan(a):
-                        c = a
-                    if math.isnan(b):
-                        c = b
+                    c = pywasm.arith.f64.max(a, b)
                     d = ValInst.from_f64(c)
                     self.stack.value.append(d)
                 case pywasm.opcode.f64_copysign:
@@ -2327,7 +2507,7 @@ class Machine:
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_wrap_i64:
                     a = self.stack.value.pop().into_i64()
-                    b = ValInst.from_i32(a)
+                    b = ValInst.from_i32(pywasm.arith.i32.fit(a))
                     self.stack.value.append(b)
                 case pywasm.opcode.i32_trunc_f32_s:
                     a = self.stack.value.pop().into_f32()
@@ -2443,34 +2623,29 @@ class Machine:
                     self.stack.value.append(b)
                 case pywasm.opcode.i32_extend8_s:
                     a = self.stack.value.pop().into_i32()
-                    b = a & 0xff
-                    c = b - ((b & 0x80) << 1)
-                    d = ValInst.from_i32(c)
-                    self.stack.value.append(d)
+                    b = pywasm.arith.i8.fit(a)
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.i32_extend16_s:
                     a = self.stack.value.pop().into_i32()
-                    b = a & 0xffff
-                    c = b - ((b & 0x8000) << 1)
-                    d = ValInst.from_i32(c)
-                    self.stack.value.append(d)
+                    b = pywasm.arith.i16.fit(a)
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_extend8_s:
                     a = self.stack.value.pop().into_i64()
-                    b = a & 0xff
-                    c = b - ((b & 0x80) << 1)
-                    d = ValInst.from_i64(c)
-                    self.stack.value.append(d)
+                    b = pywasm.arith.i8.fit(a)
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_extend16_s:
                     a = self.stack.value.pop().into_i64()
-                    b = a & 0xffff
-                    c = b - ((b & 0x8000) << 1)
-                    d = ValInst.from_i64(c)
-                    self.stack.value.append(d)
+                    b = pywasm.arith.i16.fit(a)
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.i64_extend32_s:
                     a = self.stack.value.pop().into_i64()
-                    b = a & 0xffffffff
-                    c = b - ((b & 0x80000000) << 1)
-                    d = ValInst.from_i64(c)
-                    self.stack.value.append(d)
+                    b = pywasm.arith.i32.fit(a)
+                    c = ValInst.from_i64(b)
+                    self.stack.value.append(c)
                 case pywasm.opcode.ref_null:
                     a = ValInst.zero(ValType(instr.args[0]))
                     self.stack.value.append(a)
@@ -2488,56 +2663,56 @@ class Machine:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(-0x80000000, min(a, +0x7fffffff)))
+                    b = int(max(pywasm.arith.i32.min, min(a, pywasm.arith.i32.max)))
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_sat_f32_u:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(+0x00000000, min(a, +0xffffffff)))
+                    b = int(max(pywasm.arith.u32.min, min(a, pywasm.arith.u32.max)))
                     c = ValInst.from_u32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_sat_f64_s:
                     a = self.stack.value.pop().into_f64()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(-0x80000000, min(a, +0x7fffffff)))
+                    b = int(max(pywasm.arith.i32.min, min(a, pywasm.arith.i32.max)))
                     c = ValInst.from_i32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i32_trunc_sat_f64_u:
                     a = self.stack.value.pop().into_f64()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(+0x00000000, min(a, +0xffffffff)))
+                    b = int(max(pywasm.arith.u32.min, min(a, pywasm.arith.u32.max)))
                     c = ValInst.from_u32(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_sat_f32_s:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(-0x8000000000000000, min(a, +0x7fffffffffffffff)))
+                    b = int(max(pywasm.arith.i64.min, min(a, pywasm.arith.i64.max)))
                     c = ValInst.from_i64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_sat_f32_u:
                     a = self.stack.value.pop().into_f32()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(+0x0000000000000000, min(a, +0xffffffffffffffff)))
+                    b = int(max(pywasm.arith.u64.min, min(a, pywasm.arith.u64.max)))
                     c = ValInst.from_u64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_sat_f64_s:
                     a = self.stack.value.pop().into_f64()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(-0x8000000000000000, min(a, +0x7fffffffffffffff)))
+                    b = int(max(pywasm.arith.i64.min, min(a, pywasm.arith.i64.max)))
                     c = ValInst.from_i64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.i64_trunc_sat_f64_u:
                     a = self.stack.value.pop().into_f64()
                     if math.isnan(a):
                         a = 0.0
-                    b = int(max(+0x0000000000000000, min(a, +0xffffffffffffffff)))
+                    b = int(max(pywasm.arith.u64.min, min(a, pywasm.arith.u64.max)))
                     c = ValInst.from_u64(b)
                     self.stack.value.append(c)
                 case pywasm.opcode.memory_init:
@@ -2616,6 +2791,1318 @@ class Machine:
                     assert d + n <= len(tabl.elem)
                     for i in range(n):
                         tabl.elem[d+i] = s
+                case pywasm.opcode.v128_load:
+                    a = ValInst.from_v128(self.evaluate_mem_load(instr.args[1], 16))
+                    self.stack.value.append(a)
+                case pywasm.opcode.v128_load8x8_s:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(8):
+                        n = a[i]
+                        n = n - ((n & 0x80) << 1)
+                        b.extend(bytearray(n.to_bytes(2, 'little', signed=True)))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load8x8_u:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(8):
+                        n = a[i]
+                        b.extend(bytearray(n.to_bytes(2, 'little')))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load16x4_s:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(4):
+                        n = int.from_bytes(a[i*2:i*2+2], 'little')
+                        n = n - ((n & 0x8000) << 1)
+                        b.extend(bytearray(n.to_bytes(4, 'little', signed=True)))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load16x4_u:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(4):
+                        n = int.from_bytes(a[i*2:i*2+2], 'little')
+                        b.extend(bytearray(n.to_bytes(4, 'little')))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load32x2_s:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(2):
+                        n = int.from_bytes(a[i*4:i*4+4], 'little')
+                        n = n - ((n & 0x80000000) << 1)
+                        b.extend(bytearray(n.to_bytes(8, 'little', signed=True)))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load32x2_u:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = bytearray()
+                    for i in range(2):
+                        n = int.from_bytes(a[i*4:i*4+4], 'little')
+                        b.extend(bytearray(n.to_bytes(8, 'little')))
+                    self.stack.value.append(ValInst.from_v128(b))
+                case pywasm.opcode.v128_load8_splat:
+                    a = self.evaluate_mem_load(instr.args[1], 1)
+                    self.stack.value.append(ValInst.from_v128(a * 16))
+                case pywasm.opcode.v128_load16_splat:
+                    a = self.evaluate_mem_load(instr.args[1], 2)
+                    self.stack.value.append(ValInst.from_v128(a * 8))
+                case pywasm.opcode.v128_load32_splat:
+                    a = self.evaluate_mem_load(instr.args[1], 4)
+                    self.stack.value.append(ValInst.from_v128(a * 4))
+                case pywasm.opcode.v128_load64_splat:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    self.stack.value.append(ValInst.from_v128(a * 2))
+                case pywasm.opcode.v128_store:
+                    self.evaluate_mem_save(instr.args[1], 16)
+                case pywasm.opcode.v128_const:
+                    a = ValInst.from_v128(instr.args[0])
+                    self.stack.value.append(a)
+                case pywasm.opcode.i8x16_shuffle:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = a + b
+                    d = [c[instr.args[i]] for i in range(16)]
+                    e = ValInst.from_v128_i8(d)
+                    self.stack.value.append(e)
+                case pywasm.opcode.i8x16_swizzle:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [a[b[i]] if b[i] < 16 else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_splat:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_v128_i8([pywasm.arith.i8.fit(a)] * 16)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_splat:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_v128_i16([pywasm.arith.i16.fit(a)] * 8)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_splat:
+                    a = self.stack.value.pop().into_i32()
+                    b = ValInst.from_v128_i32([a] * 4)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_splat:
+                    a = self.stack.value.pop().into_i64()
+                    b = ValInst.from_v128_i64([a] * 2)
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32x4_splat:
+                    a = self.stack.value.pop().data[0:4]
+                    b = ValInst.from_v128(a * 4)
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64x2_splat:
+                    a = self.stack.value.pop().data[0:8]
+                    b = ValInst.from_v128(a * 2)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i8x16_extract_lane_s:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = ValInst.from_i32(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i8x16_extract_lane_u:
+                    a = self.stack.value.pop().into_v128_u8()
+                    b = ValInst.from_i32(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i8x16_replace_lane:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i8()
+                    a[instr.args[0]] = pywasm.arith.i8.fit(b)
+                    c = ValInst.from_v128_i8(a)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_extract_lane_s:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = ValInst.from_i32(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_extract_lane_u:
+                    a = self.stack.value.pop().into_v128_u16()
+                    b = ValInst.from_i32(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_replace_lane:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i16()
+                    a[instr.args[0]] = pywasm.arith.i16.fit(b)
+                    c = ValInst.from_v128_i16(a)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_extract_lane:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = ValInst.from_i32(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_replace_lane:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    a[instr.args[0]] = b
+                    c = ValInst.from_v128_i32(a)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_extract_lane:
+                    a = self.stack.value.pop().into_v128_i64()
+                    b = ValInst.from_i64(a[instr.args[0]])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_replace_lane:
+                    b = self.stack.value.pop().into_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    a[instr.args[0]] = b
+                    c = ValInst.from_v128_i64(a)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_extract_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[0]
+                    c = ValInst(ValType.f32(), a[b * 4: b * 4 + 4] + bytearray(ValInst.blen - 4))
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_replace_lane:
+                    b = self.stack.value.pop().into_u32()
+                    a = self.stack.value.pop().into_v128()
+                    c = instr.args[0]
+                    a[c * 4: c * 4 + 4] = pywasm.arith.u32.into_bytearray(b)
+                    d = ValInst(ValType.v128(), a)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_extract_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[0]
+                    c = ValInst(ValType.f64(), a[b * 8: b * 8 + 8] + bytearray(ValInst.blen - 8))
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_replace_lane:
+                    b = self.stack.value.pop().into_u64()
+                    a = self.stack.value.pop().into_v128()
+                    c = instr.args[0]
+                    a[c * 8: c * 8 + 8] = pywasm.arith.u64.into_bytearray(b)
+                    d = ValInst(ValType.v128(), a)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_eq:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_ne:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_lt_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_lt_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_gt_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_gt_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_le_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_le_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_ge_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_ge_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_eq:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_ne:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_lt_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_lt_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_gt_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_gt_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_le_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_le_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_ge_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_ge_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_eq:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_ne:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_lt_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_lt_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_gt_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_gt_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_le_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_le_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_ge_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_ge_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_eq:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_ne:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_lt:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_gt:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_le:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_ge:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_eq:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_ne:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_lt:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_gt:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_le:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_ge:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_not:
+                    a = self.stack.value.pop().into_v128()
+                    b = ValInst.from_v128(bytearray([pywasm.arith.u8.fit(~e) for e in a]))
+                    self.stack.value.append(b)
+                case pywasm.opcode.v128_and:
+                    b = self.stack.value.pop().into_v128()
+                    a = self.stack.value.pop().into_v128()
+                    c = ValInst.from_v128(bytearray([a[i] & b[i] for i in range(16)]))
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_andnot:
+                    b = self.stack.value.pop().into_v128()
+                    a = self.stack.value.pop().into_v128()
+                    c = ValInst.from_v128(bytearray([a[i] & ~b[i] for i in range(16)]))
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_or:
+                    b = self.stack.value.pop().into_v128()
+                    a = self.stack.value.pop().into_v128()
+                    c = ValInst.from_v128(bytearray([a[i] | b[i] for i in range(16)]))
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_xor:
+                    b = self.stack.value.pop().into_v128()
+                    a = self.stack.value.pop().into_v128()
+                    c = ValInst.from_v128(bytearray([a[i] ^ b[i] for i in range(16)]))
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_bitselect:
+                    c = self.stack.value.pop().into_v128()
+                    b = self.stack.value.pop().into_v128()
+                    a = self.stack.value.pop().into_v128()
+                    d = ValInst.from_v128(bytearray([(a[i] & c[i]) | (b[i] & ~c[i]) for i in range(16)]))
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_any_true:
+                    a = self.stack.value.pop().into_v128()
+                    b = 1 if any(e != 0 for e in a) else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_load8_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = self.evaluate_mem_load(instr.args[1], 1)
+                    c = instr.args[2]
+                    a[1 * c: 1 * c + 1] = b
+                    d = ValInst(ValType.v128(), a + bytearray(ValInst.blen - 16))
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_load16_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = self.evaluate_mem_load(instr.args[1], 2)
+                    c = instr.args[2]
+                    a[2 * c: 2 * c + 2] = b
+                    d = ValInst(ValType.v128(), a + bytearray(ValInst.blen - 16))
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_load32_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = self.evaluate_mem_load(instr.args[1], 4)
+                    c = instr.args[2]
+                    a[4 * c: 4 * c + 4] = b
+                    d = ValInst(ValType.v128(), a + bytearray(ValInst.blen - 16))
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_load64_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = self.evaluate_mem_load(instr.args[1], 8)
+                    c = instr.args[2]
+                    a[8 * c: 8 * c + 8] = b
+                    d = ValInst(ValType.v128(), a + bytearray(ValInst.blen - 16))
+                    self.stack.value.append(d)
+                case pywasm.opcode.v128_store8_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[2]
+                    a[:1] = a[1 * b: 1 * b + 1]
+                    self.stack.value.append(ValInst.from_v128(a))
+                    self.evaluate_mem_save(instr.args[1], 1)
+                case pywasm.opcode.v128_store16_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[2]
+                    a[:2] = a[2 * b: 2 * b + 2]
+                    self.stack.value.append(ValInst.from_v128(a))
+                    self.evaluate_mem_save(instr.args[1], 2)
+                case pywasm.opcode.v128_store32_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[2]
+                    a[:4] = a[4 * b: 4 * b + 4]
+                    self.stack.value.append(ValInst.from_v128(a))
+                    self.evaluate_mem_save(instr.args[1], 4)
+                case pywasm.opcode.v128_store64_lane:
+                    a = self.stack.value.pop().into_v128()
+                    b = instr.args[2]
+                    a[:8] = a[8 * b: 8 * b + 8]
+                    self.stack.value.append(ValInst.from_v128(a))
+                    self.evaluate_mem_save(instr.args[1], 8)
+                case pywasm.opcode.v128_load32_zero:
+                    a = self.evaluate_mem_load(instr.args[1], 4)
+                    b = a + bytearray(ValInst.blen - 4)
+                    c = ValInst.from_v128(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.v128_load64_zero:
+                    a = self.evaluate_mem_load(instr.args[1], 8)
+                    b = a + bytearray(ValInst.blen - 8)
+                    c = ValInst.from_v128(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_demote_f64x2_zero:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = a + [0.0, 0.0]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_promote_low_f32x4:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = a[:2]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_abs:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = [pywasm.arith.i8.fit(abs(e)) for e in a]
+                    c = ValInst.from_v128_i8(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_neg:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = [pywasm.arith.i8.fit(-e) for e in a]
+                    c = ValInst.from_v128_i8(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_popcnt:
+                    a = self.stack.value.pop().into_v128_u8()
+                    b = [pywasm.arith.u8.popcnt(e) for e in a]
+                    c = ValInst.from_v128_u8(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_all_true:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = 1 if all(e != 0 for e in a) else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_bitmask:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = 0
+                    for i in range(16):
+                        if a[i] < 0:
+                            b |= 1 << i
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_narrow_i16x8_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = a + b
+                    d = [pywasm.arith.i8.sat(e) for e in c]
+                    e = ValInst.from_v128_i8(d)
+                    self.stack.value.append(e)
+                case pywasm.opcode.i8x16_narrow_i16x8_u:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = a + b
+                    d = [pywasm.arith.u8.sat(e) for e in c]
+                    e = ValInst.from_v128_u8(d)
+                    self.stack.value.append(e)
+                case pywasm.opcode.f32x4_ceil:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.ceil(e)) for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_floor:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.floor(e)) for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_trunc:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.trunc(e)) for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_nearest:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(round(e)) for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_shl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = ValInst.from_v128_i8([pywasm.arith.i8.shl(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_shr_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = ValInst.from_v128_i8([pywasm.arith.i8.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_shr_u:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = ValInst.from_v128_u8([pywasm.arith.u8.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_add:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [pywasm.arith.i8.add(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_add_sat_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [pywasm.arith.i8.add_sat(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_add_sat_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [pywasm.arith.u8.add_sat(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_u8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_sub:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [pywasm.arith.i8.sub(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_sub_sat_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [pywasm.arith.i8.sub_sat(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_sub_sat_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [pywasm.arith.u8.sub_sat(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_u8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_ceil:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.ceil(e)) for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_floor:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.floor(e)) for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_min_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [min(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_min_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [min(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_u8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_max_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [max(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_i8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i8x16_max_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [max(a[i], b[i]) for i in range(16)]
+                    d = ValInst.from_v128_u8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_trunc:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(math.trunc(e)) for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i8x16_avgr_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [(a[i] + b[i] + 1) // 2 for i in range(16)]
+                    d = ValInst.from_v128_u8(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_extadd_pairwise_i8x16_s:
+                    a = self.stack.value.pop().into_v128_i8()
+                    b = [a[i] + a[i+1] for i in range(0, 16, 2)]
+                    c = ValInst.from_v128_i16(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_extadd_pairwise_i8x16_u:
+                    a = self.stack.value.pop().into_v128_u8()
+                    b = [a[i] + a[i+1] for i in range(0, 16, 2)]
+                    c = ValInst.from_v128_u16(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_extadd_pairwise_i16x8_s:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = [a[i] + a[i+1] for i in range(0, 8, 2)]
+                    c = ValInst.from_v128_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_extadd_pairwise_i16x8_u:
+                    a = self.stack.value.pop().into_v128_u16()
+                    b = [a[i] + a[i+1] for i in range(0, 8, 2)]
+                    c = ValInst.from_v128_u32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_abs:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = [pywasm.arith.i16.fit(abs(e)) for e in a]
+                    c = ValInst.from_v128_i16(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_neg:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = [pywasm.arith.i16.fit(-e) for e in a]
+                    c = ValInst.from_v128_i16(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_q15mulr_sat_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.sat((a[i] * b[i] + 0x4000) >> 15) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_all_true:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = 1 if all(e != 0 for e in a) else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_bitmask:
+                    a = self.stack.value.pop().into_v128_i16()
+                    b = 0
+                    for i in range(8):
+                        if a[i] < 0:
+                            b |= 1 << i
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_narrow_i32x4_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = a + b
+                    d = [pywasm.arith.i16.sat(e) for e in c]
+                    e = ValInst.from_v128_i16(d)
+                    self.stack.value.append(e)
+                case pywasm.opcode.i16x8_narrow_i32x4_u:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = a + b
+                    d = [pywasm.arith.u16.sat(e) for e in c]
+                    e = ValInst.from_v128_u16(d)
+                    self.stack.value.append(e)
+                case pywasm.opcode.i16x8_extend_low_i8x16_s:
+                    a = self.stack.value.pop().into_v128_i8()[:8]
+                    b = ValInst.from_v128_i16(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_extend_high_i8x16_s:
+                    a = self.stack.value.pop().into_v128_i8()[8:]
+                    b = ValInst.from_v128_i16(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_extend_low_i8x16_u:
+                    a = self.stack.value.pop().into_v128_u8()[:8]
+                    b = ValInst.from_v128_i16(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_extend_high_i8x16_u:
+                    a = self.stack.value.pop().into_v128_u8()[8:]
+                    b = ValInst.from_v128_i16(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i16x8_shl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = ValInst.from_v128_i16([pywasm.arith.i16.shl(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_shr_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = ValInst.from_v128_i16([pywasm.arith.i16.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_shr_u:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = ValInst.from_v128_u16([pywasm.arith.u16.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_add:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.add(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_add_sat_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.add_sat(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_add_sat_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [pywasm.arith.u16.add_sat(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_sub:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.sub(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_sub_sat_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.sub_sat(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_sub_sat_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [pywasm.arith.u16.sub_sat(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_nearest:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [e if math.isnan(e) or math.isinf(e) else float(round(e)) for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i16x8_mul:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i16.mul(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_min_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [min(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_min_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [min(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_max_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [max(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_max_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [max(a[i], b[i]) for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_avgr_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [(a[i] + b[i] + 1) // 2 for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_extmul_low_i8x16_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [a[i] * b[i] for i in range(8)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_extmul_high_i8x16_s:
+                    b = self.stack.value.pop().into_v128_i8()
+                    a = self.stack.value.pop().into_v128_i8()
+                    c = [a[i] * b[i] for i in range(8, 16)]
+                    d = ValInst.from_v128_i16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_extmul_low_i8x16_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [a[i] * b[i] for i in range(8)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i16x8_extmul_high_i8x16_u:
+                    b = self.stack.value.pop().into_v128_u8()
+                    a = self.stack.value.pop().into_v128_u8()
+                    c = [a[i] * b[i] for i in range(8, 16)]
+                    d = ValInst.from_v128_u16(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_abs:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = [pywasm.arith.i32.fit(abs(e)) for e in a]
+                    c = ValInst.from_v128_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_neg:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = [pywasm.arith.i32.fit(-e) for e in a]
+                    c = ValInst.from_v128_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_all_true:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = 1 if all(e != 0 for e in a) else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_bitmask:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = 0
+                    for i in range(4):
+                        if a[i] < 0:
+                            b |= 1 << i
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_extend_low_i16x8_s:
+                    a = self.stack.value.pop().into_v128_i16()[:4]
+                    b = ValInst.from_v128_i32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_extend_high_i16x8_s:
+                    a = self.stack.value.pop().into_v128_i16()[4:]
+                    b = ValInst.from_v128_i32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_extend_low_i16x8_u:
+                    a = self.stack.value.pop().into_v128_u16()[:4]
+                    b = ValInst.from_v128_i32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_extend_high_i16x8_u:
+                    a = self.stack.value.pop().into_v128_u16()[4:]
+                    b = ValInst.from_v128_i32(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_shl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = ValInst.from_v128_i32([pywasm.arith.i32.shl(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_shr_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = ValInst.from_v128_i32([pywasm.arith.i32.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_shr_u:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = ValInst.from_v128_u32([pywasm.arith.u32.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i32x4_add:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [pywasm.arith.i32.add(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_sub:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [pywasm.arith.i32.sub(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_mul:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [pywasm.arith.i32.mul(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_min_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [min(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_min_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [min(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_max_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [max(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_max_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [max(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_dot_i16x8_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [pywasm.arith.i32.fit(a[i*2] * b[i*2] + a[i*2+1] * b[i*2+1]) for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_extmul_low_i16x8_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [a[i] * b[i] for i in range(4)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_extmul_high_i16x8_s:
+                    b = self.stack.value.pop().into_v128_i16()
+                    a = self.stack.value.pop().into_v128_i16()
+                    c = [a[i] * b[i] for i in range(4, 8)]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_extmul_low_i16x8_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [a[i] * b[i] for i in range(4)]
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_extmul_high_i16x8_u:
+                    b = self.stack.value.pop().into_v128_u16()
+                    a = self.stack.value.pop().into_v128_u16()
+                    c = [a[i] * b[i] for i in range(4, 8)]
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_abs:
+                    a = self.stack.value.pop().into_v128_i64()
+                    b = [pywasm.arith.i64.fit(abs(e)) for e in a]
+                    c = ValInst.from_v128_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_neg:
+                    a = self.stack.value.pop().into_v128_i64()
+                    b = [pywasm.arith.i64.fit(-e) for e in a]
+                    c = ValInst.from_v128_i64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_all_true:
+                    a = self.stack.value.pop().into_v128_i64()
+                    b = 1 if all(e != 0 for e in a) else 0
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_bitmask:
+                    a = self.stack.value.pop().into_v128_i64()
+                    b = 0
+                    for i in range(2):
+                        if a[i] < 0:
+                            b |= 1 << i
+                    c = ValInst.from_i32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_extend_low_i32x4_s:
+                    a = self.stack.value.pop().into_v128_i32()[:2]
+                    b = ValInst.from_v128_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_extend_high_i32x4_s:
+                    a = self.stack.value.pop().into_v128_i32()[2:]
+                    b = ValInst.from_v128_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_extend_low_i32x4_u:
+                    a = self.stack.value.pop().into_v128_u32()[:2]
+                    b = ValInst.from_v128_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_extend_high_i32x4_u:
+                    a = self.stack.value.pop().into_v128_u32()[2:]
+                    b = ValInst.from_v128_i64(a)
+                    self.stack.value.append(b)
+                case pywasm.opcode.i64x2_shl:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = ValInst.from_v128_i64([pywasm.arith.i64.shl(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_shr_s:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = ValInst.from_v128_i64([pywasm.arith.i64.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_shr_u:
+                    b = self.stack.value.pop().into_i32()
+                    a = self.stack.value.pop().into_v128_u64()
+                    c = ValInst.from_v128_u64([pywasm.arith.u64.shr(e, b) for e in a])
+                    self.stack.value.append(c)
+                case pywasm.opcode.i64x2_add:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [pywasm.arith.i64.add(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_sub:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [pywasm.arith.i64.sub(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_mul:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [pywasm.arith.i64.mul(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_eq:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] == b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_ne:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] != b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_lt_s:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] < b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_gt_s:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] > b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_le_s:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] <= b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_ge_s:
+                    b = self.stack.value.pop().into_v128_i64()
+                    a = self.stack.value.pop().into_v128_i64()
+                    c = [-1 if a[i] >= b[i] else 0 for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_extmul_low_i32x4_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [a[i] * b[i] for i in range(2)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_extmul_high_i32x4_s:
+                    b = self.stack.value.pop().into_v128_i32()
+                    a = self.stack.value.pop().into_v128_i32()
+                    c = [a[i] * b[i] for i in range(2, 4)]
+                    d = ValInst.from_v128_i64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_extmul_low_i32x4_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [a[i] * b[i] for i in range(2)]
+                    d = ValInst.from_v128_u64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i64x2_extmul_high_i32x4_u:
+                    b = self.stack.value.pop().into_v128_u32()
+                    a = self.stack.value.pop().into_v128_u32()
+                    c = [a[i] * b[i] for i in range(2, 4)]
+                    d = ValInst.from_v128_u64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_abs:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [abs(e) for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_neg:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [-e for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_sqrt:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [math.sqrt(e) if e >= 0 else math.nan for e in a]
+                    c = ValInst.from_v128_f32(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f32x4_add:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [a[i] + b[i] for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_sub:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [a[i] - b[i] for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_mul:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [a[i] * b[i] for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_div:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [pywasm.arith.f32.div(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_min:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [pywasm.arith.f32.min(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_max:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [pywasm.arith.f32.max(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_pmin:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [min(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_pmax:
+                    b = self.stack.value.pop().into_v128_f32()
+                    a = self.stack.value.pop().into_v128_f32()
+                    c = [max(a[i], b[i]) for i in range(4)]
+                    d = ValInst.from_v128_f32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_abs:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [abs(e) for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_neg:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [-e for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_sqrt:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [math.sqrt(e) if e >= 0 else math.nan for e in a]
+                    c = ValInst.from_v128_f64(b)
+                    self.stack.value.append(c)
+                case pywasm.opcode.f64x2_add:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [a[i] + b[i] for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_sub:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [a[i] - b[i] for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_mul:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [a[i] * b[i] for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_div:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [pywasm.arith.f64.div(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_min:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [pywasm.arith.f64.min(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_max:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [pywasm.arith.f64.max(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_pmin:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [min(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_pmax:
+                    b = self.stack.value.pop().into_v128_f64()
+                    a = self.stack.value.pop().into_v128_f64()
+                    c = [max(a[i], b[i]) for i in range(2)]
+                    d = ValInst.from_v128_f64(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_trunc_sat_f32x4_s:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [0 if math.isnan(e) else e for e in a]
+                    c = [int(max(pywasm.arith.i32.min, min(e, pywasm.arith.i32.max))) for e in b]
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_trunc_sat_f32x4_u:
+                    a = self.stack.value.pop().into_v128_f32()
+                    b = [0 if math.isnan(e) else e for e in a]
+                    c = [int(max(pywasm.arith.u32.min, min(e, pywasm.arith.u32.max))) for e in b]
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f32x4_convert_i32x4_s:
+                    a = self.stack.value.pop().into_v128_i32()
+                    b = ValInst.from_v128_f32([float(e) for e in a])
+                    self.stack.value.append(b)
+                case pywasm.opcode.f32x4_convert_i32x4_u:
+                    a = self.stack.value.pop().into_v128_u32()
+                    b = ValInst.from_v128_f32([float(e) for e in a])
+                    self.stack.value.append(b)
+                case pywasm.opcode.i32x4_trunc_sat_f64x2_s_zero:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [0 if math.isnan(e) else e for e in a]
+                    c = [int(max(pywasm.arith.i32.min, min(e, pywasm.arith.i32.max))) for e in b]
+                    c.extend([0, 0])
+                    d = ValInst.from_v128_i32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.i32x4_trunc_sat_f64x2_u_zero:
+                    a = self.stack.value.pop().into_v128_f64()
+                    b = [0 if math.isnan(e) else e for e in a]
+                    c = [int(max(pywasm.arith.u32.min, min(e, pywasm.arith.u32.max))) for e in b]
+                    c.extend([0, 0])
+                    d = ValInst.from_v128_u32(c)
+                    self.stack.value.append(d)
+                case pywasm.opcode.f64x2_convert_low_i32x4_s:
+                    a = self.stack.value.pop().into_v128_i32()[:2]
+                    b = ValInst.from_v128_f64([float(e) for e in a])
+                    self.stack.value.append(b)
+                case pywasm.opcode.f64x2_convert_low_i32x4_u:
+                    a = self.stack.value.pop().into_v128_u32()[:2]
+                    b = ValInst.from_v128_f64([float(e) for e in a])
+                    self.stack.value.append(b)
                 case _:
                     assert 0
 
