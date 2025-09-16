@@ -39,6 +39,7 @@ A brief description for `example`
 | example/blake2b.py        | Blake2b hashing algorithm                                            |
 | example/blake2b_direct.py | Make the hash result returned as a value, not as an output parameter |
 | example/blake2b_iter.py   | A benchmarking example using the blake2b hash function               |
+| example/blake2b_simd.py   | Use SIMD instructions to accelerate the blake2b hash function        |
 | example/fibonacci.py      | Fibonacci, which contains loop and recursion                         |
 | example/fibonacci_env.py  | Call python/native function in wasm                                  |
 | example/pi.py             | Calculate π using the agm algorithm                                  |

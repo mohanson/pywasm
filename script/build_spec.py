@@ -30,3 +30,6 @@ with cd('res/spec'):
 with cd('res/spec/test/core'):
     for e in sorted(glob.glob('*.wast')):
         call(f'wast2json {e}')
+with cd('res/spec/test/core/simd'):
+    for e in sorted(glob.glob('*.wast')):
+        call(f'wast2json {e}')
