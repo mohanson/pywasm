@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--version', '-v', action='version', version=f'pywasm {pywasm.version}')
 parser.add_argument('--preview1', action='store_true', default=True, help='use wasi preview1')
 parser.add_argument('file', help='wasm file to run')
-parser.add_argument('args', nargs='*', help='arg0 arg1 ... dir0:dir0 dir1:dir1 ... env0=val0 env1=val1 ... ')
+parser.add_argument('args', nargs='*', help='arg ... dir(wasm):dir(host) ... env=val ...')
 args = parser.parse_args()
 
 wasi_args = [args.file]
