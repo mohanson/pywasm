@@ -18,6 +18,9 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
+root = os.path.dirname(os.path.dirname(__file__))
+os.chdir(root)
+
 with cd('res'):
     if not os.path.exists('spec'):
         call('git clone https://github.com/WebAssembly/spec')
@@ -29,7 +32,7 @@ with cd('res/spec'):
     call('git checkout fffc6e12fa454e475455a7b58d3b5dc343980c10')
 with cd('res/spec/test/core'):
     for e in sorted(glob.glob('*.wast')):
-        call(f'wast2json {e}')
+        call(f'{root}/res/wabt/bin/wast2json {e}')
 with cd('res/spec/test/core/simd'):
     for e in sorted(glob.glob('*.wast')):
-        call(f'wast2json {e}')
+        call(f'{root}/res/wabt/bin/wast2json {e}')
