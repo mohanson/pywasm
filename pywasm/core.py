@@ -4161,7 +4161,12 @@ class Runtime:
         with open(path, 'rb') as f:
             return self.instance(ModuleDesc.from_reader(f))
 
-    def invocate(self, module: ModuleInst, func: str, args: typing.List[int | float]) -> typing.List[int | float]:
+    def invocate(
+        self,
+        module: ModuleInst,
+        func: str,
+        args: typing.List[int | float | bytearray]
+    ) -> typing.List[int | float | bytearray]:
         # Once a module has been instantiated, any exported function can be invoked externally via its function address
         # in the store and an appropriate list of argument values.
         addr = [e for e in module.exps if e.name == func][0].data.data

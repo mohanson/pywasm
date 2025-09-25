@@ -25,5 +25,6 @@ jobs:
           python script/build_spec.py
           python script/build_wasi.py
           python test/example.py
+          python test/main.py
           python test/spec.py
           python test/wasi.py

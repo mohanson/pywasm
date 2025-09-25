@@ -56,6 +56,7 @@ $ python script/build_spec.py # Download spec tests at res/spec.
 $ python script/build_wasi.py # Download wasi tests at res/wasi-testsuite.
 
 $ python test/example.py      # Test example.
+$ python test/main.py         # Test main.
 $ python test/spec.py         # Test spec.
 $ python test/wasi.py         # Test wasi.
 ```
