@@ -13,4 +13,4 @@ readme = "README.md"
 license = { file = "LICENSE" }
 
 [project.urls]
-homepage = "https://github.com/mohanson/pywasm"
+homepage = "https://github.com/libraries/pywasm"
