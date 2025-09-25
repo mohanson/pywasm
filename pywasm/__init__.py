@@ -9,4 +9,4 @@ if platform.system().lower() in ['darwin', 'linux']:
     from . import wasi
 from .core import *
 
-version = '2.2.0'
+version = '2.2.1'
