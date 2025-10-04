@@ -17,6 +17,9 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
+root = os.path.dirname(os.path.dirname(__file__))
+os.chdir(root)
+
 with cd('res'):
     if not os.path.exists('wasi-testsuite'):
         call('git clone --branch prod/testsuite-base https://github.com/WebAssembly/wasi-testsuite')

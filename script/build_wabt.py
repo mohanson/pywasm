@@ -20,6 +20,9 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
     os.chdir(cwd)
 
 
+root = os.path.dirname(os.path.dirname(__file__))
+os.chdir(root)
+
 version = '1.0.37'
 url = ''
 match platform.system().lower():
