@@ -20,6 +20,8 @@ def cd(dst: str) -> typing.Generator[None, typing.Any, None]:
 
 root = os.path.dirname(os.path.dirname(__file__))
 os.chdir(root)
+wast2json = f'{root}/res/wabt/bin/wast2json'
+
 
 with cd('res'):
     if not os.path.exists('spec'):
@@ -32,7 +34,7 @@ with cd('res/spec'):
     call('git checkout fffc6e12fa454e475455a7b58d3b5dc343980c10')
 with cd('res/spec/test/core'):
     for e in sorted(glob.glob('*.wast')):
-        call(f'{root}/res/wabt/bin/wast2json {e}')
+        call(f'{wast2json} {e}')
 with cd('res/spec/test/core/simd'):
     for e in sorted(glob.glob('*.wast')):
-        call(f'{root}/res/wabt/bin/wast2json {e}')
+        call(f'{wast2json} {e}')
